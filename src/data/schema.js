@@ -10,7 +10,7 @@
 /**
  * @typedef {Object} Trade
  * @property {string} id - Unique identifier (source + politician + ticker + date)
- * @property {string} source - Data source: finnhub / unusualwhales / capitoltrades / housegov
+ * @property {string} source - Data source: finnhub / fmp / unusualwhales / capitoltrades / housegov
  * @property {string} politician - Full name e.g. "Nancy Pelosi"
  * @property {string} party - D / R / I
  * @property {string} chamber - House / Senate
@@ -42,6 +42,7 @@ export const EMPTY_TRADE = {
 // ─── Source identifiers ───────────────────────────────────────────────────────
 export const SOURCES = {
   FINNHUB: 'finnhub',
+  FMP: 'fmp',
   UNUSUAL_WHALES: 'unusualwhales',
   CAPITOL_TRADES: 'capitoltrades',
   HOUSE_GOV: 'housegov',
@@ -99,87 +100,4 @@ export function normaliseFinnhubTrade(raw) {
   };
 }
 
-// ─── Normalise Unusual Whales trade ──────────────────────────────────────────
-export function normaliseUnusualWhalesTrade(raw) {
-  return {
-    id: `uw-${raw.politician}-${raw.ticker}-${raw.traded}`,
-    source: SOURCES.UNUSUAL_WHALES,
-    politician: raw.politician || '',
-    party: normaliseParty(raw.party),
-    chamber: normaliseChamber(raw.chamber),
-    ticker: raw.ticker || '',
-    action: normaliseAction(raw.type),
-    amount: raw.range || '',
-    tradeDate: raw.traded || '',
-    filedDate: raw.filed || '',
-    committees: [],
-    sector: raw.sector || '',
-  };
-}
-
-// ─── Helper: normalise party string ──────────────────────────────────────────
-function normaliseParty(raw) {
-  if (!raw) return '';
-  const p = raw.toUpperCase().trim();
-  if (p === 'D' || p === 'DEMOCRAT' || p === 'DEMOCRATIC') return PARTIES.DEMOCRAT;
-  if (p === 'R' || p === 'REPUBLICAN') return PARTIES.REPUBLICAN;
-  if (p === 'I' || p === 'INDEPENDENT') return PARTIES.INDEPENDENT;
-  return raw;
-}
-
-// ─── Helper: normalise chamber string ────────────────────────────────────────
-function normaliseChamber(raw) {
-  if (!raw) return '';
-  const c = raw.toLowerCase().trim();
-  if (c.includes('house') || c === 'representative') return CHAMBERS.HOUSE;
-  if (c.includes('senate') || c === 'senator') return CHAMBERS.SENATE;
-  return raw;
-}
-
-// ─── Helper: normalise action string ─────────────────────────────────────────
-function normaliseAction(raw) {
-  if (!raw) return '';
-  const a = raw.toLowerCase().trim();
-  if (a.includes('purchase') || a.includes('buy')) return ACTIONS.PURCHASE;
-  if (a.includes('sale') || a.includes('sell')) return ACTIONS.SALE;
-  if (a.includes('exchange')) return ACTIONS.EXCHANGE;
-  return raw;
-}
-
-// ─── Helper: normalise amount range ──────────────────────────────────────────
-function normaliseAmount(raw) {
-  if (!raw) return '';
-  // If already a formatted string return as-is
-  if (typeof raw === 'string' && raw.includes('$')) return raw;
-  // If numeric convert to nearest range
-  const num = parseFloat(raw);
-  if (isNaN(num)) return raw;
-  if (num < 15000) return AMOUNT_RANGES.XS;
-  if (num < 50000) return AMOUNT_RANGES.SM;
-  if (num < 100000) return AMOUNT_RANGES.MD;
-  if (num < 250000) return AMOUNT_RANGES.LG;
-  if (num < 500000) return AMOUNT_RANGES.XL;
-  if (num < 1000000) return AMOUNT_RANGES.XXL;
-  return AMOUNT_RANGES.XXXL;
-}
-
-// ─── Deduplicate trades ───────────────────────────────────────────────────────
-// Removes duplicate trades when merging multiple sources
-// Deduplicates by politician + ticker + tradeDate
-export function deduplicateTrades(trades) {
-  const seen = new Set();
-  return trades.filter((trade) => {
-    const key = `${trade.politician}-${trade.ticker}-${trade.tradeDate}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-// ─── Sort trades ──────────────────────────────────────────────────────────────
-// Sorts trades by filed date descending (most recent first)
-export function sortTradesByDate(trades) {
-  return [...trades].sort(
-    (a, b) => new Date(b.filedDate) - new Date(a.filedDate)
-  );
-}
+// ─── Normalise FMP trade ──────────────────────────
