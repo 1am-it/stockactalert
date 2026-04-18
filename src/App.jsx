@@ -1,121 +1,109 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+// TIJDELIJK TESTBESTAND — wordt later vervangen
+// Test voor SAA-8: TabBar component
+
+import { useState } from 'react';
+import TabBar from './components/TabBar';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [activeTab, setActiveTab] = useState('feed');
+
+  const screens = {
+    feed: {
+      title: 'Your Feed',
+      description: 'Live trade feed — tap Politicians to see the directory',
+      color: '#059669',
+    },
+    politicians: {
+      title: 'Politicians',
+      description: 'Directory of all tracked politicians',
+      color: '#1D4ED8',
+    },
+    alerts: {
+      title: 'Alerts',
+      description: 'Your active alerts — get notified on new trades',
+      color: '#D97706',
+    },
+    settings: {
+      title: 'Settings',
+      description: 'App settings and preferences',
+      color: '#6B7280',
+    },
+  };
+
+  const current = screens[activeTab];
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
+      {/* Page content */}
+      <div
+        style={{
+          maxWidth: 420,
+          margin: '0 auto',
+          padding: '40px 24px 100px',
+        }}
+      >
+        <h1
+          style={{
+            fontSize: 32,
+            marginBottom: 8,
+            color: '#0D1B2A',
+          }}
         >
-          Count is {count}
-        </button>
-      </section>
+          {current.title}
+        </h1>
+        <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 32 }}>
+          {current.description}
+        </p>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        {/* Active tab indicator */}
+        <div
+          style={{
+            padding: '20px',
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            border: '1px solid #E5E7EB',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: `${current.color}18`,
+              border: `2px solid ${current.color}30`,
+              margin: '0 auto 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+            }}
+          >
+            {activeTab === 'feed' && '📊'}
+            {activeTab === 'politicians' && '👤'}
+            {activeTab === 'alerts' && '🔔'}
+            {activeTab === 'settings' && '⚙️'}
+          </div>
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: '#0D1B2A',
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Active: {activeTab}
+          </div>
+          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+            Tap tabs below to switch
+          </div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* TabBar */}
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+    </div>
+  );
 }
 
-export default App
+export default App;
