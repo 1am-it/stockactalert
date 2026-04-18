@@ -1,75 +1,107 @@
 // TIJDELIJK TESTBESTAND — wordt later vervangen
-// Test voor SAA-7: BottomSheet component
+// Test voor SAA-8: TabBar component
 
 import { useState } from 'react';
-import PoliticianCard from './components/PoliticianCard';
-import BottomSheet from './components/BottomSheet';
-
-const MOCK_POLITICIANS = [
-  {
-    id: 1,
-    name: 'Nancy Pelosi',
-    initials: 'NP',
-    party: 'D',
-    chamber: 'House',
-    state: 'CA',
-    trades: 47,
-    volume: '$62.9M',
-    vsSnP: '+34%',
-    positive: true,
-    committees: ['Armed Services', 'Intelligence'],
-    perfData: [82, 88, 79, 95, 102, 98, 115, 121, 118, 130, 128, 134],
-    snpData:  [82, 85, 83, 88, 91,  90,  97, 100,  98, 103, 102, 100],
-    lastTrade: 'Apr 10',
-    recentTrades: [
-      { ticker: 'NVDA', action: 'Purchase', amount: '$500K–$1M', date: 'Apr 10' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Tommy Tuberville',
-    initials: 'TT',
-    party: 'R',
-    chamber: 'Senate',
-    state: 'AL',
-    trades: 132,
-    volume: '$38.4M',
-    vsSnP: '+18%',
-    positive: true,
-    committees: ['Armed Services', 'Agriculture'],
-    perfData: [82, 86, 84, 90, 94, 93, 98, 101, 99, 104, 103, 100],
-    snpData:  [82, 85, 83, 88, 91, 90, 97, 100, 98, 103, 102, 100],
-    lastTrade: 'Apr 7',
-    recentTrades: [
-      { ticker: 'LMT', action: 'Purchase', amount: '$100K–$250K', date: 'Apr 7' },
-    ],
-  },
-];
+import TabBar from './components/TabBar';
 
 function App() {
-  const [selected, setSelected] = useState(null);
+  const [activeTab, setActiveTab] = useState('feed');
+
+  const screens = {
+    feed: {
+      title: 'Your Feed',
+      description: 'Live trade feed — tap Politicians to see the directory',
+      color: '#059669',
+    },
+    politicians: {
+      title: 'Politicians',
+      description: 'Directory of all tracked politicians',
+      color: '#1D4ED8',
+    },
+    alerts: {
+      title: 'Alerts',
+      description: 'Your active alerts — get notified on new trades',
+      color: '#D97706',
+    },
+    settings: {
+      title: 'Settings',
+      description: 'App settings and preferences',
+      color: '#6B7280',
+    },
+  };
+
+  const current = screens[activeTab];
 
   return (
-    <div style={{ maxWidth: 420, margin: '40px auto', padding: '0 16px' }}>
-      <h1 style={{ marginBottom: 8, fontSize: 28 }}>Politicians</h1>
-      <p style={{ color: '#6B7280', fontSize: 13, marginBottom: 24 }}>
-        Tap a card to open the bottom sheet
-      </p>
-      {MOCK_POLITICIANS.map((politician) => (
-        <PoliticianCard
-          key={politician.id}
-          politician={politician}
-          onClick={(p) => setSelected(p)}
-        />
-      ))}
-      <BottomSheet
-        politician={selected}
-        isOpen={!!selected}
-        onClose={() => setSelected(null)}
-        onFollow={(p) => alert(`Following ${p.name}`)}
-        onSetAlert={(p) => alert(`Alert set for ${p.name}`)}
-        onViewProfile={(p) => alert(`Navigate to profile of ${p.name}`)}
-      />
+    <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
+      {/* Page content */}
+      <div
+        style={{
+          maxWidth: 420,
+          margin: '0 auto',
+          padding: '40px 24px 100px',
+        }}
+      >
+        <h1
+          style={{
+            fontSize: 32,
+            marginBottom: 8,
+            color: '#0D1B2A',
+          }}
+        >
+          {current.title}
+        </h1>
+        <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 32 }}>
+          {current.description}
+        </p>
+
+        {/* Active tab indicator */}
+        <div
+          style={{
+            padding: '20px',
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            border: '1px solid #E5E7EB',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: `${current.color}18`,
+              border: `2px solid ${current.color}30`,
+              margin: '0 auto 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+            }}
+          >
+            {activeTab === 'feed' && '📊'}
+            {activeTab === 'politicians' && '👤'}
+            {activeTab === 'alerts' && '🔔'}
+            {activeTab === 'settings' && '⚙️'}
+          </div>
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: '#0D1B2A',
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Active: {activeTab}
+          </div>
+          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+            Tap tabs below to switch
+          </div>
+        </div>
+      </div>
+
+      {/* TabBar */}
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }
