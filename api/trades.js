@@ -20,6 +20,10 @@ export const config = {
   runtime: 'edge',
 };
 
+// FMP free tier allows limit between 0 and 25 per call
+// Premium tiers support higher limits — increase if upgrading
+const FMP_PER_CHAMBER_LIMIT = 25;
+
 export default async function handler(req) {
   // ── CORS headers ────────────────────────────────────────────────────────────
   const corsHeaders = {
@@ -51,10 +55,10 @@ export default async function handler(req) {
 
     // ── Build FMP URLs ───────────────────────────────────────────────────────
     // Always pull /latest for both chambers; filter ticker client-side below.
-    // Simpler than swapping endpoints and fine for MVP (~200 recent trades).
+    // Free tier caps limit at 25 per call (combined = 50 recent trades).
     const base = 'https://financialmodelingprep.com/stable';
-    const senateUrl = `${base}/senate-latest?page=0&limit=100&apikey=${apiKey}`;
-    const houseUrl = `${base}/house-latest?page=0&limit=100&apikey=${apiKey}`;
+    const senateUrl = `${base}/senate-latest?page=0&limit=${FMP_PER_CHAMBER_LIMIT}&apikey=${apiKey}`;
+    const houseUrl = `${base}/house-latest?page=0&limit=${FMP_PER_CHAMBER_LIMIT}&apikey=${apiKey}`;
 
     // ── Fetch Senate + House in parallel ─────────────────────────────────────
     const [senateRes, houseRes] = await Promise.all([
