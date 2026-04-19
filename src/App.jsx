@@ -1,8 +1,10 @@
-// TIJDELIJK TESTBESTAND — wordt later vervangen
-// Test voor SAA-8: TabBar component
+// SAA-12: App entry — renders FeedScreen in the "feed" tab
+// Other tabs (politicians, alerts, settings) remain placeholder for now;
+// they get their own screens in later tickets.
 
 import { useState } from 'react';
 import TabBar from './components/TabBar';
+import FeedScreen from './components/FeedScreen';
 
 function App() {
   const [activeTab, setActiveTab] = useState('feed');
@@ -10,7 +12,7 @@ function App() {
   const screens = {
     feed: {
       title: 'Your Feed',
-      description: 'Live trade feed — tap Politicians to see the directory',
+      description: 'Live congressional trades — filed under the STOCK Act',
       color: '#059669',
     },
     politicians: {
@@ -55,49 +57,53 @@ function App() {
           {current.description}
         </p>
 
-        {/* Active tab indicator */}
-        <div
-          style={{
-            padding: '20px',
-            background: '#FFFFFF',
-            borderRadius: '16px',
-            border: '1px solid #E5E7EB',
-            textAlign: 'center',
-          }}
-        >
+        {/* ── Active tab content ── */}
+        {activeTab === 'feed' ? (
+          <FeedScreen />
+        ) : (
+          // Placeholder for tabs not yet implemented
           <div
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              background: `${current.color}18`,
-              border: `2px solid ${current.color}30`,
-              margin: '0 auto 12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 20,
+              padding: '20px',
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              border: '1px solid #E5E7EB',
+              textAlign: 'center',
             }}
           >
-            {activeTab === 'feed' && '📊'}
-            {activeTab === 'politicians' && '👤'}
-            {activeTab === 'alerts' && '🔔'}
-            {activeTab === 'settings' && '⚙️'}
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                background: `${current.color}18`,
+                border: `2px solid ${current.color}30`,
+                margin: '0 auto 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 20,
+              }}
+            >
+              {activeTab === 'politicians' && '👤'}
+              {activeTab === 'alerts' && '🔔'}
+              {activeTab === 'settings' && '⚙️'}
+            </div>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: '#0D1B2A',
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              {current.title} — coming soon
+            </div>
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+              This screen is built in a later ticket
+            </div>
           </div>
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: '#0D1B2A',
-              fontFamily: "'DM Sans', sans-serif",
-            }}
-          >
-            Active: {activeTab}
-          </div>
-          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
-            Tap tabs below to switch
-          </div>
-        </div>
+        )}
       </div>
 
       {/* TabBar */}
