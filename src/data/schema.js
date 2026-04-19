@@ -100,4 +100,125 @@ export function normaliseFinnhubTrade(raw) {
   };
 }
 
-// ─── Normalise FMP trade ──────────────────────────
+// ─── Normalise FMP trade ──────────────────────────────────────────────────────
+// Converts a raw FMP Senate/House trading API response
+// to our internal Trade schema
+// NOTE: FMP endpoints are chamber-specific so the caller must pass the chamber
+// NOTE: FMP does not consistently return party info — enrich later
+export function normaliseFMPTrade(raw, chamber) {
+  // FMP field names can vary between endpoints — try common variants
+  const firstName = raw.firstName || '';
+  const lastName = raw.lastName || '';
+  const fullName =
+    raw.representative ||
+    raw.office ||
+    `${firstName} ${lastName}`.trim();
+
+  const symbol = raw.symbol || '';
+  const transactionDate = raw.transactionDate || '';
+  const filingDate =
+    raw.disclosureDate ||
+    raw.dateRecieved || // note: FMP's actual spelling (sic)
+    raw.filingDate ||
+    '';
+
+  return {
+    id: `fmp-${fullName}-${symbol}-${transactionDate}`,
+    source: SOURCES.FMP,
+    politician: fullName,
+    party: '', // FMP doesn't reliably include party — enrich later
+    chamber: chamber, // passed in from the caller
+    ticker: symbol,
+    action: normaliseAction(raw.type),
+    amount: normaliseAmount(raw.amount),
+    tradeDate: transactionDate,
+    filedDate: filingDate,
+    committees: [],
+    sector: '',
+  };
+}
+
+// ─── Normalise Unusual Whales trade ──────────────────────────────────────────
+export function normaliseUnusualWhalesTrade(raw) {
+  return {
+    id: `uw-${raw.politician}-${raw.ticker}-${raw.traded}`,
+    source: SOURCES.UNUSUAL_WHALES,
+    politician: raw.politician || '',
+    party: normaliseParty(raw.party),
+    chamber: normaliseChamber(raw.chamber),
+    ticker: raw.ticker || '',
+    action: normaliseAction(raw.type),
+    amount: raw.range || '',
+    tradeDate: raw.traded || '',
+    filedDate: raw.filed || '',
+    committees: [],
+    sector: raw.sector || '',
+  };
+}
+
+// ─── Helper: normalise party string ──────────────────────────────────────────
+function normaliseParty(raw) {
+  if (!raw) return '';
+  const p = raw.toUpperCase().trim();
+  if (p === 'D' || p === 'DEMOCRAT' || p === 'DEMOCRATIC') return PARTIES.DEMOCRAT;
+  if (p === 'R' || p === 'REPUBLICAN') return PARTIES.REPUBLICAN;
+  if (p === 'I' || p === 'INDEPENDENT') return PARTIES.INDEPENDENT;
+  return raw;
+}
+
+// ─── Helper: normalise chamber string ────────────────────────────────────────
+function normaliseChamber(raw) {
+  if (!raw) return '';
+  const c = raw.toLowerCase().trim();
+  if (c.includes('house') || c === 'representative') return CHAMBERS.HOUSE;
+  if (c.includes('senate') || c === 'senator') return CHAMBERS.SENATE;
+  return raw;
+}
+
+// ─── Helper: normalise action string ─────────────────────────────────────────
+function normaliseAction(raw) {
+  if (!raw) return '';
+  const a = raw.toLowerCase().trim();
+  if (a.includes('purchase') || a.includes('buy')) return ACTIONS.PURCHASE;
+  if (a.includes('sale') || a.includes('sell')) return ACTIONS.SALE;
+  if (a.includes('exchange')) return ACTIONS.EXCHANGE;
+  return raw;
+}
+
+// ─── Helper: normalise amount range ──────────────────────────────────────────
+function normaliseAmount(raw) {
+  if (!raw) return '';
+  // If already a formatted string return as-is
+  if (typeof raw === 'string' && raw.includes('$')) return raw;
+  // If numeric convert to nearest range
+  const num = parseFloat(raw);
+  if (isNaN(num)) return raw;
+  if (num < 15000) return AMOUNT_RANGES.XS;
+  if (num < 50000) return AMOUNT_RANGES.SM;
+  if (num < 100000) return AMOUNT_RANGES.MD;
+  if (num < 250000) return AMOUNT_RANGES.LG;
+  if (num < 500000) return AMOUNT_RANGES.XL;
+  if (num < 1000000) return AMOUNT_RANGES.XXL;
+  return AMOUNT_RANGES.XXXL;
+}
+
+// ─── Deduplicate trades ───────────────────────────────────────────────────────
+// Removes duplicate trades when merging multiple sources
+// Deduplicates by politician + ticker + tradeDate
+export function deduplicateTrades(trades) {
+  const seen = new Set();
+  return trades.filter((trade) => {
+    const key = `${trade.politician}-${trade.ticker}-${trade.tradeDate}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// ─── Sort trades ──────────────────────────────────────────────────────────────
+// Sorts trades by filed date descending (most recent first)
+export function sortTradesByDate(trades) {
+  return [...trades].sort(
+    (a, b) => new Date(b.filedDate) - new Date(a.filedDate)
+  );
+}
