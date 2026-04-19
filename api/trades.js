@@ -3,6 +3,12 @@
 // Calls Senate + House endpoints in parallel, normalises to internal schema
 // Runs server-side — keeps API key secure, handles CORS
 //
+// SAA-11.1: Added CDN caching via Cache-Control header
+//   - s-maxage=3600          → Vercel edge CDN caches response for 1 hour
+//   - stale-while-revalidate → serve stale up to 2h while refreshing in bg
+//   STOCK Act filings update at most a few times per day so 1h is safe.
+//   Cache key includes query string automatically (ticker / politician / limit).
+//
 // GET /api/trades
 // Query params:
 //   ticker     (optional) — filter by stock ticker e.g. NVDA
@@ -24,18 +30,29 @@ export const config = {
 // Premium tiers support higher limits — increase if upgrading
 const FMP_PER_CHAMBER_LIMIT = 25;
 
+// Cache-Control for successful responses (CDN-level caching on Vercel)
+const CACHE_CONTROL_SUCCESS =
+  'public, s-maxage=3600, stale-while-revalidate=7200';
+
+// Error responses should never be cached
+const CACHE_CONTROL_ERROR = 'no-store';
+
 export default async function handler(req) {
-  // ── CORS headers ────────────────────────────────────────────────────────────
-  const corsHeaders = {
+  // ── CORS headers (shared) ───────────────────────────────────────────────────
+  const baseHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json',
   };
 
+  // Helper: wrap response headers with correct cache policy
+  const okHeaders = { ...baseHeaders, 'Cache-Control': CACHE_CONTROL_SUCCESS };
+  const errHeaders = { ...baseHeaders, 'Cache-Control': CACHE_CONTROL_ERROR };
+
   // Handle preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: baseHeaders });
   }
 
   try {
@@ -49,7 +66,7 @@ export default async function handler(req) {
     if (!apiKey) {
       return new Response(
         JSON.stringify({ error: 'FMP_API_KEY not configured' }),
-        { status: 500, headers: corsHeaders }
+        { status: 500, headers: errHeaders }
       );
     }
 
@@ -78,7 +95,7 @@ export default async function handler(req) {
           senateDetails: senateText,
           houseDetails: houseText,
         }),
-        { status: 502, headers: corsHeaders }
+        { status: 502, headers: errHeaders }
       );
     }
 
@@ -126,7 +143,7 @@ export default async function handler(req) {
         filters: { ticker, politician, limit },
         timestamp: new Date().toISOString(),
       }),
-      { status: 200, headers: corsHeaders }
+      { status: 200, headers: okHeaders }
     );
   } catch (error) {
     return new Response(
@@ -134,7 +151,7 @@ export default async function handler(req) {
         error: 'Internal server error',
         message: error.message,
       }),
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: errHeaders }
     );
   }
 }
