@@ -1,14 +1,25 @@
-// SAA-12: App entry — renders FeedScreen in the "feed" tab
-// Other tabs (politicians, alerts, settings) remain placeholder for now;
-// they get their own screens in later tickets.
+// SAA-13: App entry — gates the main app behind the onboarding Welcome screen.
+// When onboarding is complete, the existing TabBar + Feed/placeholders render as before.
+// Note: onboarding state is in-memory only (reset on refresh).
+// Persisting it across sessions is a separate ticket.
 
 import { useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
+import OnboardingWelcome from './components/OnboardingWelcome';
 
 function App() {
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [activeTab, setActiveTab] = useState('feed');
 
+  // ── Onboarding flow ─────────────────────────────────────────────────────────
+  if (!onboardingComplete) {
+    return (
+      <OnboardingWelcome onGetStarted={() => setOnboardingComplete(true)} />
+    );
+  }
+
+  // ── Main app ────────────────────────────────────────────────────────────────
   const screens = {
     feed: {
       title: 'Your Feed',
