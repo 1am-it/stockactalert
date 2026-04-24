@@ -1,13 +1,13 @@
-// SAA-13: OnboardingWelcome
+// SAA-13: OnboardingWelcome (updated in SAA-14)
 // First screen a new visitor sees — explains the value proposition briefly,
-// then hands off to the main app via `onGetStarted` callback.
+// then hands off to the next onboarding step via `onNext` callback.
 //
-// Full-viewport, no TabBar. Onboarding state is managed by the parent (App.jsx).
+// Full-viewport, no TabBar. Onboarding flow is managed by App.jsx.
 //
 // Props:
-//   onGetStarted — called when the user taps the primary CTA
+//   onNext — called when the user taps the primary CTA
 
-export default function OnboardingWelcome({ onGetStarted }) {
+export default function OnboardingWelcome({ onNext }) {
   return (
     <div
       style={{
@@ -83,7 +83,7 @@ export default function OnboardingWelcome({ onGetStarted }) {
 
         {/* ── Primary CTA ────────────────────────────────────────────────── */}
         <button
-          onClick={onGetStarted}
+          onClick={onNext}
           style={{
             width: '100%',
             padding: '16px 20px',

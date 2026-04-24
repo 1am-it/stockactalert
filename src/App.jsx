@@ -1,25 +1,40 @@
-// SAA-13: App entry — gates the main app behind the onboarding Welcome screen.
-// When onboarding is complete, the existing TabBar + Feed/placeholders render as before.
-// Note: onboarding state is in-memory only (reset on refresh).
+// SAA-14: App entry — step-based onboarding flow
+// Onboarding steps: 'welcome' → 'explainer' → 'done' (reveals main app).
+// Extendable: add 'pick-politicians' step in SAA-15.
+//
+// Note: onboarding state is in-memory only (resets on refresh).
 // Persisting it across sessions is a separate ticket.
 
 import { useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
 import OnboardingWelcome from './components/OnboardingWelcome';
+import OnboardingDataExplainer from './components/OnboardingDataExplainer';
 
 function App() {
-  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  // Onboarding step machine: 'welcome' | 'explainer' | 'done'
+  const [onboardingStep, setOnboardingStep] = useState('welcome');
   const [activeTab, setActiveTab] = useState('feed');
 
   // ── Onboarding flow ─────────────────────────────────────────────────────────
-  if (!onboardingComplete) {
+  if (onboardingStep === 'welcome') {
     return (
-      <OnboardingWelcome onGetStarted={() => setOnboardingComplete(true)} />
+      <OnboardingWelcome
+        onNext={() => setOnboardingStep('explainer')}
+      />
     );
   }
 
-  // ── Main app ────────────────────────────────────────────────────────────────
+  if (onboardingStep === 'explainer') {
+    return (
+      <OnboardingDataExplainer
+        onNext={() => setOnboardingStep('done')}
+        onBack={() => setOnboardingStep('welcome')}
+      />
+    );
+  }
+
+  // ── Main app (onboardingStep === 'done') ───────────────────────────────────
   const screens = {
     feed: {
       title: 'Your Feed',
