@@ -1,7 +1,6 @@
-// SAA-15: App entry — 3-step onboarding flow
+// SAA-15 + SAA-16: App entry — 3-step onboarding + feed filter by followed
 // Steps: 'welcome' → 'explainer' → 'pick-politicians' → 'done' (main app)
-// followedPoliticians is tracked but not yet used by the feed — that's a
-// separate ticket. For now it just persists during the session.
+// followedPoliticians is now wired through to FeedScreen for client-side filtering.
 //
 // State is in-memory only: refresh resets the flow. localStorage
 // persistence is a separate ticket.
@@ -16,7 +15,7 @@ import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
 function App() {
   // Onboarding step machine
   const [onboardingStep, setOnboardingStep] = useState('welcome');
-  // Selected politicians during onboarding (UI state only for now)
+  // Selected politicians during onboarding — drives feed filter in SAA-16
   const [followedPoliticians, setFollowedPoliticians] = useState([]);
   const [activeTab, setActiveTab] = useState('feed');
 
@@ -106,7 +105,7 @@ function App() {
 
         {/* ── Active tab content ── */}
         {activeTab === 'feed' ? (
-          <FeedScreen />
+          <FeedScreen followedPoliticians={followedPoliticians} />
         ) : (
           // Placeholder for tabs not yet implemented
           <div
