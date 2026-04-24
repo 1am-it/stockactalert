@@ -1,20 +1,30 @@
-// SAA-14: App entry — step-based onboarding flow
-// Onboarding steps: 'welcome' → 'explainer' → 'done' (reveals main app).
-// Extendable: add 'pick-politicians' step in SAA-15.
+// SAA-15: App entry — 3-step onboarding flow
+// Steps: 'welcome' → 'explainer' → 'pick-politicians' → 'done' (main app)
+// followedPoliticians is tracked but not yet used by the feed — that's a
+// separate ticket. For now it just persists during the session.
 //
-// Note: onboarding state is in-memory only (resets on refresh).
-// Persisting it across sessions is a separate ticket.
+// State is in-memory only: refresh resets the flow. localStorage
+// persistence is a separate ticket.
 
 import { useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
 import OnboardingWelcome from './components/OnboardingWelcome';
 import OnboardingDataExplainer from './components/OnboardingDataExplainer';
+import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
 
 function App() {
-  // Onboarding step machine: 'welcome' | 'explainer' | 'done'
+  // Onboarding step machine
   const [onboardingStep, setOnboardingStep] = useState('welcome');
+  // Selected politicians during onboarding (UI state only for now)
+  const [followedPoliticians, setFollowedPoliticians] = useState([]);
   const [activeTab, setActiveTab] = useState('feed');
+
+  const togglePolitician = (name) => {
+    setFollowedPoliticians((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  };
 
   // ── Onboarding flow ─────────────────────────────────────────────────────────
   if (onboardingStep === 'welcome') {
@@ -28,8 +38,19 @@ function App() {
   if (onboardingStep === 'explainer') {
     return (
       <OnboardingDataExplainer
-        onNext={() => setOnboardingStep('done')}
+        onNext={() => setOnboardingStep('pick-politicians')}
         onBack={() => setOnboardingStep('welcome')}
+      />
+    );
+  }
+
+  if (onboardingStep === 'pick-politicians') {
+    return (
+      <OnboardingPickPoliticians
+        selected={followedPoliticians}
+        onToggle={togglePolitician}
+        onNext={() => setOnboardingStep('done')}
+        onBack={() => setOnboardingStep('explainer')}
       />
     );
   }
