@@ -4,23 +4,28 @@
 // all trades.
 //
 // 1AM-26: When the filter is active and at least one followed politician has
-// a recent trade, the feed now also shows a collapsible "Quiet politicians"
+// a recent trade, the feed now also shows a collapsible "No recent activity"
 // section listing followed politicians without recent activity, with their
 // last-known trade date if available. This makes the feed feel complete:
-// users see the active news first, with quiet members one tap away.
+// users see the active news first, with the rest one tap away.
 //
-// Active vs Quiet logic:
+// Active vs no-activity logic:
 //   - Active = followed politician with at least one trade in current data
-//   - Quiet  = followed politician with zero trades in current data
-//   - Quiet section only shown when there's at least 1 active politician;
+//   - Inactive = followed politician with zero trades in current data
+//   - No-activity section only shown when there's at least 1 active politician;
 //     when 0 active, the existing FilterEmptyState (chip-grid) handles it.
-//   - Quiet list collapsed by default — expand via "Show N quiet politicians".
+//   - List collapsed by default — expand via "Show N without recent activity".
+//
+// Copy intentionally avoids the word "quiet" (jargon, sounds like a
+// person's behaviour) and "no trades in current snapshot" (sounds like
+// "no trades today"). "No recent activity" is neutral and describes
+// the data, not the politician.
 //
 // Filter behaviour:
 //   - Default: filter trades by `followedPoliticians` (personalised view)
 //   - Toggle "Show all": show unfiltered trades for current session
 //
-// Session-only state: refresh resets `showAll` to false and quiet to collapsed.
+// Session-only state: refresh resets `showAll` and section to collapsed.
 //
 // Props:
 //   followedPoliticians — array of politician names the user follows
@@ -46,12 +51,12 @@ export default function FeedScreen({ followedPoliticians = [] }) {
     ? trades.filter((t) => followedPoliticians.includes(t.politician))
     : trades;
 
-  // ── Compute active vs quiet split (1AM-26) ─────────────────────────────────
+  // ── Compute active vs inactive split (1AM-26) ──────────────────────────────
   // For each followed politician: active if they have ≥1 trade in `trades`,
-  // quiet otherwise. Last-trade date is best-effort from current data only.
-  const { activeNames, quietPoliticians } = useMemo(() => {
+  // inactive otherwise. Last-trade date is best-effort from current data only.
+  const { inactivePoliticians } = useMemo(() => {
     if (!filterActive) {
-      return { activeNames: [], quietPoliticians: [] };
+      return { inactivePoliticians: [] };
     }
 
     // Build a map of politician → most recent filed date in current data
@@ -63,17 +68,14 @@ export default function FeedScreen({ followedPoliticians = [] }) {
       }
     }
 
-    const active = [];
-    const quiet = [];
+    const inactive = [];
     for (const name of followedPoliticians) {
-      if (lastFiledByPolitician.has(name)) {
-        active.push(name);
-      } else {
-        quiet.push({ name, lastFiled: null });
+      if (!lastFiledByPolitician.has(name)) {
+        inactive.push({ name, lastFiled: null });
       }
     }
 
-    return { activeNames: active, quietPoliticians: quiet };
+    return { inactivePoliticians: inactive };
   }, [filterActive, trades, followedPoliticians]);
 
   // ── Loading state ───────────────────────────────────────────────────────────
@@ -186,10 +188,10 @@ export default function FeedScreen({ followedPoliticians = [] }) {
           />
         ))}
 
-      {/* 1AM-26: quiet politicians section
+      {/* 1AM-26: no-recent-activity section
          Only shown when filter is active AND there's at least 1 active match. */}
-      {filterHasMatches && quietPoliticians.length > 0 && (
-        <QuietPoliticiansSection quietPoliticians={quietPoliticians} />
+      {filterHasMatches && inactivePoliticians.length > 0 && (
+        <NoRecentActivitySection inactivePoliticians={inactivePoliticians} />
       )}
     </div>
   );
@@ -293,12 +295,13 @@ function FilterBar({
   );
 }
 
-// ── 1AM-26: Quiet politicians section ─────────────────────────────────────────
+// ── 1AM-26: No-recent-activity section ───────────────────────────────────────
 // Collapsible list of followed politicians without trades in current data.
 // Default collapsed; expand via toggle button.
-function QuietPoliticiansSection({ quietPoliticians }) {
+function NoRecentActivitySection({ inactivePoliticians }) {
   const [expanded, setExpanded] = useState(false);
-  const count = quietPoliticians.length;
+  const count = inactivePoliticians.length;
+  const followingWord = count === 1 ? 'politician' : 'politicians';
 
   return (
     <div style={{ marginTop: 24 }}>
@@ -320,8 +323,8 @@ function QuietPoliticiansSection({ quietPoliticians }) {
         }}
       >
         {expanded
-          ? `Hide quiet politicians ↑`
-          : `Show ${count} quiet ${count === 1 ? 'politician' : 'politicians'} ↓`}
+          ? 'Hide ↑'
+          : `Show ${count} without recent activity ↓`}
       </button>
 
       {expanded && (
@@ -338,7 +341,7 @@ function QuietPoliticiansSection({ quietPoliticians }) {
               padding: '0 2px',
             }}
           >
-            Quiet — no recent filings
+            No recent activity
           </div>
 
           {/* Compact list of politicians */}
@@ -350,7 +353,7 @@ function QuietPoliticiansSection({ quietPoliticians }) {
               overflow: 'hidden',
             }}
           >
-            {quietPoliticians.map((p, i) => (
+            {inactivePoliticians.map((p, i) => (
               <div
                 key={p.name}
                 style={{
@@ -360,6 +363,7 @@ function QuietPoliticiansSection({ quietPoliticians }) {
                   padding: '12px 14px',
                   borderTop: i === 0 ? 'none' : '1px solid #F3F4F6',
                   fontFamily: "'DM Sans', sans-serif",
+                  gap: 12,
                 }}
               >
                 <span
@@ -376,11 +380,12 @@ function QuietPoliticiansSection({ quietPoliticians }) {
                     fontSize: 11,
                     color: '#9CA3AF',
                     fontFamily: 'monospace',
+                    textAlign: 'right',
                   }}
                 >
                   {p.lastFiled
                     ? `last filed ${p.lastFiled}`
-                    : 'no trades in current snapshot'}
+                    : 'no recent activity'}
                 </span>
               </div>
             ))}
