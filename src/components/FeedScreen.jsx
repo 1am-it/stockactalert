@@ -5,7 +5,7 @@
 //
 // SAA-18.1: When the filter is active but no followed politicians have
 // recent trades, the empty state shows *which* politicians the user
-// follows as a chip-grid (with "View all" toggle if there are more than 6).
+// follows as a chip-grid (with "View all" toggle if there are more than 3).
 // Empty-state copy is neutral about timing — no "check back" suggestions
 // that could mislead users into missing important new filings.
 // Button labels intentionally use distinct verbs (Show / View / Browse) to
@@ -27,7 +27,8 @@ import { useState } from 'react';
 import TradeCard from './TradeCard';
 import { useTrades } from '../hooks/useTrades';
 
-const CHIPS_INITIAL = 6;
+// How many chips to show in the empty state before requiring "View all"
+const CHIPS_INITIAL = 3;
 
 export default function FeedScreen({ followedPoliticians = [] }) {
   const { trades, loading, error, refetch } = useTrades();
@@ -235,7 +236,7 @@ function FilterBar({
 // ── Filter empty state ────────────────────────────────────────────────────────
 // Shown when filter is active but no followed politicians have recent trades.
 // Includes a chip-grid showing *who* the user follows, with a "View all"
-// toggle when the list exceeds CHIPS_INITIAL (6).
+// toggle when the list exceeds CHIPS_INITIAL (3).
 function FilterEmptyState({ followedPoliticians, onShowAll }) {
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const totalCount = followedPoliticians.length;
