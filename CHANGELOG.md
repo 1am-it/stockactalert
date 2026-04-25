@@ -8,9 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Per-politician status in feed (active vs quiet) (1AM-26)
 - Full politicians directory with search (1AM-27)
 - Reusable FollowedList component (1AM-28)
+- Add "X days after trade" field to TradeCard (1AM-36)
+
+---
+
+## [0.7.0] — 2026-04-25
+
+### Added
+- Feed now groups followed politicians into "active" (with recent trades) and a separate "no recent activity" section (1AM-26)
+- Collapsible toggle: `Show N without recent activity ↓` reveals followed politicians who haven't filed recently
+- Each entry shows last-known filing date when available, or "no recent activity" otherwise
+
+### Changed
+- Empty state behaviour preserved: when *no* followed politician has recent activity, the existing chip-grid empty state still handles it (no double-rendering)
 
 ---
 
@@ -120,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/1am-it/stockactalert/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/1am-it/stockactalert/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/1am-it/stockactalert/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/1am-it/stockactalert/compare/v0.4.0...v0.5.0
