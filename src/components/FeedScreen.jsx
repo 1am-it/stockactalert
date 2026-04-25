@@ -1,7 +1,12 @@
-// SAA-12 / SAA-16: FeedScreen component
+// SAA-12 / SAA-16 / SAA-18.1: FeedScreen component
 // Renders the live congressional trade feed with client-side filtering by
 // followed politicians (from onboarding) and a toggle to temporarily show
 // all trades.
+//
+// SAA-18.1: When the filter is active but no followed politicians have
+// recent trades, the empty state now shows *which* politicians the user
+// follows as a chip-grid (with "Show all" toggle if there are more than 6).
+// This confirms the user's picks at a glance without leaving the screen.
 //
 // Filter behaviour:
 //   - Default: filter trades by `followedPoliticians` (personalised view)
@@ -16,6 +21,8 @@
 import { useState } from 'react';
 import TradeCard from './TradeCard';
 import { useTrades } from '../hooks/useTrades';
+
+const CHIPS_INITIAL = 6;
 
 export default function FeedScreen({ followedPoliticians = [] }) {
   const { trades, loading, error, refetch } = useTrades();
@@ -120,7 +127,10 @@ export default function FeedScreen({ followedPoliticians = [] }) {
 
       {/* Filter active but zero matches in current data */}
       {filterActive && visibleTrades.length === 0 ? (
-        <FilterEmptyState onShowAll={() => setShowAll(true)} />
+        <FilterEmptyState
+          followedPoliticians={followedPoliticians}
+          onShowAll={() => setShowAll(true)}
+        />
       ) : (
         visibleTrades.map((trade) => (
           <TradeCard
@@ -219,12 +229,21 @@ function FilterBar({
 
 // ── Filter empty state ────────────────────────────────────────────────────────
 // Shown when filter is active but no followed politicians have recent trades.
-function FilterEmptyState({ onShowAll }) {
+// SAA-18.1: now includes a chip-grid showing *who* the user follows, with
+// a "Show all" toggle when the list exceeds CHIPS_INITIAL (6).
+function FilterEmptyState({ followedPoliticians, onShowAll }) {
+  const [chipsExpanded, setChipsExpanded] = useState(false);
+  const totalCount = followedPoliticians.length;
+  const showExpandToggle = totalCount > CHIPS_INITIAL;
+
+  const visibleChips = chipsExpanded
+    ? followedPoliticians
+    : followedPoliticians.slice(0, CHIPS_INITIAL);
+
   return (
     <div
       style={{
-        padding: '32px 24px',
-        textAlign: 'center',
+        padding: '28px 24px',
         background: '#FFFFFF',
         border: '1px solid #E5E7EB',
         borderRadius: 16,
@@ -236,7 +255,8 @@ function FilterEmptyState({ onShowAll }) {
           fontSize: 14,
           fontWeight: 700,
           color: '#0D1B2A',
-          marginBottom: 8,
+          marginBottom: 6,
+          textAlign: 'center',
         }}
       >
         None of your followed politicians have recent filings.
@@ -246,28 +266,94 @@ function FilterEmptyState({ onShowAll }) {
           fontSize: 13,
           color: '#6B7280',
           lineHeight: 1.5,
+          textAlign: 'center',
           marginBottom: 20,
         }}
       >
         Filings come in batches — check back in a day or two, or browse all
         recent trades for now.
       </div>
-      <button
-        onClick={onShowAll}
+
+      {/* ── Followed politicians chips ── */}
+      <div
         style={{
-          padding: '10px 20px',
-          background: '#0D1B2A',
-          color: '#FAFAF7',
-          border: 'none',
-          borderRadius: 10,
-          fontSize: 13,
-          fontWeight: 700,
-          fontFamily: "'DM Sans', sans-serif",
-          cursor: 'pointer',
+          fontSize: 10,
+          fontFamily: 'monospace',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: '#9CA3AF',
+          marginBottom: 10,
         }}
       >
-        Show all trades
-      </button>
+        Following {totalCount} {totalCount === 1 ? 'politician' : 'politicians'}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 6,
+          marginBottom: showExpandToggle ? 12 : 20,
+        }}
+      >
+        {visibleChips.map((name) => (
+          <span
+            key={name}
+            style={{
+              padding: '6px 10px',
+              background: '#F3F4F6',
+              color: '#374151',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 500,
+              fontFamily: "'DM Sans', sans-serif",
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {name}
+          </span>
+        ))}
+      </div>
+
+      {showExpandToggle && (
+        <button
+          onClick={() => setChipsExpanded((v) => !v)}
+          style={{
+            display: 'block',
+            margin: '0 auto 20px',
+            padding: '4px 10px',
+            background: 'transparent',
+            border: '1px solid #E5E7EB',
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#6B7280',
+            fontFamily: "'DM Sans', sans-serif",
+            cursor: 'pointer',
+          }}
+        >
+          {chipsExpanded ? 'Show fewer' : `Show all ${totalCount}`}
+        </button>
+      )}
+
+      {/* ── Escape hatch ── */}
+      <div style={{ textAlign: 'center' }}>
+        <button
+          onClick={onShowAll}
+          style={{
+            padding: '10px 20px',
+            background: '#0D1B2A',
+            color: '#FAFAF7',
+            border: 'none',
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: "'DM Sans', sans-serif",
+            cursor: 'pointer',
+          }}
+        >
+          Show all trades
+        </button>
+      </div>
     </div>
   );
 }
