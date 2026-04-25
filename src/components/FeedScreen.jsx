@@ -1,28 +1,31 @@
-// SAA-12 / SAA-16 / SAA-18.1 / 1AM-25: FeedScreen component
+// SAA-12 / SAA-16 / SAA-18.1 / 1AM-25 / 1AM-26: FeedScreen component
 // Renders the live congressional trade feed with client-side filtering by
 // followed politicians (from onboarding) and a toggle to temporarily show
 // all trades.
 //
-// 1AM-25: Filter-bar wording made explicit about its snapshot nature so users
-// who follow many politicians but only see a few trades aren't confused.
-//   - Was: "N OF X FOLLOWED"   → Now: "N RECENT TRADES FROM YOUR X"
-//   - Was: "SHOWING ALL TRADES" → Now: "SHOWING ALL RECENT TRADES"
-//   - New subtle subtitle: "Latest 50 STOCK Act filings from Senate + House"
+// 1AM-26: When the filter is active and at least one followed politician has
+// a recent trade, the feed now also shows a collapsible "Quiet politicians"
+// section listing followed politicians without recent activity, with their
+// last-known trade date if available. This makes the feed feel complete:
+// users see the active news first, with quiet members one tap away.
 //
-// SAA-18.1: When the filter is active but no followed politicians have
-// recent trades, the empty state shows *which* politicians the user
-// follows as a chip-grid (with "View all" toggle if there are more than 3).
+// Active vs Quiet logic:
+//   - Active = followed politician with at least one trade in current data
+//   - Quiet  = followed politician with zero trades in current data
+//   - Quiet section only shown when there's at least 1 active politician;
+//     when 0 active, the existing FilterEmptyState (chip-grid) handles it.
+//   - Quiet list collapsed by default — expand via "Show N quiet politicians".
 //
 // Filter behaviour:
 //   - Default: filter trades by `followedPoliticians` (personalised view)
 //   - Toggle "Show all": show unfiltered trades for current session
 //
-// Session-only state: refresh resets `showAll` back to false (= filtered).
+// Session-only state: refresh resets `showAll` to false and quiet to collapsed.
 //
 // Props:
 //   followedPoliticians — array of politician names the user follows
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
 import { useTrades } from '../hooks/useTrades';
 
@@ -42,6 +45,36 @@ export default function FeedScreen({ followedPoliticians = [] }) {
   const visibleTrades = filterActive
     ? trades.filter((t) => followedPoliticians.includes(t.politician))
     : trades;
+
+  // ── Compute active vs quiet split (1AM-26) ─────────────────────────────────
+  // For each followed politician: active if they have ≥1 trade in `trades`,
+  // quiet otherwise. Last-trade date is best-effort from current data only.
+  const { activeNames, quietPoliticians } = useMemo(() => {
+    if (!filterActive) {
+      return { activeNames: [], quietPoliticians: [] };
+    }
+
+    // Build a map of politician → most recent filed date in current data
+    const lastFiledByPolitician = new Map();
+    for (const trade of trades) {
+      const existing = lastFiledByPolitician.get(trade.politician);
+      if (!existing || trade.filedDate > existing) {
+        lastFiledByPolitician.set(trade.politician, trade.filedDate);
+      }
+    }
+
+    const active = [];
+    const quiet = [];
+    for (const name of followedPoliticians) {
+      if (lastFiledByPolitician.has(name)) {
+        active.push(name);
+      } else {
+        quiet.push({ name, lastFiled: null });
+      }
+    }
+
+    return { activeNames: active, quietPoliticians: quiet };
+  }, [filterActive, trades, followedPoliticians]);
 
   // ── Loading state ───────────────────────────────────────────────────────────
   if (loading) {
@@ -118,6 +151,9 @@ export default function FeedScreen({ followedPoliticians = [] }) {
   }
 
   // ── Success state (with or without matches) ────────────────────────────────
+  const filterHasMatches = filterActive && visibleTrades.length > 0;
+  const filterHasNoMatches = filterActive && visibleTrades.length === 0;
+
   return (
     <div>
       {/* Filter indicator + toggle */}
@@ -130,13 +166,16 @@ export default function FeedScreen({ followedPoliticians = [] }) {
         onRefresh={refetch}
       />
 
-      {/* Filter active but zero matches in current data */}
-      {filterActive && visibleTrades.length === 0 ? (
+      {/* Filter active but zero matches → chip-grid empty state */}
+      {filterHasNoMatches && (
         <FilterEmptyState
           followedPoliticians={followedPoliticians}
           onShowAll={() => setShowAll(true)}
         />
-      ) : (
+      )}
+
+      {/* Filter inactive OR filter active with matches → render trades */}
+      {!filterHasNoMatches &&
         visibleTrades.map((trade) => (
           <TradeCard
             key={trade.id}
@@ -145,7 +184,12 @@ export default function FeedScreen({ followedPoliticians = [] }) {
             onViewProfile={(t) => console.log('profile', t)}
             onViewTicker={(t) => console.log('ticker', t)}
           />
-        ))
+        ))}
+
+      {/* 1AM-26: quiet politicians section
+         Only shown when filter is active AND there's at least 1 active match. */}
+      {filterHasMatches && quietPoliticians.length > 0 && (
+        <QuietPoliticiansSection quietPoliticians={quietPoliticians} />
       )}
     </div>
   );
@@ -153,7 +197,6 @@ export default function FeedScreen({ followedPoliticians = [] }) {
 
 // ── Filter bar ────────────────────────────────────────────────────────────────
 // Shows the current filter state and lets the user toggle.
-// 1AM-25: Wording made explicit about snapshot scope; subtle subtitle added.
 function FilterBar({
   filterActive,
   hasFollowed,
@@ -246,6 +289,104 @@ function FilterBar({
       >
         Latest 50 STOCK Act filings from Senate + House
       </div>
+    </div>
+  );
+}
+
+// ── 1AM-26: Quiet politicians section ─────────────────────────────────────────
+// Collapsible list of followed politicians without trades in current data.
+// Default collapsed; expand via toggle button.
+function QuietPoliticiansSection({ quietPoliticians }) {
+  const [expanded, setExpanded] = useState(false);
+  const count = quietPoliticians.length;
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          display: 'block',
+          width: '100%',
+          padding: '10px 14px',
+          background: 'transparent',
+          border: '1px dashed #E5E7EB',
+          borderRadius: 12,
+          fontSize: 12,
+          fontWeight: 600,
+          color: '#6B7280',
+          fontFamily: "'DM Sans', sans-serif",
+          cursor: 'pointer',
+          textAlign: 'center',
+        }}
+      >
+        {expanded
+          ? `Hide quiet politicians ↑`
+          : `Show ${count} quiet ${count === 1 ? 'politician' : 'politicians'} ↓`}
+      </button>
+
+      {expanded && (
+        <div style={{ marginTop: 12 }}>
+          {/* Section heading */}
+          <div
+            style={{
+              fontSize: 10,
+              fontFamily: 'monospace',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: '#9CA3AF',
+              marginBottom: 8,
+              padding: '0 2px',
+            }}
+          >
+            Quiet — no recent filings
+          </div>
+
+          {/* Compact list of politicians */}
+          <div
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #E5E7EB',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+          >
+            {quietPoliticians.map((p, i) => (
+              <div
+                key={p.name}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 14px',
+                  borderTop: i === 0 ? 'none' : '1px solid #F3F4F6',
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: '#0D1B2A',
+                  }}
+                >
+                  {p.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: '#9CA3AF',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {p.lastFiled
+                    ? `last filed ${p.lastFiled}`
+                    : 'no trades in current snapshot'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
