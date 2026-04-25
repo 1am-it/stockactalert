@@ -1,23 +1,39 @@
-// SAA-15 + SAA-16: App entry — 3-step onboarding + feed filter by followed
+// SAA-15 + SAA-16 + SAA-18: App entry
 // Steps: 'welcome' → 'explainer' → 'pick-politicians' → 'done' (main app)
-// followedPoliticians is now wired through to FeedScreen for client-side filtering.
 //
-// State is in-memory only: refresh resets the flow. localStorage
-// persistence is a separate ticket.
+// SAA-18: Onboarding state and followed politicians are now persisted to
+// localStorage so they survive a refresh. Storage is namespaced under "saa.*"
+// and degrades gracefully if localStorage is unavailable (private browsing,
+// quota exceeded, etc.).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
 import OnboardingWelcome from './components/OnboardingWelcome';
 import OnboardingDataExplainer from './components/OnboardingDataExplainer';
 import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
+import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
 
 function App() {
-  // Onboarding step machine
-  const [onboardingStep, setOnboardingStep] = useState('welcome');
-  // Selected politicians during onboarding — drives feed filter in SAA-16
-  const [followedPoliticians, setFollowedPoliticians] = useState([]);
+  // Hydrate initial state from localStorage. Lazy initial state so we only
+  // touch storage once on mount.
+  const [onboardingStep, setOnboardingStep] = useState(() =>
+    getJSON(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'welcome'
+  );
+  const [followedPoliticians, setFollowedPoliticians] = useState(() =>
+    getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, [])
+  );
   const [activeTab, setActiveTab] = useState('feed');
+
+  // Persist onboarding completion whenever step transitions to/from 'done'
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.ONBOARDING_DONE, onboardingStep === 'done');
+  }, [onboardingStep]);
+
+  // Persist followed politicians on every change
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, followedPoliticians);
+  }, [followedPoliticians]);
 
   const togglePolitician = (name) => {
     setFollowedPoliticians((prev) =>
