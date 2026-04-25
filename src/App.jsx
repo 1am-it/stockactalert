@@ -1,14 +1,15 @@
-// SAA-15 + SAA-16 + SAA-18: App entry
+// SAA-15 + SAA-16 + SAA-18 + 1AM-24: App entry
 // Steps: 'welcome' → 'explainer' → 'pick-politicians' → 'done' (main app)
 //
-// SAA-18: Onboarding state and followed politicians are now persisted to
-// localStorage so they survive a refresh. Storage is namespaced under "saa.*"
-// and degrades gracefully if localStorage is unavailable (private browsing,
-// quota exceeded, etc.).
+// 1AM-24: Politicians tab is now functional — same grid as onboarding,
+// minus the Back/Continue chrome. State is shared with the feed via
+// `followedPoliticians`, so tapping a card in Politicians-tab live-updates
+// the feed filter.
 
 import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
+import PoliticiansScreen from './components/PoliticiansScreen';
 import OnboardingWelcome from './components/OnboardingWelcome';
 import OnboardingDataExplainer from './components/OnboardingDataExplainer';
 import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
@@ -79,7 +80,7 @@ function App() {
     },
     politicians: {
       title: 'Politicians',
-      description: 'Directory of all tracked politicians',
+      description: 'Tap a card to follow or unfollow',
       color: '#1D4ED8',
     },
     alerts: {
@@ -120,9 +121,18 @@ function App() {
         </p>
 
         {/* ── Active tab content ── */}
-        {activeTab === 'feed' ? (
+        {activeTab === 'feed' && (
           <FeedScreen followedPoliticians={followedPoliticians} />
-        ) : (
+        )}
+
+        {activeTab === 'politicians' && (
+          <PoliticiansScreen
+            selected={followedPoliticians}
+            onToggle={togglePolitician}
+          />
+        )}
+
+        {(activeTab === 'alerts' || activeTab === 'settings') && (
           // Placeholder for tabs not yet implemented
           <div
             style={{
@@ -147,7 +157,6 @@ function App() {
                 fontSize: 20,
               }}
             >
-              {activeTab === 'politicians' && '👤'}
               {activeTab === 'alerts' && '🔔'}
               {activeTab === 'settings' && '⚙️'}
             </div>
