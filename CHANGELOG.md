@@ -8,9 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Manage followed politicians post-onboarding (1AM-24)
 - Per-politician status in feed (active vs quiet) (1AM-26)
 - Full politicians directory with search (1AM-27)
+- Reusable FollowedList component (1AM-28)
+
+---
+
+## [0.6.0] — 2026-04-25
+
+### Added
+- Politicians tab is now functional — manage followed politicians without redoing onboarding (1AM-24)
+- "FOLLOWING N POLITICIANS" header counter that updates live as you tap
+- Cross-tab state sync: changes in Politicians tab propagate to Feed filter instantly
+
+### Changed
+- Refactored `OnboardingPickPoliticians` to share its card grid with the Politicians tab via new reusable `PoliticianPickGrid` component
+- Curated 17-politician list extracted to `src/data/curatedPoliticians.js` — single source of truth for both onboarding and management screens
 
 ---
 
@@ -107,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/1am-it/stockactalert/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/1am-it/stockactalert/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/1am-it/stockactalert/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/1am-it/stockactalert/compare/v0.3.1...v0.4.0
