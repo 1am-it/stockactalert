@@ -1,18 +1,17 @@
-// SAA-12 / SAA-16 / SAA-18.1: FeedScreen component
+// SAA-12 / SAA-16 / SAA-18.1 / 1AM-25: FeedScreen component
 // Renders the live congressional trade feed with client-side filtering by
 // followed politicians (from onboarding) and a toggle to temporarily show
 // all trades.
 //
+// 1AM-25: Filter-bar wording made explicit about its snapshot nature so users
+// who follow many politicians but only see a few trades aren't confused.
+//   - Was: "N OF X FOLLOWED"   → Now: "N RECENT TRADES FROM YOUR X"
+//   - Was: "SHOWING ALL TRADES" → Now: "SHOWING ALL RECENT TRADES"
+//   - New subtle subtitle: "Latest 50 STOCK Act filings from Senate + House"
+//
 // SAA-18.1: When the filter is active but no followed politicians have
 // recent trades, the empty state shows *which* politicians the user
 // follows as a chip-grid (with "View all" toggle if there are more than 3).
-// Empty-state copy is neutral about timing — no "check back" suggestions
-// that could mislead users into missing important new filings.
-// Button labels intentionally use distinct verbs (Show / View / Browse) to
-// avoid the previous "three Show all buttons" confusion:
-//   - Filter-bar:    Show all       (toggle filter on/off)
-//   - Chip-toggle:   View all N     (expand/collapse the chip list)
-//   - Escape-hatch:  Browse all trades (leave the empty state and explore)
 //
 // Filter behaviour:
 //   - Default: filter trades by `followedPoliticians` (personalised view)
@@ -154,6 +153,7 @@ export default function FeedScreen({ followedPoliticians = [] }) {
 
 // ── Filter bar ────────────────────────────────────────────────────────────────
 // Shows the current filter state and lets the user toggle.
+// 1AM-25: Wording made explicit about snapshot scope; subtle subtitle added.
 function FilterBar({
   filterActive,
   hasFollowed,
@@ -162,41 +162,60 @@ function FilterBar({
   onToggleShowAll,
   onRefresh,
 }) {
+  const tradeWord = visibleCount === 1 ? 'TRADE' : 'TRADES';
+
   const label = filterActive
-    ? `${visibleCount} OF ${followedCount} FOLLOWED`
+    ? `${visibleCount} RECENT ${tradeWord} FROM YOUR ${followedCount}`
     : hasFollowed
-      ? 'SHOWING ALL TRADES'
-      : `${visibleCount} RECENT TRADES`;
+      ? 'SHOWING ALL RECENT TRADES'
+      : `${visibleCount} RECENT ${tradeWord}`;
 
   const toggleLabel = filterActive ? 'Show all' : 'Show followed';
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-        padding: '0 2px',
-        gap: 8,
-        flexWrap: 'wrap',
-      }}
-    >
+    <div style={{ marginBottom: 16 }}>
       <div
         style={{
-          fontSize: 11,
-          color: '#9CA3AF',
-          fontFamily: 'monospace',
-          letterSpacing: '0.06em',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0 2px',
+          gap: 8,
+          flexWrap: 'wrap',
         }}
       >
-        {label}
-      </div>
+        <div
+          style={{
+            fontSize: 11,
+            color: '#9CA3AF',
+            fontFamily: 'monospace',
+            letterSpacing: '0.06em',
+          }}
+        >
+          {label}
+        </div>
 
-      <div style={{ display: 'flex', gap: 6 }}>
-        {hasFollowed && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          {hasFollowed && (
+            <button
+              onClick={onToggleShowAll}
+              style={{
+                padding: '4px 10px',
+                background: 'transparent',
+                border: '1px solid #E5E7EB',
+                borderRadius: 8,
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#6B7280',
+                fontFamily: "'DM Sans', sans-serif",
+                cursor: 'pointer',
+              }}
+            >
+              {toggleLabel}
+            </button>
+          )}
           <button
-            onClick={onToggleShowAll}
+            onClick={onRefresh}
             style={{
               padding: '4px 10px',
               background: 'transparent',
@@ -209,25 +228,23 @@ function FilterBar({
               cursor: 'pointer',
             }}
           >
-            {toggleLabel}
+            ↻ Refresh
           </button>
-        )}
-        <button
-          onClick={onRefresh}
-          style={{
-            padding: '4px 10px',
-            background: 'transparent',
-            border: '1px solid #E5E7EB',
-            borderRadius: 8,
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#6B7280',
-            fontFamily: "'DM Sans', sans-serif",
-            cursor: 'pointer',
-          }}
-        >
-          ↻ Refresh
-        </button>
+        </div>
+      </div>
+
+      {/* Subtle scope subtitle — tells the user what "recent" means */}
+      <div
+        style={{
+          fontSize: 11,
+          color: '#9CA3AF',
+          fontFamily: 'monospace',
+          fontStyle: 'italic',
+          marginTop: 4,
+          padding: '0 2px',
+        }}
+      >
+        Latest 50 STOCK Act filings from Senate + House
       </div>
     </div>
   );
