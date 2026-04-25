@@ -4,14 +4,19 @@
 // all trades.
 //
 // SAA-18.1: When the filter is active but no followed politicians have
-// recent trades, the empty state now shows *which* politicians the user
-// follows as a chip-grid (with "Show all" toggle if there are more than 6).
-// This confirms the user's picks at a glance without leaving the screen.
+// recent trades, the empty state shows *which* politicians the user
+// follows as a chip-grid (with "View all" toggle if there are more than 6).
+// Empty-state copy is neutral about timing — no "check back" suggestions
+// that could mislead users into missing important new filings.
+// Button labels intentionally use distinct verbs (Show / View / Browse) to
+// avoid the previous "three Show all buttons" confusion:
+//   - Filter-bar:    Show all       (toggle filter on/off)
+//   - Chip-toggle:   View all N     (expand/collapse the chip list)
+//   - Escape-hatch:  Browse all trades (leave the empty state and explore)
 //
 // Filter behaviour:
 //   - Default: filter trades by `followedPoliticians` (personalised view)
 //   - Toggle "Show all": show unfiltered trades for current session
-//   - Empty state distinguishes between "no data" vs "no matches in filter"
 //
 // Session-only state: refresh resets `showAll` back to false (= filtered).
 //
@@ -229,8 +234,8 @@ function FilterBar({
 
 // ── Filter empty state ────────────────────────────────────────────────────────
 // Shown when filter is active but no followed politicians have recent trades.
-// SAA-18.1: now includes a chip-grid showing *who* the user follows, with
-// a "Show all" toggle when the list exceeds CHIPS_INITIAL (6).
+// Includes a chip-grid showing *who* the user follows, with a "View all"
+// toggle when the list exceeds CHIPS_INITIAL (6).
 function FilterEmptyState({ followedPoliticians, onShowAll }) {
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const totalCount = followedPoliticians.length;
@@ -270,8 +275,8 @@ function FilterEmptyState({ followedPoliticians, onShowAll }) {
           marginBottom: 20,
         }}
       >
-        Filings come in batches — check back in a day or two, or browse all
-        recent trades for now.
+        Filings appear when they're submitted. None of the politicians you
+        follow have a recent one — that's normal.
       </div>
 
       {/* ── Followed politicians chips ── */}
@@ -331,7 +336,7 @@ function FilterEmptyState({ followedPoliticians, onShowAll }) {
             cursor: 'pointer',
           }}
         >
-          {chipsExpanded ? 'Show fewer' : `Show all ${totalCount}`}
+          {chipsExpanded ? 'View fewer' : `View all ${totalCount}`}
         </button>
       )}
 
@@ -351,7 +356,7 @@ function FilterEmptyState({ followedPoliticians, onShowAll }) {
             cursor: 'pointer',
           }}
         >
-          Show all trades
+          Browse all trades
         </button>
       </div>
     </div>
