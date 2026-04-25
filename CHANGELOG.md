@@ -8,9 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Manage followed politicians post-onboarding (SAA-17)
-- Clarify feed scope wording (SAA-20)
-- Full politicians directory with search (SAA-19)
+- Manage followed politicians post-onboarding (1AM-24)
+- Per-politician status in feed (active vs quiet) (1AM-26)
+- Full politicians directory with search (1AM-27)
+
+---
+
+## [0.5.1] — 2026-04-25
+
+### Changed
+- Feed filter label rewritten for clarity (1AM-25):
+  - `"N OF X FOLLOWED"` → `"N RECENT TRADES FROM YOUR X"` (singular handled)
+  - `"SHOWING ALL TRADES"` → `"SHOWING ALL RECENT TRADES"`
+- New subtitle below filter-bar: *"Latest 50 STOCK Act filings from Senate + House"* — gives users constant context about feed scope
 
 ---
 
@@ -97,7 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/1am-it/stockactalert/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/1am-it/stockactalert/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/1am-it/stockactalert/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/1am-it/stockactalert/compare/v0.3.0...v0.3.1
