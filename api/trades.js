@@ -9,11 +9,16 @@
 //   STOCK Act filings update at most a few times per day so 1h is safe.
 //   Cache key includes query string automatically (ticker / politician / limit).
 //
+// 1AM-51: Default limit raised from 20 → 50 (DEFAULT_LIMIT constant).
+//   FeedScreen subtitle already advertised "Latest 50 STOCK Act filings"; this
+//   change syncs code with copy and exposes the data already fetched (no extra
+//   FMP calls — Senate-latest + House-latest at 25 each = 50 available).
+//
 // GET /api/trades
 // Query params:
 //   ticker     (optional) — filter by stock ticker e.g. NVDA
 //   politician (optional) — filter by politician name substring
-//   limit      (optional) — number of results, default 20
+//   limit      (optional) — number of results, default 50
 
 import {
   normaliseFMPTrade,
@@ -29,6 +34,10 @@ export const config = {
 // FMP free tier allows limit between 0 and 25 per call
 // Premium tiers support higher limits — increase if upgrading
 const FMP_PER_CHAMBER_LIMIT = 25;
+
+// User-facing default for the response window. 50 == 25 Senate + 25 House,
+// the maximum we can serve without extra FMP calls. Override via ?limit=N.
+const DEFAULT_LIMIT = 50;
 
 // Cache-Control for successful responses (CDN-level caching on Vercel)
 const CACHE_CONTROL_SUCCESS =
@@ -59,7 +68,10 @@ export default async function handler(req) {
     const { searchParams } = new URL(req.url);
     const ticker = searchParams.get('ticker') || '';
     const politician = searchParams.get('politician') || '';
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = parseInt(
+      searchParams.get('limit') || String(DEFAULT_LIMIT),
+      10
+    );
 
     const apiKey = process.env.FMP_API_KEY;
 

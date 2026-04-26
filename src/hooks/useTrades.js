@@ -2,6 +2,10 @@
 // Fetches congressional trading data from /api/trades and exposes a clean
 // interface to components. Handles loading, errors, cleanup, and refetch.
 //
+// 1AM-51: JSDoc updated — server-side default raised from 20 to 50 to match
+// the FeedScreen subtitle copy. Hook itself unchanged; only the documentation
+// reflects the new default. Hook callers can still override via filters.limit.
+//
 // Features:
 //   - Automatic fetch on mount
 //   - Refetch when filters change (shallow comparison via JSON.stringify)
@@ -20,7 +24,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * @param {Object}  filters
  * @param {string} [filters.ticker]     — filter by ticker e.g. 'NVDA'
  * @param {string} [filters.politician] — substring match on politician name
- * @param {number} [filters.limit]      — max results (default 20, server-side)
+ * @param {number} [filters.limit]      — max results (default 50, server-side)
  */
 export function useTrades(filters = {}) {
   const [trades, setTrades] = useState([]);
