@@ -14,6 +14,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.1] — 2026-04-26
+
+### Added
+- Custom domain `stockactalert.com` configured in Vercel (1AM-46)
+  - Apex `stockactalert.com` serves a 308 permanent redirect to `www.stockactalert.com` (canonical)
+  - DNS managed at Theory7: A `@` → `216.198.79.1`, CNAME `www` → Vercel
+  - Anti-spoofing TXT records (DMARC, SPF, `_domainkey`) preserved
+  - HTTPS auto-provisioned by Vercel; HSTS active (`max-age=63072000`)
+
+### Removed
+- Stale Theory7 default DNS records (`ftp.`, `mail.` A-records pointing to shared hosting)
+
+---
+
 ## [0.7.0] — 2026-04-25
 
 ### Added
