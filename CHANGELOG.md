@@ -14,6 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.2] — 2026-04-26
+
+### Changed
+- Feed now shows up to 50 STOCK Act filings (was 20) — matches the existing subtitle copy and surfaces more historical context per page (1AM-51)
+- New `DEFAULT_LIMIT` constant in `api/trades.js` separates the user-facing default from the FMP-side per-call cap (`FMP_PER_CHAMBER_LIMIT`)
+
+### Notes
+- No change to FMP API usage — the Edge Function already fetched up to 50 trades (25 Senate + 25 House), the previous default just sliced them down
+- After deduplication typical visible count is 40–50 (varies with filing overlap)
+- CDN cache may serve stale 20-trade responses for ~1–3 hours after deploy; manual cache purge in Vercel UI accelerates global propagation
+
+---
+
 ## [0.7.1] — 2026-04-26
 
 ### Added
@@ -146,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/1am-it/stockactalert/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/1am-it/stockactalert/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/1am-it/stockactalert/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/1am-it/stockactalert/compare/v0.5.1...v0.6.0
