@@ -1,4 +1,4 @@
-// SAA-12 / SAA-16 / SAA-18.1 / 1AM-25 / 1AM-26: FeedScreen component
+// SAA-12 / SAA-16 / SAA-18.1 / 1AM-25 / 1AM-26 / 1AM-52: FeedScreen component
 // Renders the live congressional trade feed with client-side filtering by
 // followed politicians (from onboarding) and a toggle to temporarily show
 // all trades.
@@ -20,6 +20,14 @@
 // person's behaviour) and "no trades in current snapshot" (sounds like
 // "no trades today"). "No recent activity" is neutral and describes
 // the data, not the politician.
+//
+// 1AM-52: Filter-bar label clarified — replaced "FROM YOUR <count>" with
+// "FROM POLITICIANS YOU FOLLOW". The previous label combined two numbers
+// with different units (visible trades vs followed politicians) and read
+// like a ratio. Singular handling preserved via the existing tradeWord
+// ternary. The followedCount prop is left in place but unused in the
+// label; the upcoming v6 redesign (1AM-66) replaces this filter-bar
+// entirely so wider cleanup is deferred.
 //
 // Filter behaviour:
 //   - Default: filter trades by `followedPoliticians` (personalised view)
@@ -210,7 +218,7 @@ function FilterBar({
   const tradeWord = visibleCount === 1 ? 'TRADE' : 'TRADES';
 
   const label = filterActive
-    ? `${visibleCount} RECENT ${tradeWord} FROM YOUR ${followedCount}`
+    ? `${visibleCount} RECENT ${tradeWord} FROM POLITICIANS YOU FOLLOW`
     : hasFollowed
       ? 'SHOWING ALL RECENT TRADES'
       : `${visibleCount} RECENT ${tradeWord}`;
