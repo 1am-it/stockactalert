@@ -66,4 +66,5 @@ function prefixed(key) {
 export const STORAGE_KEYS = {
   ONBOARDING_DONE: 'onboardingDone',
   FOLLOWED_POLITICIANS: 'followedPoliticians',
+  ACTIVE_TAB: 'activeTab',
 };

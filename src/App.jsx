@@ -5,6 +5,10 @@
 // minus the Back/Continue chrome. State is shared with the feed via
 // `followedPoliticians`, so tapping a card in Politicians-tab live-updates
 // the feed filter.
+//
+// 1AM-60: activeTab is now persisted to localStorage so users return to
+// the tab they last visited instead of always landing on 'feed'.
+// Same lazy-init + useEffect pattern as the other persisted state above.
 
 import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
@@ -24,7 +28,13 @@ function App() {
   const [followedPoliticians, setFollowedPoliticians] = useState(() =>
     getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, [])
   );
-  const [activeTab, setActiveTab] = useState('feed');
+  // Whitelist of valid tab IDs — guards against stale or corrupted localStorage
+  // values (e.g. after a tab is renamed or removed in a future version).
+  const VALID_TABS = ['feed', 'politicians', 'alerts', 'settings'];
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = getJSON(STORAGE_KEYS.ACTIVE_TAB, 'feed');
+    return VALID_TABS.includes(saved) ? saved : 'feed';
+  });
 
   // Persist onboarding completion whenever step transitions to/from 'done'
   useEffect(() => {
@@ -35,6 +45,12 @@ function App() {
   useEffect(() => {
     setJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, followedPoliticians);
   }, [followedPoliticians]);
+
+  // 1AM-60: Persist active tab on every change so reopening the app lands
+  // on the same tab the user last visited.
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.ACTIVE_TAB, activeTab);
+  }, [activeTab]);
 
   const togglePolitician = (name) => {
     setFollowedPoliticians((prev) =>
