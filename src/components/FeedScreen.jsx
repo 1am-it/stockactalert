@@ -208,6 +208,8 @@ export default function FeedScreen({
           <TradeCard
             key={trade.id}
             trade={trade}
+            following={followedPoliticians.includes(trade.politician)}
+            owner={trade.owner}
             onSetAlert={(t) => console.log('alert', t)}
             onViewProfile={(t) => console.log('profile', t)}
             onViewTicker={(t) => console.log('ticker', t)}

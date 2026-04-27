@@ -1,11 +1,40 @@
 // SAA-4: TradeCard Component
 // Main card used in the feed for each individual trade
 // Supports expanded state with quick action buttons
-// Props: trade, onSetAlert, onViewProfile, onViewTicker, highlighted
+// Props: trade, onSetAlert, onViewProfile, onViewTicker, highlighted, following, owner
+// 1AM-65: `following` (bool) renders a green "Following ✓" pill, `owner`
+//         ('self'|'spouse'|'joint'|'dependent') renders a coral owner pill
+//         when not 'self'.
 
 import { useState } from 'react';
 import Avatar from './Avatar';
 import { PartyBadge, ChamberBadge, SourceBadge } from './Badge';
+
+// 1AM-65: shared style for the inline name-row pills (Following + owner).
+// Same shape, different colours — kept inline so the pills are self-contained.
+const NAME_PILL_BASE = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '1px 6px',
+  borderRadius: 999,
+  fontSize: 10,
+  fontWeight: 500,
+  fontFamily: "'DM Sans', sans-serif",
+  lineHeight: 1.4,
+  whiteSpace: 'nowrap',
+};
+
+const FOLLOWING_PILL_STYLE = {
+  ...NAME_PILL_BASE,
+  background: 'rgba(5, 150, 105, 0.1)',
+  color: '#059669',
+};
+
+const OWNER_PILL_STYLE = {
+  ...NAME_PILL_BASE,
+  background: 'rgba(216, 90, 48, 0.1)',
+  color: '#D85A30',
+};
 
 export default function TradeCard({
   trade,
@@ -13,6 +42,8 @@ export default function TradeCard({
   onViewProfile,
   onViewTicker,
   highlighted = false,
+  following = false,
+  owner = 'self',
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -27,6 +58,12 @@ export default function TradeCard({
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  // 1AM-65: owner is 'self' by default → no owner pill rendered.
+  // Trade-level `owner` prop overrides trade.owner if the parent supplies one,
+  // letting screens like an unfollowed-Discovery feed override behaviour later.
+  const effectiveOwner = owner || trade.owner || 'self';
+  const showOwnerPill = effectiveOwner !== 'self';
 
   return (
     <div
@@ -69,6 +106,10 @@ export default function TradeCard({
             <div>
               <div
                 style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: 6,
                   fontWeight: 700,
                   fontSize: '14px',
                   color: '#0D1B2A',
@@ -76,7 +117,17 @@ export default function TradeCard({
                   fontFamily: "'DM Sans', sans-serif",
                 }}
               >
-                {trade.politician}
+                <span>{trade.politician}</span>
+                {following && (
+                  <span style={FOLLOWING_PILL_STYLE} aria-label="You follow this politician">
+                    Following ✓
+                  </span>
+                )}
+                {showOwnerPill && (
+                  <span style={OWNER_PILL_STYLE} aria-label={`Trade owner: ${effectiveOwner}`}>
+                    {effectiveOwner}
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                 <PartyBadge party={trade.party} small />
