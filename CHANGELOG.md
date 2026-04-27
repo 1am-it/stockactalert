@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] — 2026-04-27
+
+### Added
+- Feed: chips in the filter empty-state are now interactive — each chip has an inline × button to unfollow that politician without leaving the Feed (1AM-80)
+- Feed: "Manage politicians →" link below the chip-grid jumps directly to the Politicians tab for full-list management (1AM-80)
+
+### Changed
+- Politicians-tab subtitle nudges users toward the Feed: `"Tap to follow or unfollow"` → `"Tap to follow or unfollow — see trades in your Feed"` (1AM-83)
+
+---
+
 ## [0.8.0] — 2026-04-27
 
 ### Added
@@ -222,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/1am-it/stockactalert/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/1am-it/stockactalert/compare/v0.7.4...v0.8.0
 [0.7.4]: https://github.com/1am-it/stockactalert/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/1am-it/stockactalert/compare/v0.7.2...v0.7.3

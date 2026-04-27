@@ -116,7 +116,7 @@ function App() {
     },
     politicians: {
       title: 'Politicians',
-      description: 'Tap to follow or unfollow',
+      description: 'Tap to follow or unfollow — see trades in your Feed',
       color: '#1D4ED8',
     },
     alerts: {
@@ -160,6 +160,7 @@ function App() {
         {activeTab === 'feed' && (
           <FeedScreen
             followedPoliticians={followedPoliticians}
+            onUnfollow={togglePolitician}
             onNavigateToPoliticians={() => setActiveTab('politicians')}
           />
         )}
