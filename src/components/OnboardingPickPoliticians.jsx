@@ -60,6 +60,13 @@ export default function OnboardingPickPoliticians({
 
   const canContinue = selected.length > 0;
 
+  const clearAllFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setChamber([]);
+    setParty([]);
+  };
+
   return (
     <div
       style={{
@@ -147,6 +154,7 @@ export default function OnboardingPickPoliticians({
             justifyContent: 'space-between',
             marginTop: 28,
             marginBottom: 12,
+            gap: 12,
           }}
         >
           <h2
@@ -160,16 +168,37 @@ export default function OnboardingPickPoliticians({
           >
             {isFiltered ? 'Results' : 'All members'}
           </h2>
-          <span
-            style={{
-              fontSize: 12,
-              fontFamily: 'monospace',
-              color: '#6B7280',
-              letterSpacing: '0.04em',
-            }}
-          >
-            {filtered.length}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            {isFiltered && (
+              <button
+                onClick={clearAllFilters}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '2px 4px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#0D1B2A',
+                  fontFamily: "'DM Sans', sans-serif",
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                }}
+              >
+                Clear filters
+              </button>
+            )}
+            <span
+              style={{
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: '#6B7280',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {filtered.length}
+            </span>
+          </div>
         </div>
 
         {/* List or empty state */}
