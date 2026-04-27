@@ -158,7 +158,10 @@ function App() {
 
         {/* ── Active tab content ── */}
         {activeTab === 'feed' && (
-          <FeedScreen followedPoliticians={followedPoliticians} />
+          <FeedScreen
+            followedPoliticians={followedPoliticians}
+            onNavigateToPoliticians={() => setActiveTab('politicians')}
+          />
         )}
 
         {activeTab === 'politicians' && (

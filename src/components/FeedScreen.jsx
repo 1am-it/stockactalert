@@ -36,7 +36,8 @@
 // Session-only state: refresh resets `showAll` and section to collapsed.
 //
 // Props:
-//   followedPoliticians — array of politician names the user follows
+//   followedPoliticians     — array of politician names the user follows
+//   onNavigateToPoliticians — callback to switch active tab (1AM-42 banner CTA)
 
 import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
@@ -45,7 +46,10 @@ import { useTrades } from '../hooks/useTrades';
 // How many chips to show in the empty state before requiring "View all"
 const CHIPS_INITIAL = 3;
 
-export default function FeedScreen({ followedPoliticians = [] }) {
+export default function FeedScreen({
+  followedPoliticians = [],
+  onNavigateToPoliticians,
+}) {
   const { trades, loading, error, refetch } = useTrades();
 
   // Whether to bypass the followed-filter for the current session
@@ -166,6 +170,16 @@ export default function FeedScreen({ followedPoliticians = [] }) {
 
   return (
     <div>
+      {/* 1AM-42: 0-follow recovery banner — shown above the feed when the
+          user has nobody followed (e.g. after unfollowing all in Politicians
+          tab). Doesn't replace the feed: "browse mode" trades still render
+          below so the user can explore while deciding. */}
+      {!hasFollowed && (
+        <EmptyFollowedListBanner
+          onNavigateToPoliticians={onNavigateToPoliticians}
+        />
+      )}
+
       {/* Filter indicator + toggle */}
       <FilterBar
         filterActive={filterActive}
@@ -297,7 +311,7 @@ function FilterBar({
           padding: '0 2px',
         }}
       >
-        Latest 50 STOCK Act filings from Senate + House
+        Latest STOCK Act filings from Senate + House
       </div>
     </div>
   );
@@ -531,6 +545,80 @@ function FilterEmptyState({ followedPoliticians, onShowAll }) {
           Browse all trades
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── 1AM-42: Empty-followed-list recovery banner ─────────────────────────────
+// Shown above the feed when the user has zero followed politicians but
+// onboarding is already complete (i.e. they're in the main app, not in the
+// onboarding flow). Provides a clear path back to following someone without
+// being so aggressive as to force-redirect them away from the feed.
+function EmptyFollowedListBanner({ onNavigateToPoliticians }) {
+  return (
+    <div
+      style={{
+        background: '#FFFFFF',
+        border: '1px solid #E5E7EB',
+        borderRadius: 14,
+        padding: '24px 24px 28px',
+        marginBottom: 20,
+        textAlign: 'center',
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          fontSize: 28,
+          marginBottom: 12,
+          color: '#9CA3AF',
+        }}
+      >
+        ⌕
+      </div>
+      <h2
+        style={{
+          fontFamily: "'Playfair Display', serif",
+          fontSize: 20,
+          fontWeight: 700,
+          color: '#0D1B2A',
+          margin: '0 0 6px 0',
+        }}
+      >
+        You're not following anyone yet
+      </h2>
+      <p
+        style={{
+          fontSize: 14,
+          color: '#6B7280',
+          margin: '0 0 18px 0',
+          lineHeight: 1.5,
+          maxWidth: 380,
+          marginLeft: 'auto',
+          marginRight: 'auto',
+        }}
+      >
+        Pick politicians to see their trades here. You can always change who you
+        follow from the Politicians tab.
+      </p>
+      <button
+        onClick={onNavigateToPoliticians}
+        disabled={!onNavigateToPoliticians}
+        style={{
+          padding: '12px 24px',
+          background: '#0D1B2A',
+          color: '#FAFAF7',
+          border: 'none',
+          borderRadius: 10,
+          fontSize: 14,
+          fontWeight: 700,
+          fontFamily: "'DM Sans', sans-serif",
+          cursor: onNavigateToPoliticians ? 'pointer' : 'default',
+        }}
+      >
+        Choose politicians →
+      </button>
     </div>
   );
 }

@@ -42,10 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ChipGroup` — multi-select pill bar with ARIA pressed state
   - `MemberListEmptyState` — pluggable title + message
   - `MemberListRow` — single politician row with avatar + meta + selection toggle
+- Feed: empty-followed-list recovery banner (1AM-42) — when a returning user has unfollowed everyone, the feed now shows a "You're not following anyone yet" banner above browse-mode trades, with a "Choose politicians →" CTA that jumps to the Politicians tab. The browse-mode feed remains visible below so users can still explore while deciding.
 
 ### Changed
 - Replaced `PoliticianPickGrid` (curated 22 grid layout) with vertical list rows across both onboarding and Politicians-tab (1AM-68)
 - `App.jsx` hydrates `followedPoliticians` through a name-alias migration so existing users following "Bernie Sanders" or "Shelley Moore Capito" carry over correctly to the directory's `firstName + lastName` convention (Bernard Sanders, Shelley Capito)
+- Feed scope subtitle dropped misleading hardcoded "50" — now reads "Latest STOCK Act filings from Senate + House" (was "Latest 50 …"). The literal number leaked an arbitrary `DEFAULT_LIMIT` cap and was often inaccurate after dedup (1AM-81)
 
 ### Removed
 - `src/components/PoliticianPickGrid.jsx` — superseded by `MemberListRow` + section layouts
