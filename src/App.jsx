@@ -19,6 +19,26 @@ import OnboardingDataExplainer from './components/OnboardingDataExplainer';
 import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
 import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
 
+// 1AM-67/1AM-68: Legacy name migration
+// When the curated-22 list was replaced by the full Congress directory, two
+// curated names didn't match the new Member.name format (firstName + lastName):
+//   - "Bernie Sanders" — directory uses legal name "Bernard Sanders"
+//   - "Shelley Moore Capito" — directory drops middle name → "Shelley Capito"
+// Existing users following these via localStorage need their stored names
+// remapped on hydration, otherwise the new picker shows them as not-followed.
+//
+// The migration is idempotent (passing already-migrated names through as-is)
+// and runs once at hydration. Persisted to localStorage by the existing
+// useEffect that watches followedPoliticians.
+const FOLLOWED_NAME_ALIASES = {
+  'Bernie Sanders': 'Bernard Sanders',
+  'Shelley Moore Capito': 'Shelley Capito',
+};
+
+function migrateFollowedNames(names) {
+  return names.map((n) => FOLLOWED_NAME_ALIASES[n] || n);
+}
+
 function App() {
   // Hydrate initial state from localStorage. Lazy initial state so we only
   // touch storage once on mount.
@@ -26,7 +46,7 @@ function App() {
     getJSON(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'welcome'
   );
   const [followedPoliticians, setFollowedPoliticians] = useState(() =>
-    getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, [])
+    migrateFollowedNames(getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, []))
   );
   // Whitelist of valid tab IDs — guards against stale or corrupted localStorage
   // values (e.g. after a tab is renamed or removed in a future version).
@@ -96,7 +116,7 @@ function App() {
     },
     politicians: {
       title: 'Politicians',
-      description: 'Tap a card to follow or unfollow',
+      description: 'Tap to follow or unfollow',
       color: '#1D4ED8',
     },
     alerts: {
@@ -138,7 +158,10 @@ function App() {
 
         {/* ── Active tab content ── */}
         {activeTab === 'feed' && (
-          <FeedScreen followedPoliticians={followedPoliticians} />
+          <FeedScreen
+            followedPoliticians={followedPoliticians}
+            onNavigateToPoliticians={() => setActiveTab('politicians')}
+          />
         )}
 
         {activeTab === 'politicians' && (

@@ -1,0 +1,458 @@
+[
+  {
+    "bioguideId": "B001277",
+    "name": "Richard Blumenthal",
+    "initials": "RB",
+    "firstName": "Richard",
+    "lastName": "Blumenthal",
+    "officialFull": "Richard Blumenthal",
+    "chamber": "Senate",
+    "party": "D",
+    "state": "CT",
+    "termStart": "2023-01-03",
+    "termEnd": "2029-01-03",
+    "senateClass": 3,
+    "crosswalk": {
+      "govtrack": 412490,
+      "opensecrets": "N00031685",
+      "fec": [
+        "S0CT00177"
+      ],
+      "votesmart": 1568
+    }
+  },
+  {
+    "bioguideId": "B001236",
+    "name": "John Boozman",
+    "initials": "JB",
+    "firstName": "John",
+    "lastName": "Boozman",
+    "officialFull": "John Boozman",
+    "chamber": "Senate",
+    "party": "R",
+    "state": "AR",
+    "termStart": "2023-01-03",
+    "termEnd": "2029-01-03",
+    "senateClass": 3,
+    "crosswalk": {
+      "govtrack": 400040,
+      "opensecrets": "N00013873",
+      "fec": [
+        "H2AR03176",
+        "S0AR00150"
+      ],
+      "votesmart": 27958
+    }
+  },
+  {
+    "bioguideId": "C001047",
+    "name": "Shelley Capito",
+    "initials": "SC",
+    "firstName": "Shelley",
+    "lastName": "Capito",
+    "officialFull": "Shelley Moore Capito",
+    "chamber": "Senate",
+    "party": "R",
+    "state": "WV",
+    "termStart": "2021-01-03",
+    "termEnd": "2027-01-03",
+    "middleName": "Moore",
+    "senateClass": 2,
+    "crosswalk": {
+      "govtrack": 400061,
+      "opensecrets": "N00009771",
+      "fec": [
+        "H0WV02138",
+        "S4WV00159"
+      ],
+      "votesmart": 11701
+    }
+  },
+  {
+    "bioguideId": "C001120",
+    "name": "Dan Crenshaw",
+    "initials": "DC",
+    "firstName": "Dan",
+    "lastName": "Crenshaw",
+    "officialFull": "Dan Crenshaw",
+    "chamber": "House",
+    "party": "R",
+    "state": "TX",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "district": 2,
+    "crosswalk": {
+      "govtrack": 412820,
+      "opensecrets": "N00042224",
+      "fec": [
+        "H8TX02166"
+      ],
+      "votesmart": 177270
+    }
+  },
+  {
+    "bioguideId": "K000389",
+    "name": "Ro Khanna",
+    "initials": "RK",
+    "firstName": "Ro",
+    "lastName": "Khanna",
+    "officialFull": "Ro Khanna",
+    "chamber": "House",
+    "party": "D",
+    "state": "CA",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "district": 17,
+    "crosswalk": {
+      "govtrack": 412684,
+      "opensecrets": "N00026427",
+      "fec": [
+        "H4CA12055"
+      ],
+      "votesmart": 29473
+    }
+  },
+  {
+    "bioguideId": "K000383",
+    "name": "Angus King",
+    "initials": "AK",
+    "firstName": "Angus",
+    "lastName": "King",
+    "officialFull": "Angus S. King, Jr.",
+    "chamber": "Senate",
+    "party": "I",
+    "state": "ME",
+    "termStart": "2025-01-03",
+    "termEnd": "2031-01-03",
+    "middleName": "S.",
+    "senateClass": 1,
+    "crosswalk": {
+      "govtrack": 412545,
+      "opensecrets": "N00034580",
+      "fec": [
+        "S2ME00109"
+      ],
+      "votesmart": 22381
+    }
+  },
+  {
+    "bioguideId": "M001157",
+    "name": "Michael McCaul",
+    "initials": "MM",
+    "firstName": "Michael",
+    "lastName": "McCaul",
+    "officialFull": "Michael T. McCaul",
+    "chamber": "House",
+    "party": "R",
+    "state": "TX",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "middleName": "T.",
+    "district": 10,
+    "crosswalk": {
+      "govtrack": 400654,
+      "opensecrets": "N00026460",
+      "fec": [
+        "H4TX10093"
+      ],
+      "votesmart": 49210
+    }
+  },
+  {
+    "bioguideId": "M000355",
+    "name": "Mitch McConnell",
+    "initials": "MM",
+    "firstName": "Mitch",
+    "lastName": "McConnell",
+    "officialFull": "Mitch McConnell",
+    "chamber": "Senate",
+    "party": "R",
+    "state": "KY",
+    "termStart": "2021-01-03",
+    "termEnd": "2027-01-03",
+    "senateClass": 2,
+    "crosswalk": {
+      "govtrack": 300072,
+      "opensecrets": "N00003389",
+      "fec": [
+        "S2KY00012"
+      ],
+      "votesmart": 53298
+    }
+  },
+  {
+    "bioguideId": "M001220",
+    "name": "Morgan McGarvey",
+    "initials": "MM",
+    "firstName": "Morgan",
+    "lastName": "McGarvey",
+    "officialFull": "Morgan McGarvey",
+    "chamber": "House",
+    "party": "D",
+    "state": "KY",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "district": 3,
+    "crosswalk": {
+      "govtrack": 456904,
+      "opensecrets": "N00049295",
+      "fec": [
+        "H2KY03206"
+      ],
+      "votesmart": 139826
+    }
+  },
+  {
+    "bioguideId": "O000172",
+    "name": "Alexandria Ocasio-Cortez",
+    "initials": "AO",
+    "firstName": "Alexandria",
+    "lastName": "Ocasio-Cortez",
+    "officialFull": "Alexandria Ocasio-Cortez",
+    "chamber": "House",
+    "party": "D",
+    "state": "NY",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "district": 14,
+    "crosswalk": {
+      "govtrack": 412804,
+      "opensecrets": "N00041162",
+      "fec": [
+        "H8NY15148"
+      ],
+      "votesmart": 180416
+    }
+  },
+  {
+    "bioguideId": "P000197",
+    "name": "Nancy Pelosi",
+    "initials": "NP",
+    "firstName": "Nancy",
+    "lastName": "Pelosi",
+    "officialFull": "Nancy Pelosi",
+    "chamber": "House",
+    "party": "D",
+    "state": "CA",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "district": 11,
+    "crosswalk": {
+      "govtrack": 400314,
+      "opensecrets": "N00007360",
+      "fec": [
+        "H8CA05035"
+      ],
+      "votesmart": 26732
+    }
+  },
+  {
+    "bioguideId": "R000603",
+    "name": "David Rouzer",
+    "initials": "DR",
+    "firstName": "David",
+    "lastName": "Rouzer",
+    "officialFull": "David Rouzer",
+    "chamber": "House",
+    "party": "R",
+    "state": "NC",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "district": 7,
+    "crosswalk": {
+      "govtrack": 412641,
+      "opensecrets": "N00033527",
+      "fec": [
+        "H2NC07096"
+      ],
+      "votesmart": 102964
+    }
+  },
+  {
+    "bioguideId": "S000033",
+    "name": "Bernard Sanders",
+    "initials": "BS",
+    "firstName": "Bernard",
+    "lastName": "Sanders",
+    "officialFull": "Bernard Sanders",
+    "chamber": "Senate",
+    "party": "I",
+    "state": "VT",
+    "termStart": "2025-01-03",
+    "termEnd": "2031-01-03",
+    "nickname": "Bernie",
+    "senateClass": 1,
+    "crosswalk": {
+      "govtrack": 400357,
+      "opensecrets": "N00000528",
+      "fec": [
+        "H8VT01016",
+        "S4VT00033"
+      ],
+      "votesmart": 27110
+    }
+  },
+  {
+    "bioguideId": "S000148",
+    "name": "Charles Schumer",
+    "initials": "CS",
+    "firstName": "Charles",
+    "lastName": "Schumer",
+    "officialFull": "Charles E. Schumer",
+    "chamber": "Senate",
+    "party": "D",
+    "state": "NY",
+    "termStart": "2023-01-03",
+    "termEnd": "2029-01-03",
+    "middleName": "E.",
+    "nickname": "Chuck",
+    "senateClass": 3,
+    "crosswalk": {
+      "govtrack": 300087,
+      "opensecrets": "N00001093",
+      "fec": [
+        "S8NY00082",
+        "H0NY16010"
+      ],
+      "votesmart": 26976
+    }
+  },
+  {
+    "bioguideId": "S001196",
+    "name": "Elise Stefanik",
+    "initials": "ES",
+    "firstName": "Elise",
+    "lastName": "Stefanik",
+    "officialFull": "Elise M. Stefanik",
+    "chamber": "House",
+    "party": "R",
+    "state": "NY",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "middleName": "M.",
+    "district": 21,
+    "crosswalk": {
+      "govtrack": 412648,
+      "opensecrets": "N00035523",
+      "fec": [
+        "H4NY21079"
+      ],
+      "votesmart": 152539
+    }
+  },
+  {
+    "bioguideId": "T000278",
+    "name": "Tommy Tuberville",
+    "initials": "TT",
+    "firstName": "Tommy",
+    "lastName": "Tuberville",
+    "officialFull": "Tommy Tuberville",
+    "chamber": "Senate",
+    "party": "R",
+    "state": "AL",
+    "termStart": "2021-01-03",
+    "termEnd": "2027-01-03",
+    "middleName": "Hawley",
+    "senateClass": 2,
+    "crosswalk": {
+      "govtrack": 456796,
+      "opensecrets": "N00044434",
+      "fec": [
+        "S0AL00230"
+      ],
+      "votesmart": 188306
+    }
+  },
+  {
+    "bioguideId": "W000805",
+    "name": "Mark Warner",
+    "initials": "MW",
+    "firstName": "Mark",
+    "lastName": "Warner",
+    "officialFull": "Mark R. Warner",
+    "chamber": "Senate",
+    "party": "D",
+    "state": "VA",
+    "termStart": "2021-01-03",
+    "termEnd": "2027-01-03",
+    "middleName": "R.",
+    "senateClass": 2,
+    "crosswalk": {
+      "govtrack": 412321,
+      "opensecrets": "N00002097",
+      "fec": [
+        "S6VA00093",
+        "P80003023"
+      ],
+      "votesmart": 535
+    }
+  },
+  {
+    "bioguideId": "W000797",
+    "name": "Debbie Wasserman Schultz",
+    "initials": "DW",
+    "firstName": "Debbie",
+    "lastName": "Wasserman Schultz",
+    "officialFull": "Debbie Wasserman Schultz",
+    "chamber": "House",
+    "party": "D",
+    "state": "FL",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "district": 25,
+    "crosswalk": {
+      "govtrack": 400623,
+      "opensecrets": "N00026106",
+      "fec": [
+        "H4FL20023"
+      ],
+      "votesmart": 24301
+    }
+  },
+  {
+    "bioguideId": "W000816",
+    "name": "Roger Williams",
+    "initials": "RW",
+    "firstName": "Roger",
+    "lastName": "Williams",
+    "officialFull": "Roger Williams",
+    "chamber": "House",
+    "party": "R",
+    "state": "TX",
+    "termStart": "2025-01-03",
+    "termEnd": "2027-01-03",
+    "district": 25,
+    "crosswalk": {
+      "govtrack": 412578,
+      "opensecrets": "N00030602",
+      "fec": [
+        "H2TX33040",
+        "S2TX00270"
+      ],
+      "votesmart": 50112
+    }
+  },
+  {
+    "bioguideId": "W000779",
+    "name": "Ron Wyden",
+    "initials": "RW",
+    "firstName": "Ron",
+    "lastName": "Wyden",
+    "officialFull": "Ron Wyden",
+    "chamber": "Senate",
+    "party": "D",
+    "state": "OR",
+    "termStart": "2023-01-03",
+    "termEnd": "2029-01-03",
+    "senateClass": 3,
+    "crosswalk": {
+      "govtrack": 300100,
+      "opensecrets": "N00007724",
+      "fec": [
+        "S6OR00110",
+        "H0OR03026"
+      ],
+      "votesmart": 27036
+    }
+  }
+]

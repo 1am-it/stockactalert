@@ -1,7 +1,9 @@
 // SAA-10: Internal Trade Data Schema
-// Single source of truth for trade data shape across the entire app
-// Independent of any external API — normalises data from any source
-// Changing data source later won't require frontend changes
+// 1AM-67: Internal Member (Congress) Data Schema added below
+//
+// Single source of truth for trade and member data shape across the entire app.
+// Independent of any external API — normalises data from any source.
+// Changing data source later won't require frontend changes.
 
 // ─── Trade Schema ─────────────────────────────────────────────────────────────
 // This is the shape of every trade object used in the app
@@ -222,3 +224,84 @@ export function sortTradesByDate(trades) {
     (a, b) => new Date(b.filedDate) - new Date(a.filedDate)
   );
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// 1AM-67: Member (Congress) Schema
+// ════════════════════════════════════════════════════════════════════════════
+// Shape of every Congress member object used across the app.
+// Source: hybrid of Congress.gov API (canonical) + unitedstates/congress-legislators
+// (crosswalk supplement). Decided in 1AM-63.
+//
+// Bioguide ID is the canonical primary key — used to:
+//   - Identify members across the app
+//   - Match FMP trade records (via name-cascade in src/lib/congress.js)
+//   - Key user follows in localStorage / Supabase
+//   - Construct photo URLs (deferred — see 1AM-74)
+
+/**
+ * @typedef {Object} MemberCrosswalk
+ * @property {number} [govtrack]    - GovTrack.us numeric ID
+ * @property {string} [opensecrets] - OpenSecrets alphanumeric ID
+ * @property {string[]} [fec]       - FEC ID list
+ * @property {number} [votesmart]   - VoteSmart numeric ID
+ */
+
+/**
+ * @typedef {Object} Member
+ * @property {string} bioguideId        - Canonical primary key (e.g. "P000197" for Pelosi)
+ * @property {string} name              - Display name "Nancy Pelosi" (firstName + lastName)
+ * @property {string} initials          - 2-char avatar initials "NP"
+ * @property {string} firstName         - "Nancy"
+ * @property {string} lastName          - "Pelosi"
+ * @property {string} [middleName]      - "D." or undefined
+ * @property {string} [nickname]        - undefined unless in source
+ * @property {string} officialFull      - "Nancy Pelosi" — name as shown on House.gov / Senate.gov
+ * @property {'House'|'Senate'} chamber - Existing convention, capitalised (matches CHAMBERS enum)
+ * @property {'D'|'R'|'I'} party        - Matches PARTIES enum
+ * @property {string} state             - 2-letter USPS code "CA"
+ * @property {number} [district]        - 12 (House only; 0 for at-large; absent for Senate)
+ * @property {1|2|3} [senateClass]      - Senate election class (Senate only; absent for House)
+ * @property {string} termStart         - ISO date "2025-01-03"
+ * @property {string} termEnd           - ISO date "2027-01-03"
+ * @property {MemberCrosswalk} [crosswalk] - Cross-references to other databases
+ * @property {string} [photoUrl]        - Deferred to 1AM-74; constructed from bioguideId pattern
+ */
+
+// ─── Empty member template ────────────────────────────────────────────────────
+export const EMPTY_MEMBER = {
+  bioguideId: '',
+  name: '',
+  initials: '',
+  firstName: '',
+  lastName: '',
+  middleName: undefined,
+  nickname: undefined,
+  officialFull: '',
+  chamber: '',
+  party: '',
+  state: '',
+  district: undefined,
+  senateClass: undefined,
+  termStart: '',
+  termEnd: '',
+  crosswalk: undefined,
+  photoUrl: undefined,
+};
+
+// ─── Helper: derive 2-character initials from a first + last name ─────────────
+// Used by the fetch-congress script + anywhere a Member object needs to be
+// constructed at runtime. Two-character cap so all initials render the same
+// width in the avatar pill (e.g. "Nancy Pelosi" → "NP").
+export function deriveMemberInitials(firstName, lastName) {
+  const first = (firstName || '').trim().charAt(0).toUpperCase();
+  const last = (lastName || '').trim().charAt(0).toUpperCase();
+  return `${first}${last}`;
+}
+
+// ─── Helper: derive display "name" from a member's first + last ───────────────
+// First + last only, no middle name, no suffix. Used as the unique key in
+// followedPoliticians state during the migration window (Phase C of 1AM-67).
+export function deriveMemberName(firstName, lastName) {
+  return `${(firstName || '').trim()} ${(lastName || '').trim()}`.trim();
+}
+

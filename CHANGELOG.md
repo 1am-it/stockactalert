@@ -8,9 +8,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Full politicians directory with search (1AM-27)
+- GitHub Actions weekly Congress-directory refresh workflow + localStorage bioguideId migration (1AM-67 Phase C)
+- TradeCard owner badges — spouse/joint/dependent (1AM-65)
 - Reusable FollowedList component (1AM-28)
 - Add "X days after trade" field to TradeCard (1AM-36)
+
+---
+
+## [0.8.0] — 2026-04-27
+
+### Added
+- Full Congress member directory imported into the app (~536 current members across Senate + House) (1AM-67):
+  - New `Member` schema in `src/data/schema.js` (Bioguide ID as canonical primary key, plus name parts, chamber, party, state, district/senateClass, term dates, crosswalk IDs)
+  - `scripts/fetch-congress.mjs` — hybrid fetcher: Congress.gov API as authority + `unitedstates/congress-legislators` GitHub for rich schema. Outputs deterministic `src/data/congress.json` (full directory, ~264 KB) and `src/data/congress.fixture.json` (20-member dev fixture)
+  - npm script `fetch:congress` for manual refreshes
+  - Helpers in `src/lib/congress.js`: `findByBioguide`, `findByName` (case-insensitive, diacritic-tolerant, ranked exact > prefix > substring, matches firstName/lastName/officialFull/nickname), `filterByChamber`, `filterByParty`, `filterByState`, `applyFilters` (combined), `getSuggested` (8 hand-picked high-profile members)
+- Onboarding picker rewritten to handle the full ~540-member directory (1AM-79):
+  - Debounced search bar (150ms) with case-insensitive name + nickname matching (e.g. `bernie` → Sanders)
+  - Filter chips: Chamber (Senate/House) + Party (D/R/I), multi-select, AND between groups + OR within
+  - "Suggested for you" section with 8 high-profile members, only visible when no filters/search active
+  - Native CSS virtualization (`content-visibility: auto`) — smooth scroll on 540 rows without adding `react-window` dependency
+  - "Clear filters" button in Results header, only visible when filters are active
+  - Auto-clear filters when adding a follow (preserves filter context when removing)
+  - Empty state when filters yield 0 matches
+- Politicians-tab redesigned for the full directory (1AM-68):
+  - Header shows "Following N of 536"
+  - Same search bar + filter chips as the onboarding picker (shared components)
+  - Two sections: "Following" (top, member rows the user already follows) + "Browse all" (bottom, everyone else)
+  - Per-section count, "X of Y" notation when filters are active
+  - Empty states tailored per situation: search-no-match vs "you follow everyone here"
+- Shared picker components (1AM-68):
+  - `SearchBar` — reusable input with magnifier glyph + clear button
+  - `ChipGroup` — multi-select pill bar with ARIA pressed state
+  - `MemberListEmptyState` — pluggable title + message
+  - `MemberListRow` — single politician row with avatar + meta + selection toggle
+- Feed: empty-followed-list recovery banner (1AM-42) — when a returning user has unfollowed everyone, the feed now shows a "You're not following anyone yet" banner above browse-mode trades, with a "Choose politicians →" CTA that jumps to the Politicians tab. The browse-mode feed remains visible below so users can still explore while deciding.
+
+### Changed
+- Replaced `PoliticianPickGrid` (curated 22 grid layout) with vertical list rows across both onboarding and Politicians-tab (1AM-68)
+- `App.jsx` hydrates `followedPoliticians` through a name-alias migration so existing users following "Bernie Sanders" or "Shelley Moore Capito" carry over correctly to the directory's `firstName + lastName` convention (Bernard Sanders, Shelley Capito)
+- Feed scope subtitle dropped misleading hardcoded "50" — now reads "Latest STOCK Act filings from Senate + House" (was "Latest 50 …"). The literal number leaked an arbitrary `DEFAULT_LIMIT` cap and was often inaccurate after dedup (1AM-81)
+
+### Removed
+- `src/components/PoliticianPickGrid.jsx` — superseded by `MemberListRow` + section layouts
+- `src/data/curatedPoliticians.js` — superseded by full Congress directory at `src/data/congress.json`
+
+### Notes
+- localStorage `saa.followedPoliticians` is migrated transparently on first hydration after upgrade — no user action needed
+- Bundle size grew to ~417 KB raw / ~103 KB gzipped (was ~150 KB) due to the embedded directory JSON; first-load delta on a typical mobile connection is negligible thanks to gzip + CDN caching
 
 ---
 
