@@ -7,8 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Full Congress member directory imported into the app (~536 current members across Senate + House) (1AM-67):
+  - New `Member` schema in `src/data/schema.js` (Bioguide ID as canonical primary key, plus name parts, chamber, party, state, district/senateClass, term dates, crosswalk IDs)
+  - `scripts/fetch-congress.mjs` — hybrid fetcher: Congress.gov API as authority + `unitedstates/congress-legislators` GitHub for rich schema. Outputs deterministic `src/data/congress.json` (full directory, ~264 KB) and `src/data/congress.fixture.json` (20-member dev fixture)
+  - npm script `fetch:congress` for manual refreshes
+  - Helpers in `src/lib/congress.js`: `findByBioguide`, `findByName` (case-insensitive, diacritic-tolerant, ranked exact > prefix > substring, matches firstName/lastName/officialFull/nickname), `filterByChamber`, `filterByParty`, `filterByState`, `applyFilters` (combined), `getSuggested` (8 hand-picked high-profile members)
+- Onboarding picker rewritten to handle the full ~540-member directory (1AM-79):
+  - Debounced search bar (150ms) with case-insensitive name + nickname matching (e.g. `bernie` → Sanders)
+  - Filter chips: Chamber (Senate/House) + Party (D/R/I), multi-select, AND between groups + OR within
+  - "Suggested for you" section with 8 high-profile members, only visible when no filters/search active
+  - Native CSS virtualization (`content-visibility: auto`) — smooth scroll on 540 rows without adding `react-window` dependency
+  - "Clear filters" button in Results header, only visible when filters are active
+  - Auto-clear filters when adding a follow (preserves filter context when removing)
+  - Empty state when filters yield 0 matches
+  - New reusable `MemberListRow` component (will be reused in 1AM-68 Politicians-tab redesign)
+
 ### Planned
-- Full politicians directory with search (1AM-27)
+- Politicians-tab redesign to match new picker pattern (1AM-68) — required before 1AM-79 ships to production
+- GitHub Actions weekly Congress-directory refresh workflow + localStorage migration (1AM-67 Phase C)
+- TradeCard owner badges (1AM-65)
 - Reusable FollowedList component (1AM-28)
 - Add "X days after trade" field to TradeCard (1AM-36)
 
