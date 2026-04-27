@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.3] — 2026-04-27
+
+### Added
+- Active tab now persists to localStorage so reopening the app returns you to your last-visited tab (1AM-60)
+- New `STORAGE_KEYS.ACTIVE_TAB` constant + tab-name whitelist guards against stale or corrupted localStorage values
+
+---
+
 ## [0.7.2] — 2026-04-26
 
 ### Changed
