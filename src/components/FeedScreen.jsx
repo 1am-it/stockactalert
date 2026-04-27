@@ -37,7 +37,8 @@
 //
 // Props:
 //   followedPoliticians     — array of politician names the user follows
-//   onNavigateToPoliticians — callback to switch active tab (1AM-42 banner CTA)
+//   onUnfollow              — callback (name) for chip × in FilterEmptyState (1AM-80)
+//   onNavigateToPoliticians — callback to switch active tab (1AM-42 banner, 1AM-80 manage link)
 
 import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
@@ -48,6 +49,7 @@ const CHIPS_INITIAL = 3;
 
 export default function FeedScreen({
   followedPoliticians = [],
+  onUnfollow,
   onNavigateToPoliticians,
 }) {
   const { trades, loading, error, refetch } = useTrades();
@@ -195,6 +197,8 @@ export default function FeedScreen({
         <FilterEmptyState
           followedPoliticians={followedPoliticians}
           onShowAll={() => setShowAll(true)}
+          onUnfollow={onUnfollow}
+          onNavigateToPoliticians={onNavigateToPoliticians}
         />
       )}
 
@@ -422,7 +426,15 @@ function NoRecentActivitySection({ inactivePoliticians }) {
 // Shown when filter is active but no followed politicians have recent trades.
 // Includes a chip-grid showing *who* the user follows, with a "View all"
 // toggle when the list exceeds CHIPS_INITIAL (3).
-function FilterEmptyState({ followedPoliticians, onShowAll }) {
+//
+// 1AM-80: chips have an inline × button to unfollow directly from the feed,
+// and a "Manage politicians →" link below jumps to the Politicians tab.
+function FilterEmptyState({
+  followedPoliticians,
+  onShowAll,
+  onUnfollow,
+  onNavigateToPoliticians,
+}) {
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const totalCount = followedPoliticians.length;
   const showExpandToggle = totalCount > CHIPS_INITIAL;
@@ -483,14 +495,17 @@ function FilterEmptyState({ followedPoliticians, onShowAll }) {
           display: 'flex',
           flexWrap: 'wrap',
           gap: 6,
-          marginBottom: showExpandToggle ? 12 : 20,
+          marginBottom: showExpandToggle ? 12 : 16,
         }}
       >
         {visibleChips.map((name) => (
           <span
             key={name}
             style={{
-              padding: '6px 10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '4px 4px 4px 10px',
               background: '#F3F4F6',
               color: '#374151',
               borderRadius: 999,
@@ -501,6 +516,32 @@ function FilterEmptyState({ followedPoliticians, onShowAll }) {
             }}
           >
             {name}
+            {onUnfollow && (
+              <button
+                type="button"
+                onClick={() => onUnfollow(name)}
+                aria-label={`Unfollow ${name}`}
+                title={`Unfollow ${name}`}
+                style={{
+                  width: 24,
+                  height: 24,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: '50%',
+                  color: '#9CA3AF',
+                  fontSize: 16,
+                  lineHeight: 1,
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                ×
+              </button>
+            )}
           </span>
         ))}
       </div>
@@ -510,7 +551,7 @@ function FilterEmptyState({ followedPoliticians, onShowAll }) {
           onClick={() => setChipsExpanded((v) => !v)}
           style={{
             display: 'block',
-            margin: '0 auto 20px',
+            margin: '0 auto 16px',
             padding: '4px 10px',
             background: 'transparent',
             border: '1px solid #E5E7EB',
@@ -524,6 +565,30 @@ function FilterEmptyState({ followedPoliticians, onShowAll }) {
         >
           {chipsExpanded ? 'View fewer' : `View all ${totalCount}`}
         </button>
+      )}
+
+      {/* ── Manage politicians link (1AM-80) ── */}
+      {onNavigateToPoliticians && (
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <button
+            type="button"
+            onClick={onNavigateToPoliticians}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              fontSize: 12,
+              fontWeight: 500,
+              color: '#0D1B2A',
+              textDecoration: 'underline',
+              textDecorationColor: '#9CA3AF',
+              fontFamily: "'DM Sans', sans-serif",
+              cursor: 'pointer',
+            }}
+          >
+            Manage politicians →
+          </button>
+        </div>
       )}
 
       {/* ── Escape hatch ── */}
