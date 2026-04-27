@@ -290,8 +290,8 @@ export const EMPTY_MEMBER = {
 
 // ─── Helper: derive 2-character initials from a first + last name ─────────────
 // Used by the fetch-congress script + anywhere a Member object needs to be
-// constructed at runtime. Mirrors the existing curatedPoliticians.js convention
-// (e.g. "Nancy Pelosi" → "NP", "Shelley Moore Capito" → "SC", "Ron Wyden" → "RW").
+// constructed at runtime. Two-character cap so all initials render the same
+// width in the avatar pill (e.g. "Nancy Pelosi" → "NP").
 export function deriveMemberInitials(firstName, lastName) {
   const first = (firstName || '').trim().charAt(0).toUpperCase();
   const last = (lastName || '').trim().charAt(0).toUpperCase();
@@ -299,9 +299,8 @@ export function deriveMemberInitials(firstName, lastName) {
 }
 
 // ─── Helper: derive display "name" from a member's first + last ───────────────
-// Matches the existing curatedPoliticians.js convention — first + last only,
-// no middle, no suffix. Used as the unique key in followedPoliticians state
-// during the migration window (Phase C of 1AM-67).
+// First + last only, no middle name, no suffix. Used as the unique key in
+// followedPoliticians state during the migration window (Phase C of 1AM-67).
 export function deriveMemberName(firstName, lastName) {
   return `${(firstName || '').trim()} ${(lastName || '').trim()}`.trim();
 }

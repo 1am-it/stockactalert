@@ -7,6 +7,9 @@
 //   - Member list (filtered + searched, native CSS content-visibility for perf)
 //   - Empty state when filters yield no matches
 //
+// Refactored in 1AM-68 to use shared SearchBar/ChipGroup/MemberListEmptyState
+// components for parity with the Politicians-tab management screen.
+//
 // Selection contract is preserved from the curated-22 era: parent `App.jsx`
 // owns `followedPoliticians` as an array of `name` strings, and `onToggle(name)`
 // adds/removes. Migration to bioguideId-keyed storage is Phase C of 1AM-67.
@@ -17,6 +20,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { applyFilters, getSuggested } from '../lib/congress';
 import MemberListRow from './MemberListRow';
+import SearchBar from './SearchBar';
+import ChipGroup from './ChipGroup';
+import MemberListEmptyState from './MemberListEmptyState';
 
 const SEARCH_DEBOUNCE_MS = 150;
 
@@ -89,7 +95,6 @@ export default function OnboardingPickPoliticians({
         flexDirection: 'column',
       }}
     >
-      {/* Scrollable content area (with bottom padding for sticky CTA bar) */}
       <div
         style={{
           flex: 1,
@@ -126,14 +131,12 @@ export default function OnboardingPickPoliticians({
           noisy and misleading. Just pick who you're curious about.
         </p>
 
-        {/* Search bar */}
         <SearchBar
           value={searchInput}
           onChange={setSearchInput}
           onClear={() => setSearchInput('')}
         />
 
-        {/* Filter chips */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
           <ChipGroup
             label="Chamber"
@@ -149,7 +152,6 @@ export default function OnboardingPickPoliticians({
           />
         </div>
 
-        {/* Suggested-to-follow section (only when no filters/search active) */}
         {!isFiltered && (
           <SuggestedSection
             members={suggested}
@@ -158,7 +160,6 @@ export default function OnboardingPickPoliticians({
           />
         )}
 
-        {/* Result list header */}
         <div
           style={{
             display: 'flex',
@@ -213,17 +214,14 @@ export default function OnboardingPickPoliticians({
           </div>
         </div>
 
-        {/* List or empty state */}
         {filtered.length === 0 ? (
-          <EmptyState />
+          <MemberListEmptyState />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {filtered.map((member) => (
               <div
                 key={member.bioguideId}
                 style={{
-                  // Native browser virtualization: skip rendering offscreen rows.
-                  // Falls back gracefully on browsers that don't support it.
                   contentVisibility: 'auto',
                   containIntrinsicSize: '0 60px',
                 }}
@@ -239,7 +237,6 @@ export default function OnboardingPickPoliticians({
         )}
       </div>
 
-      {/* Sticky bottom CTA bar */}
       <div
         style={{
           position: 'sticky',
@@ -293,131 +290,8 @@ export default function OnboardingPickPoliticians({
   );
 }
 
-// ── Search bar ──────────────────────────────────────────────────────────────
-function SearchBar({ value, onChange, onClear }) {
-  return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-      }}
-    >
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          left: 14,
-          fontSize: 14,
-          color: '#9CA3AF',
-          pointerEvents: 'none',
-        }}
-      >
-        {/* Inline magnifier glyph — no icon library needed */}
-        ⌕
-      </div>
-      <input
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Search by name…"
-        aria-label="Search Congress members by name"
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck="false"
-        style={{
-          width: '100%',
-          padding: '12px 14px 12px 38px',
-          background: '#FFFFFF',
-          border: '1px solid #E5E7EB',
-          borderRadius: 12,
-          fontSize: 15,
-          fontFamily: "'DM Sans', sans-serif",
-          color: '#0D1B2A',
-          outline: 'none',
-        }}
-        onFocus={(e) => (e.currentTarget.style.borderColor = '#0D1B2A')}
-        onBlur={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
-      />
-      {value && (
-        <button
-          onClick={onClear}
-          aria-label="Clear search"
-          style={{
-            position: 'absolute',
-            right: 8,
-            background: 'transparent',
-            border: 'none',
-            color: '#9CA3AF',
-            fontSize: 18,
-            cursor: 'pointer',
-            padding: 4,
-            lineHeight: 1,
-          }}
-        >
-          ×
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ── Chip group (for Chamber + Party filters) ────────────────────────────────
-function ChipGroup({ label, options, value, onChange }) {
-  const toggle = (optionValue) => {
-    if (value.includes(optionValue)) {
-      onChange(value.filter((v) => v !== optionValue));
-    } else {
-      onChange([...value, optionValue]);
-    }
-  };
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span
-        style={{
-          fontSize: 11,
-          fontFamily: 'monospace',
-          color: '#6B7280',
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          flexShrink: 0,
-          minWidth: 56,
-        }}
-      >
-        {label}
-      </span>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {options.map((opt) => {
-          const active = value.includes(opt.value);
-          return (
-            <button
-              key={opt.value}
-              onClick={() => toggle(opt.value)}
-              aria-pressed={active}
-              style={{
-                padding: '6px 12px',
-                background: active ? '#0D1B2A' : '#FFFFFF',
-                color: active ? '#FAFAF7' : '#374151',
-                border: active ? '1px solid #0D1B2A' : '1px solid #E5E7EB',
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: "'DM Sans', sans-serif",
-                cursor: 'pointer',
-                transition: 'all 120ms ease',
-              }}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ── Suggested-to-follow section ─────────────────────────────────────────────
+// Onboarding-specific (the Politicians-tab uses a "Following" section instead).
 function SuggestedSection({ members, selected, onToggle }) {
   if (members.length === 0) return null;
 
@@ -443,49 +317,6 @@ function SuggestedSection({ members, selected, onToggle }) {
             onToggle={() => onToggle(member.name)}
           />
         ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Empty state (no search/filter matches) ──────────────────────────────────
-function EmptyState() {
-  return (
-    <div
-      style={{
-        padding: '40px 20px',
-        textAlign: 'center',
-        background: '#FFFFFF',
-        border: '1px dashed #E5E7EB',
-        borderRadius: 14,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 24,
-          marginBottom: 8,
-          color: '#9CA3AF',
-        }}
-      >
-        ⌕
-      </div>
-      <div
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: '#0D1B2A',
-          marginBottom: 4,
-        }}
-      >
-        No politicians match
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          color: '#6B7280',
-        }}
-      >
-        Try fewer filters or a different search.
       </div>
     </div>
   );

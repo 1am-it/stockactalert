@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+- GitHub Actions weekly Congress-directory refresh workflow + localStorage bioguideId migration (1AM-67 Phase C)
+- TradeCard owner badges — spouse/joint/dependent (1AM-65)
+- Reusable FollowedList component (1AM-28)
+- Add "X days after trade" field to TradeCard (1AM-36)
+
+---
+
+## [0.8.0] — 2026-04-27
+
 ### Added
 - Full Congress member directory imported into the app (~536 current members across Senate + House) (1AM-67):
   - New `Member` schema in `src/data/schema.js` (Bioguide ID as canonical primary key, plus name parts, chamber, party, state, district/senateClass, term dates, crosswalk IDs)
@@ -21,14 +31,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - "Clear filters" button in Results header, only visible when filters are active
   - Auto-clear filters when adding a follow (preserves filter context when removing)
   - Empty state when filters yield 0 matches
-  - New reusable `MemberListRow` component (will be reused in 1AM-68 Politicians-tab redesign)
+- Politicians-tab redesigned for the full directory (1AM-68):
+  - Header shows "Following N of 536"
+  - Same search bar + filter chips as the onboarding picker (shared components)
+  - Two sections: "Following" (top, member rows the user already follows) + "Browse all" (bottom, everyone else)
+  - Per-section count, "X of Y" notation when filters are active
+  - Empty states tailored per situation: search-no-match vs "you follow everyone here"
+- Shared picker components (1AM-68):
+  - `SearchBar` — reusable input with magnifier glyph + clear button
+  - `ChipGroup` — multi-select pill bar with ARIA pressed state
+  - `MemberListEmptyState` — pluggable title + message
+  - `MemberListRow` — single politician row with avatar + meta + selection toggle
 
-### Planned
-- Politicians-tab redesign to match new picker pattern (1AM-68) — required before 1AM-79 ships to production
-- GitHub Actions weekly Congress-directory refresh workflow + localStorage migration (1AM-67 Phase C)
-- TradeCard owner badges (1AM-65)
-- Reusable FollowedList component (1AM-28)
-- Add "X days after trade" field to TradeCard (1AM-36)
+### Changed
+- Replaced `PoliticianPickGrid` (curated 22 grid layout) with vertical list rows across both onboarding and Politicians-tab (1AM-68)
+- `App.jsx` hydrates `followedPoliticians` through a name-alias migration so existing users following "Bernie Sanders" or "Shelley Moore Capito" carry over correctly to the directory's `firstName + lastName` convention (Bernard Sanders, Shelley Capito)
+
+### Removed
+- `src/components/PoliticianPickGrid.jsx` — superseded by `MemberListRow` + section layouts
+- `src/data/curatedPoliticians.js` — superseded by full Congress directory at `src/data/congress.json`
+
+### Notes
+- localStorage `saa.followedPoliticians` is migrated transparently on first hydration after upgrade — no user action needed
+- Bundle size grew to ~417 KB raw / ~103 KB gzipped (was ~150 KB) due to the embedded directory JSON; first-load delta on a typical mobile connection is negligible thanks to gzip + CDN caching
 
 ---
 
