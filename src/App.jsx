@@ -116,7 +116,7 @@ function App() {
     },
     politicians: {
       title: 'Politicians',
-      description: 'Tap a card to follow or unfollow',
+      description: 'Tap to follow or unfollow',
       color: '#1D4ED8',
     },
     alerts: {

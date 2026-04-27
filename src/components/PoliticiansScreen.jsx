@@ -86,30 +86,19 @@ export default function PoliticiansScreen({ selected, onToggle }) {
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <h1
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 28,
-            fontWeight: 700,
-            color: '#0D1B2A',
-            margin: '0 0 4px 0',
-          }}
-        >
-          Politicians
-        </h1>
-        <div
-          style={{
-            fontSize: 11,
-            color: '#9CA3AF',
-            fontFamily: 'monospace',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          Following {totalFollowing} of {MEMBERS.length}
-        </div>
+      {/* Following indicator — page title is rendered by App.jsx page-wrapper,
+          this only adds the unique-to-this-screen "N of M" count */}
+      <div
+        style={{
+          fontSize: 11,
+          color: '#9CA3AF',
+          fontFamily: 'monospace',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          marginBottom: 16,
+        }}
+      >
+        Following {totalFollowing} of {MEMBERS.length}
       </div>
 
       {/* Search bar */}
