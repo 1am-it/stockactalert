@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.4] — 2026-04-27
+
+### Changed
+- Filter-bar label clarified to remove unit-mixing ambiguity (1AM-52):
+  - `"N RECENT TRADES FROM YOUR M"` → `"N RECENT TRADES FROM POLITICIANS YOU FOLLOW"`
+  - The previous label visually read like a ratio (`15 / 17`) but mixed units (visible trades vs followed politicians); the new label drops the followed count and uses explicit prose
+- Singular handling preserved (`1 RECENT TRADE FROM POLITICIANS YOU FOLLOW`)
+
+---
+
 ## [0.7.3] — 2026-04-27
 
 ### Added
@@ -167,7 +177,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/1am-it/stockactalert/compare/v0.7.3...v0.7.4
+[0.7.3]: https://github.com/1am-it/stockactalert/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/1am-it/stockactalert/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/1am-it/stockactalert/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/1am-it/stockactalert/compare/v0.6.0...v0.7.0
