@@ -67,6 +67,18 @@ export default function OnboardingPickPoliticians({
     setParty([]);
   };
 
+  // When the user adds a follow, clear any active filters/search so the next
+  // pick happens against the broader directory. Removing a follow keeps the
+  // current filter context — useful when curating an existing list within a
+  // filter view (e.g. "show me my Senate Democrats and unfollow some").
+  const handleToggle = (name) => {
+    const isAdding = !selected.includes(name);
+    onToggle(name);
+    if (isAdding && isFiltered) {
+      clearAllFilters();
+    }
+  };
+
   return (
     <div
       style={{
@@ -142,7 +154,7 @@ export default function OnboardingPickPoliticians({
           <SuggestedSection
             members={suggested}
             selected={selected}
-            onToggle={onToggle}
+            onToggle={handleToggle}
           />
         )}
 
@@ -219,7 +231,7 @@ export default function OnboardingPickPoliticians({
                 <MemberListRow
                   member={member}
                   isSelected={selected.includes(member.name)}
-                  onToggle={() => onToggle(member.name)}
+                  onToggle={() => handleToggle(member.name)}
                 />
               </div>
             ))}
