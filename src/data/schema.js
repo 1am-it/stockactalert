@@ -23,6 +23,7 @@
  * @property {string} filedDate - YYYY-MM-DD
  * @property {string[]} committees - e.g. ["Armed Services", "Intelligence"]
  * @property {string} sector - e.g. "Technology" (optional, enriched later)
+ * @property {'self'|'spouse'|'joint'|'dependent'} owner - Account owner relative to the politician (1AM-65)
  */
 
 // ─── Empty trade template ─────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ export const EMPTY_TRADE = {
   filedDate: '',
   committees: [],
   sector: '',
+  owner: 'self',
 };
 
 // ─── Source identifiers ───────────────────────────────────────────────────────
@@ -70,6 +72,32 @@ export const CHAMBERS = {
   SENATE: 'Senate',
 };
 
+// ─── Owner identifiers (1AM-65) ───────────────────────────────────────────────
+// STOCK Act filings include an Owner field per trade indicating whose account
+// the trade was on. FMP exposes this as 2-letter codes; we normalise to
+// human-readable internal values used by the UI for badge rendering.
+export const OWNERS = {
+  SELF: 'self',
+  SPOUSE: 'spouse',
+  JOINT: 'joint',
+  DEPENDENT: 'dependent',
+};
+
+// Maps a raw FMP/source owner value (code or word) to the internal owner type.
+// Defaults to 'self' for empty / unknown values — the safe assumption is that
+// a trade with no owner annotation belongs to the politician themselves.
+export function normaliseOwner(raw) {
+  if (!raw) return OWNERS.SELF;
+  const s = String(raw).trim().toLowerCase();
+  if (!s || s === 'self') return OWNERS.SELF;
+  // FMP code-style + full-word style, both seen in real responses
+  if (s === 'sp' || s === 'spouse') return OWNERS.SPOUSE;
+  if (s === 'jt' || s === 'joint') return OWNERS.JOINT;
+  if (s === 'dc' || s === 'dependent' || s === 'dependent child')
+    return OWNERS.DEPENDENT;
+  return OWNERS.SELF;
+}
+
 // ─── Amount ranges ────────────────────────────────────────────────────────────
 // Standardised amount range labels used across all sources
 export const AMOUNT_RANGES = {
@@ -99,6 +127,7 @@ export function normaliseFinnhubTrade(raw) {
     filedDate: raw.filingDate || '',
     committees: [],
     sector: '',
+    owner: normaliseOwner(raw.ownerType || raw.owner),
   };
 }
 
@@ -137,6 +166,8 @@ export function normaliseFMPTrade(raw, chamber) {
     filedDate: filingDate,
     committees: [],
     sector: '',
+    // 1AM-65: FMP field name varies — try common variants in order
+    owner: normaliseOwner(raw.owner || raw.ownerType || raw.owner_type),
   };
 }
 
@@ -155,6 +186,7 @@ export function normaliseUnusualWhalesTrade(raw) {
     filedDate: raw.filed || '',
     committees: [],
     sector: raw.sector || '',
+    owner: normaliseOwner(raw.owner),
   };
 }
 
