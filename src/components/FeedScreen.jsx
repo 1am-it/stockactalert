@@ -51,6 +51,7 @@ export default function FeedScreen({
   followedPoliticians = [],
   onUnfollow,
   onNavigateToPoliticians,
+  onShowPoliticianDetail,
 }) {
   const { trades, loading, error, refetch } = useTrades();
 
@@ -210,8 +211,9 @@ export default function FeedScreen({
             trade={trade}
             following={followedPoliticians.includes(trade.politician)}
             owner={trade.owner}
+            onPoliticianClick={onShowPoliticianDetail}
             onSetAlert={(t) => console.log('alert', t)}
-            onViewProfile={(t) => console.log('profile', t)}
+            onViewProfile={(t) => onShowPoliticianDetail?.(t.politician)}
             onViewTicker={(t) => console.log('ticker', t)}
           />
         ))}
