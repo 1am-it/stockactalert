@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+- GitHub Actions weekly Congress-directory refresh workflow + localStorage bioguideId migration (1AM-67 Phase C)
+- Reusable FollowedList component (1AM-28)
+- TradeCard visual hierarchy refresh — amount prominence + de-emphasize source (1AM-86, supersedes/closes 1AM-36)
+
+---
+
+## [0.10.0] — 2026-04-28
+
 ### Added
 - **Politician detail page** — full-screen drilldown reached from any clickable politician name (1AM-69):
   - Header: politician name, chamber/party/state/district meta line, "← Back" navigation
@@ -20,11 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TradeCard politician name is now a clickable link when `onPoliticianClick` is provided — navigates to the politician's detail page (subtle gray underline, no other styling change) (1AM-69)
 - `MemberListRow` supports a new `onClickRow` mode: when set, the row body navigates while only the trailing selection indicator toggles follow — used in Politicians tab so users can drill in without accidentally unfollowing (1AM-69). Onboarding picker keeps the legacy "tap-anywhere-toggles" behaviour (no `onClickRow` passed)
 - App.jsx routing: when `detailPolitician` state is set, renders `PoliticianDetailScreen` as a full-screen overlay instead of the active tab content. TabBar remains visible — tapping a tab closes the overlay and switches tabs
-
-### Planned
-- GitHub Actions weekly Congress-directory refresh workflow + localStorage bioguideId migration (1AM-67 Phase C)
-- Reusable FollowedList component (1AM-28)
-- Add "X days after trade" field to TradeCard (1AM-36)
 
 ---
 
@@ -259,7 +263,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/1am-it/stockactalert/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/1am-it/stockactalert/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/1am-it/stockactalert/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/1am-it/stockactalert/compare/v0.7.4...v0.8.0
