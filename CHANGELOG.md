@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+- GitHub Actions weekly Congress-directory refresh workflow + localStorage bioguideId migration (1AM-67 Phase C)
+- Reusable FollowedList component (1AM-28)
+- TradeCard visual hierarchy refresh — amount prominence + de-emphasize source (1AM-86, supersedes/closes 1AM-36)
+
+---
+
+## [0.11.0] — 2026-04-28
+
 ### Added
 - **Deep historical backfill for politician detail page** — `/api/trades/by-politician` Vercel Edge endpoint queries FMP's per-politician Senate + House endpoints in parallel, returning up to 200 historical trades per politician (24h CDN cache, 48h stale-while-revalidate). PoliticianDetailScreen now uses this for richer data depth instead of the latest-50 feed slice (1AM-30)
 - New `useTradesByPolitician(name)` hook in `src/hooks/` — same shape as `useTrades` (trades / loading / error / refetch), fetches on mount, AbortController cleanup, refetches when politicianName changes
@@ -273,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/1am-it/stockactalert/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/1am-it/stockactalert/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/1am-it/stockactalert/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/1am-it/stockactalert/compare/v0.8.0...v0.8.1
