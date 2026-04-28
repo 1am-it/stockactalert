@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Politician detail page** — full-screen drilldown reached from any clickable politician name (1AM-69):
+  - Header: politician name, chamber/party/state/district meta line, "← Back" navigation
+  - Action buttons: Follow/Unfollow toggle (red-outline when followed) + Mute alerts toggle (persisted, no-op until alert system in 1AM-71)
+  - Stats card: trade count over 90 days + 13-week activity sparkline (teal bars, count-per-week scaled to max)
+  - **Net positions** section (renamed from "Estimated holdings" for honesty — STOCK Act data is range-based, "holdings" overclaimed): cumulative buys minus sells per ticker using midpoint estimates, only positions with positive net are shown, with disclaimer that actual portfolio is not disclosed
+  - Trade history: all trades for this politician, sorted most-recent first, with owner badges and Following pill
+- `mutedPoliticians` state in App.jsx, persisted to `saa.mutedPoliticians.v1` localStorage key, ready to be wired into alert delivery in 1AM-71
+
+### Changed
+- TradeCard politician name is now a clickable link when `onPoliticianClick` is provided — navigates to the politician's detail page (subtle gray underline, no other styling change) (1AM-69)
+- `MemberListRow` supports a new `onClickRow` mode: when set, the row body navigates while only the trailing selection indicator toggles follow — used in Politicians tab so users can drill in without accidentally unfollowing (1AM-69). Onboarding picker keeps the legacy "tap-anywhere-toggles" behaviour (no `onClickRow` passed)
+- App.jsx routing: when `detailPolitician` state is set, renders `PoliticianDetailScreen` as a full-screen overlay instead of the active tab content. TabBar remains visible — tapping a tab closes the overlay and switches tabs
+
 ### Planned
 - GitHub Actions weekly Congress-directory refresh workflow + localStorage bioguideId migration (1AM-67 Phase C)
 - Reusable FollowedList component (1AM-28)

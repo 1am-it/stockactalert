@@ -1,10 +1,15 @@
 // SAA-4: TradeCard Component
 // Main card used in the feed for each individual trade
 // Supports expanded state with quick action buttons
-// Props: trade, onSetAlert, onViewProfile, onViewTicker, highlighted, following, owner
+// Props: trade, onSetAlert, onViewProfile, onViewTicker, highlighted, following, owner,
+//        onPoliticianClick
 // 1AM-65: `following` (bool) renders a green "Following ✓" pill, `owner`
 //         ('self'|'spouse'|'joint'|'dependent') renders a coral owner pill
 //         when not 'self'.
+// 1AM-69: `onPoliticianClick(name)` makes the politician name a navigable
+//         link to the detail page. When omitted, the name renders as plain
+//         text — used in PoliticianDetailScreen's own trade history (where
+//         linking to itself would be circular).
 
 import { useState } from 'react';
 import Avatar from './Avatar';
@@ -41,6 +46,7 @@ export default function TradeCard({
   onSetAlert,
   onViewProfile,
   onViewTicker,
+  onPoliticianClick,
   highlighted = false,
   following = false,
   owner = 'self',
@@ -117,7 +123,31 @@ export default function TradeCard({
                   fontFamily: "'DM Sans', sans-serif",
                 }}
               >
-                <span>{trade.politician}</span>
+                {onPoliticianClick ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPoliticianClick(trade.politician);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 0,
+                      margin: 0,
+                      font: 'inherit',
+                      color: '#0D1B2A',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 2,
+                      textDecorationColor: '#D1D5DB',
+                    }}
+                    aria-label={`View ${trade.politician} profile`}
+                  >
+                    {trade.politician}
+                  </button>
+                ) : (
+                  <span>{trade.politician}</span>
+                )}
                 {following && (
                   <span style={FOLLOWING_PILL_STYLE} aria-label="You follow this politician">
                     Following ✓

@@ -67,4 +67,9 @@ export const STORAGE_KEYS = {
   ONBOARDING_DONE: 'onboardingDone',
   FOLLOWED_POLITICIANS: 'followedPoliticians',
   ACTIVE_TAB: 'activeTab',
+  // 1AM-69: persist per-politician mute preference. Stored as
+  // string[] of politician names (matching FOLLOWED_POLITICIANS keying).
+  // Migrates to bioguideId-keyed format as part of 1AM-82 Phase C.
+  // Currently a no-op for actual alert delivery — wired into 1AM-71 later.
+  MUTED_POLITICIANS: 'mutedPoliticians',
 };

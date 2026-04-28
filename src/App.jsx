@@ -9,15 +9,23 @@
 // 1AM-60: activeTab is now persisted to localStorage so users return to
 // the tab they last visited instead of always landing on 'feed'.
 // Same lazy-init + useEffect pattern as the other persisted state above.
+//
+// 1AM-69: PoliticianDetailScreen renders as a full-screen overlay when
+// `detailPolitician` is non-null. No router — state-overlay pattern keeps
+// the architecture minimal. Mute state lives here too (mutedPoliticians)
+// so the toggle persists across renders even though no alert system reads
+// it yet (1AM-71 wires that part).
 
 import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
 import PoliticiansScreen from './components/PoliticiansScreen';
+import PoliticianDetailScreen from './components/PoliticianDetailScreen';
 import OnboardingWelcome from './components/OnboardingWelcome';
 import OnboardingDataExplainer from './components/OnboardingDataExplainer';
 import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
 import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
+import { useTrades } from './hooks/useTrades';
 
 // 1AM-67/1AM-68: Legacy name migration
 // When the curated-22 list was replaced by the full Congress directory, two
@@ -48,6 +56,12 @@ function App() {
   const [followedPoliticians, setFollowedPoliticians] = useState(() =>
     migrateFollowedNames(getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, []))
   );
+  // 1AM-69: muted-alerts preference, persisted but currently no-op for actual
+  // delivery (alert system wired later in 1AM-71). Same migration aliases as
+  // followedPoliticians so legacy stored names map to current directory.
+  const [mutedPoliticians, setMutedPoliticians] = useState(() =>
+    migrateFollowedNames(getJSON(STORAGE_KEYS.MUTED_POLITICIANS, []))
+  );
   // Whitelist of valid tab IDs — guards against stale or corrupted localStorage
   // values (e.g. after a tab is renamed or removed in a future version).
   const VALID_TABS = ['feed', 'politicians', 'alerts', 'settings'];
@@ -55,6 +69,18 @@ function App() {
     const saved = getJSON(STORAGE_KEYS.ACTIVE_TAB, 'feed');
     return VALID_TABS.includes(saved) ? saved : 'feed';
   });
+  // 1AM-69: detail-page overlay. null = no overlay; otherwise the politician
+  // name being viewed. Not persisted — feels right that returning to the app
+  // lands on the last tab, not on a stale detail page.
+  const [detailPolitician, setDetailPolitician] = useState(null);
+
+  // 1AM-69: trades shared between FeedScreen and PoliticianDetailScreen.
+  // Lifted to App level so the detail page can compute stats/holdings/history
+  // from the same dataset the feed uses, without re-fetching FMP.
+  // FeedScreen still calls useTrades() too — that's fine; the hook's outer
+  // request is cached at CDN level (s-maxage=3600), so a second render
+  // shouldn't add real load.
+  const { trades } = useTrades();
 
   // Persist onboarding completion whenever step transitions to/from 'done'
   useEffect(() => {
@@ -66,6 +92,11 @@ function App() {
     setJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, followedPoliticians);
   }, [followedPoliticians]);
 
+  // 1AM-69: Persist muted politicians on every change
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.MUTED_POLITICIANS, mutedPoliticians);
+  }, [mutedPoliticians]);
+
   // 1AM-60: Persist active tab on every change so reopening the app lands
   // on the same tab the user last visited.
   useEffect(() => {
@@ -74,6 +105,13 @@ function App() {
 
   const togglePolitician = (name) => {
     setFollowedPoliticians((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  };
+
+  // 1AM-69
+  const toggleMute = (name) => {
+    setMutedPoliticians((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     );
   };
@@ -104,6 +142,34 @@ function App() {
         onNext={() => setOnboardingStep('done')}
         onBack={() => setOnboardingStep('explainer')}
       />
+    );
+  }
+
+  // ── Detail-page overlay (1AM-69) ───────────────────────────────────────────
+  // When a politician name is clicked anywhere, we render the detail screen
+  // instead of the active tab. TabBar still visible underneath because users
+  // expect bottom-nav to remain available. "← Back" cleans the state.
+  if (detailPolitician) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
+        <PoliticianDetailScreen
+          politicianName={detailPolitician}
+          trades={trades}
+          isFollowing={followedPoliticians.includes(detailPolitician)}
+          isMuted={mutedPoliticians.includes(detailPolitician)}
+          onToggleFollow={() => togglePolitician(detailPolitician)}
+          onToggleMute={() => toggleMute(detailPolitician)}
+          onBack={() => setDetailPolitician(null)}
+        />
+        <TabBar
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            // Tab-tap closes the detail overlay AND switches tabs
+            setDetailPolitician(null);
+            setActiveTab(tab);
+          }}
+        />
+      </div>
     );
   }
 
@@ -162,6 +228,7 @@ function App() {
             followedPoliticians={followedPoliticians}
             onUnfollow={togglePolitician}
             onNavigateToPoliticians={() => setActiveTab('politicians')}
+            onShowPoliticianDetail={setDetailPolitician}
           />
         )}
 
@@ -169,6 +236,7 @@ function App() {
           <PoliticiansScreen
             selected={followedPoliticians}
             onToggle={togglePolitician}
+            onShowDetail={setDetailPolitician}
           />
         )}
 

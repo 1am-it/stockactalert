@@ -40,7 +40,7 @@ const CHAMBER_OPTIONS = [
   { value: 'House', label: 'House' },
 ];
 
-export default function PoliticiansScreen({ selected, onToggle }) {
+export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [chamber, setChamber] = useState([]);
@@ -159,6 +159,7 @@ export default function PoliticiansScreen({ selected, onToggle }) {
             members={followingList}
             selected={selected}
             onToggle={onToggle}
+            onShowDetail={onShowDetail}
           />
         </Section>
       )}
@@ -185,6 +186,7 @@ export default function PoliticiansScreen({ selected, onToggle }) {
             members={browseList}
             selected={selected}
             onToggle={onToggle}
+            onShowDetail={onShowDetail}
           />
         )}
       </Section>
@@ -237,7 +239,7 @@ function Section({ title, count, totalCount, children }) {
 }
 
 // ── Member list with native CSS virtualisation ──────────────────────────────
-function MemberList({ members, selected, onToggle }) {
+function MemberList({ members, selected, onToggle, onShowDetail }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {members.map((member) => (
@@ -252,6 +254,9 @@ function MemberList({ members, selected, onToggle }) {
             member={member}
             isSelected={selected.includes(member.name)}
             onToggle={() => onToggle(member.name)}
+            onClickRow={
+              onShowDetail ? () => onShowDetail(member.name) : undefined
+            }
           />
         </div>
       ))}
