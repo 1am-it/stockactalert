@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Deep historical backfill for politician detail page** — `/api/trades/by-politician` Vercel Edge endpoint queries FMP's per-politician Senate + House endpoints in parallel, returning up to 200 historical trades per politician (24h CDN cache, 48h stale-while-revalidate). PoliticianDetailScreen now uses this for richer data depth instead of the latest-50 feed slice (1AM-30)
+- New `useTradesByPolitician(name)` hook in `src/hooks/` — same shape as `useTrades` (trades / loading / error / refetch), fetches on mount, AbortController cleanup, refetches when politicianName changes
+- Sparkline auto-scales window to data depth: ≥20 trades → 12 monthly bars over 365d, otherwise stays at 13 weekly bars over 90d (signals "rich" vs "thin" data without UI clutter)
+
+### Changed
+- PoliticianDetailScreen: three-state data fallback so the page never goes empty — deep fetch result preferred → fallback to feed-level `trades` prop filtered locally → empty-state cards if both unavailable
+- Stats card label adapts to active sparkline window: "X trades · 90d" or "X trades · 12mo (Y in 90d)" depending on data depth
+- Stats card shows graceful "Showing recent feed trades only — full history unavailable" message when deep fetch errors out — falls back to feed data automatically
+
 ### Planned
 - GitHub Actions weekly Congress-directory refresh workflow + localStorage bioguideId migration (1AM-67 Phase C)
 - Reusable FollowedList component (1AM-28)
