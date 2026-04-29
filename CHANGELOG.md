@@ -8,9 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- GitHub Actions weekly Congress-directory refresh workflow + localStorage bioguideId migration (1AM-67 Phase C)
 - Reusable FollowedList component (1AM-28)
 - TradeCard visual hierarchy refresh — amount prominence + de-emphasize source (1AM-86, supersedes/closes 1AM-36)
+
+---
+
+## [0.11.1] — 2026-04-29
+
+### Added
+- GitHub Actions workflow `.github/workflows/refresh-congress.yml` for automated weekly refresh of the Congress directory (1AM-98). Runs every Monday 09:00 UTC + manual `workflow_dispatch` trigger; opens a PR against `dev` (no auto-merge) when `congress.json` changes. No repo secrets required.
+
+### Changed
+- Refactored `scripts/fetch-congress.mjs` to single-source (`unitedstates/congress-legislators` only) (1AM-98). Drops the Congress.gov API key requirement, pagination, and source-join logic — `legislators-current.json` is by construction the "currently serving" set, so the Congress.gov filter was redundant. Output (`congress.json`, `congress.fixture.json`) is byte-identical to the hybrid version on the cutover run.
 
 ---
 
@@ -282,7 +291,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/1am-it/stockactalert/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/1am-it/stockactalert/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/1am-it/stockactalert/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/1am-it/stockactalert/compare/v0.8.1...v0.9.0
