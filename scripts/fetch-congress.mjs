@@ -1,20 +1,24 @@
 #!/usr/bin/env node
-// scripts/fetch-congress.mjs — 1AM-67
+// scripts/fetch-congress.mjs — 1AM-67 / 1AM-98
 //
-// Hybrid Congress directory fetcher (decided in 1AM-63).
-//   Primary source : Congress.gov API — authority for "is this person currently serving"
-//   Supplementary  : unitedstates/congress-legislators GitHub — rich structured fields + crosswalks
+// Fetches the current Congress directory from unitedstates/congress-legislators
+// and writes it to src/data/congress.json (full ~541 members) plus
+// src/data/congress.fixture.json (20-member dev/testing subset).
+//
+// 1AM-98: Refactored from hybrid (Congress.gov + unitedstates) to single-source
+// (unitedstates only). The Congress.gov call previously filtered to "currently
+// serving" members, which legislators-current.json provides by construction —
+// the filter was redundant. No API key required, no pagination, single fetch.
+// See research findings comment on 1AM-67 (2026-04-29).
 //
 // Outputs:
 //   src/data/congress.json          — full ~541-member directory (committed)
 //   src/data/congress.fixture.json  — 20 cherry-picked members for dev/testing
 //
 // Usage:
-//   CONGRESS_GOV_API_KEY=<key> npm run fetch:congress
+//   npm run fetch:congress
 // or:
-//   CONGRESS_GOV_API_KEY=<key> node scripts/fetch-congress.mjs
-//
-// Get a Congress.gov API key: https://api.congress.gov/sign-up/
+//   node scripts/fetch-congress.mjs
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -24,17 +28,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..');
 
-const API_KEY = process.env.CONGRESS_GOV_API_KEY;
-if (!API_KEY) {
-  console.error('✗ CONGRESS_GOV_API_KEY env var required.');
-  console.error('  Get a key: https://api.congress.gov/sign-up/');
-  console.error('  Set in your shell or .env.local before running.');
-  process.exit(1);
-}
-
 const UNITEDSTATES_URL =
   'https://unitedstates.github.io/congress-legislators/legislators-current.json';
-const CONGRESS_GOV_BASE = 'https://api.congress.gov/v3/member';
 
 // ─── Fixture members for dev ──────────────────────────────────────────────────
 // Hand-picked 20-member subset for fast dev/testing without loading the full
@@ -70,7 +65,7 @@ const FIXTURE_NAMES = [
   ['Ocasio-Cortez', 'Alexandria'],
 ];
 
-// ─── Fetchers ─────────────────────────────────────────────────────────────────
+// ─── Fetch ────────────────────────────────────────────────────────────────────
 async function fetchUnitedStates() {
   console.log('→ Fetching unitedstates/congress-legislators…');
   const res = await fetch(UNITEDSTATES_URL);
@@ -80,35 +75,6 @@ async function fetchUnitedStates() {
   const data = await res.json();
   console.log(`  ✓ ${data.length} members from unitedstates`);
   return data;
-}
-
-async function fetchCongressGovBioguideSet() {
-  console.log('→ Fetching Congress.gov current members…');
-  const allBioguides = new Set();
-  let url = `${CONGRESS_GOV_BASE}?currentMember=true&limit=250&format=json`;
-  let pageNum = 0;
-
-  while (url) {
-    pageNum += 1;
-    const res = await fetch(url, {
-      headers: { 'X-API-Key': API_KEY },
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(
-        `Congress.gov fetch failed: ${res.status} ${res.statusText} on page ${pageNum}\n  body: ${body.slice(0, 200)}`
-      );
-    }
-    const data = await res.json();
-    const members = data.members || [];
-    for (const m of members) {
-      if (m.bioguideId) allBioguides.add(m.bioguideId);
-    }
-    url = data.pagination?.next || null;
-  }
-
-  console.log(`  ✓ ${allBioguides.size} bioguide IDs across ${pageNum} pages`);
-  return allBioguides;
 }
 
 // ─── Normalisation helpers ────────────────────────────────────────────────────
@@ -223,16 +189,12 @@ function writeJSON(relativePath, data) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   const start = Date.now();
-  console.log('1AM-67 — Fetching Congress directory (hybrid)\n');
+  console.log('1AM-98 — Fetching Congress directory (unitedstates-only)\n');
 
-  const [usData, cgBioguides] = await Promise.all([
-    fetchUnitedStates(),
-    fetchCongressGovBioguideSet(),
-  ]);
+  const usData = await fetchUnitedStates();
 
-  console.log('\n→ Building Member objects (filtered to Congress.gov authority set)…');
+  console.log('\n→ Building Member objects…');
   const members = [];
-  let skippedNotInCG = 0;
   let skippedMalformed = 0;
 
   for (const entry of usData) {
@@ -241,32 +203,11 @@ async function main() {
       skippedMalformed += 1;
       continue;
     }
-    if (!cgBioguides.has(member.bioguideId)) {
-      skippedNotInCG += 1;
-      continue;
-    }
     members.push(member);
   }
 
   if (skippedMalformed > 0) {
     console.log(`  ↳ ${skippedMalformed} malformed unitedstates entries skipped`);
-  }
-  if (skippedNotInCG > 0) {
-    console.log(
-      `  ↳ ${skippedNotInCG} unitedstates entries filtered out (not in Congress.gov current set — probably just left office)`
-    );
-  }
-
-  // Members in Congress.gov but not in unitedstates — log as warnings
-  const usBioguides = new Set(members.map((m) => m.bioguideId));
-  const orphanCG = [...cgBioguides].filter((b) => !usBioguides.has(b));
-  if (orphanCG.length > 0) {
-    console.warn(
-      `\n  ⚠ ${orphanCG.length} Congress.gov members not in unitedstates dataset:`
-    );
-    console.warn(`    ${orphanCG.slice(0, 10).join(', ')}${orphanCG.length > 10 ? '…' : ''}`);
-    console.warn(`  These are likely brand-new members. unitedstates updates within a few days.`);
-    console.warn(`  Investigate if persistent — re-run the script next week.`);
   }
 
   const sorted = sortMembers(members);
