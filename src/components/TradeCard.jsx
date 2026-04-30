@@ -14,6 +14,7 @@
 import { useState } from 'react';
 import Avatar from './Avatar';
 import { PartyBadge, ChamberBadge, SourceBadge } from './Badge';
+import { formatFiledDelta, isLateFiling } from '../lib/dates';
 
 // 1AM-65: shared style for the inline name-row pills (Following + owner).
 // Same shape, different colours — kept inline so the pills are self-contained.
@@ -192,7 +193,8 @@ export default function TradeCard({
           </div>
         </div>
 
-        {/* Bottom row: amount + date + source */}
+        {/* Bottom row: amount (prominent) + filing-delta. 1AM-86: source moved
+            to expanded view; filed-date contextualised as "N days after trade". */}
         <div
           style={{
             display: 'flex',
@@ -206,25 +208,25 @@ export default function TradeCard({
             <div style={{ fontSize: '9px', color: '#9CA3AF', fontFamily: 'monospace', marginBottom: '2px' }}>
               AMOUNT
             </div>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#0D1B2A', fontFamily: 'monospace' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#0D1B2A', fontFamily: 'monospace' }}>
               {trade.amount}
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '9px', color: '#9CA3AF', fontFamily: 'monospace', marginBottom: '2px' }}>
-              FILED
-            </div>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', fontFamily: 'monospace' }}>
-              {trade.filedDate}
             </div>
           </div>
 
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '9px', color: '#9CA3AF', fontFamily: 'monospace', marginBottom: '2px' }}>
-              SOURCE
+              FILED
             </div>
-            <SourceBadge source={trade.source} small />
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 500,
+                color: isLateFiling(trade.filedDate, trade.tradeDate) ? '#D97706' : '#6B7280',
+                fontFamily: 'monospace',
+              }}
+            >
+              {formatFiledDelta(trade.filedDate, trade.tradeDate) || trade.filedDate || '—'}
+            </div>
           </div>
         </div>
       </div>
@@ -309,6 +311,24 @@ export default function TradeCard({
             >
               📊 {trade.ticker}
             </button>
+          </div>
+
+          {/* 1AM-86: source moved here from main bottom-row. Power-user concern;
+              kept accessible without taking primary visual space. */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: '6px',
+              marginTop: '10px',
+              fontSize: '10px',
+              color: '#9CA3AF',
+              fontFamily: 'monospace',
+            }}
+          >
+            <span>SOURCE</span>
+            <SourceBadge source={trade.source} small />
           </div>
         </div>
       )}

@@ -9,7 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - Reusable FollowedList component (1AM-28)
-- TradeCard visual hierarchy refresh — amount prominence + de-emphasize source (1AM-86, supersedes/closes 1AM-36)
+
+---
+
+## [0.12.0] — 2026-04-30
+
+### Changed
+- TradeCard visual hierarchy refresh (1AM-86, closes 1AM-36):
+  - **AMOUNT** promoted to primary signal — 14px / weight 700 (was 12px / 600), navy `#0D1B2A`
+  - **FILED** replaced with derived "N days after trade" delta — `same day` / `1 day after trade` / `N days after trade`
+  - Late-filing visual cue: amber `#D97706` text when delta exceeds 30 days (STOCK Act gives 45-day window; >30 is leading indicator)
+  - **SOURCE** moved out of main bottom-row into expanded view — power-user concern, kept accessible without taking primary visual space
+
+### Added
+- New `src/lib/dates.js` with three pure helpers — `daysBetween`, `formatFiledDelta`, `isLateFiling` — and `LATE_FILING_THRESHOLD_DAYS = 30` constant. Robust to missing/bogus input (returns null on bad data).
 
 ---
 
@@ -291,7 +304,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/1am-it/stockactalert/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/1am-it/stockactalert/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/1am-it/stockactalert/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/1am-it/stockactalert/compare/v0.9.0...v0.10.0
