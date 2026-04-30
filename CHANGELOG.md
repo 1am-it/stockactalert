@@ -8,7 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Reusable FollowedList component (1AM-28)
+- Reusable FollowedList component (1AM-28, parked — activate on second consumer)
+
+---
+
+## [0.12.1] — 2026-04-30
+
+### Changed
+- Politicus location label spelled out across Politicians-tab list and detail-page header (1AM-102): `D · CA-11 · House` → `D · California · House`. State abbreviation expanded to full name; congressional district number dropped from these surfaces (district is power-user signal, not feed scan-content). Senate members (no district to begin with) get the same full-state-name treatment.
+
+### Added
+- New `src/lib/states.js` with `STATE_NAMES` map (50 states + DC + 5 inhabited US territories) and `fullStateName(code)` helper. Case-insensitive lookup, graceful fallback to original code on miss.
 
 ---
 
@@ -304,7 +314,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/1am-it/stockactalert/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/1am-it/stockactalert/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/1am-it/stockactalert/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/1am-it/stockactalert/compare/v0.10.0...v0.11.0
