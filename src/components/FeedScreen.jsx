@@ -54,6 +54,7 @@ export default function FeedScreen({
   onUnfollow,
   onNavigateToPoliticians,
   onShowPoliticianDetail,
+  onBrowseAll,
 }) {
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } = useTrades();
 
@@ -192,21 +193,29 @@ export default function FeedScreen({
         newTradeCount={newTradeCount}
       />
 
-      {/* Filter indicator + toggle */}
+      {/* Filter indicator + toggle.
+          1AM-112: `Show all` button now navigates to BrowseAllFilingsScreen
+          (via onBrowseAll prop) instead of toggling in-place. The legacy
+          in-place toggle (setShowAll) is kept as a fallback when onBrowseAll
+          isn't wired — useful for any remaining in-app contexts that haven't
+          adopted the new flow yet. */}
       <FilterBar
         filterActive={filterActive}
         hasFollowed={hasFollowed}
         followedCount={followedPoliticians.length}
         visibleCount={visibleTrades.length}
-        onToggleShowAll={() => setShowAll((v) => !v)}
+        onToggleShowAll={onBrowseAll || (() => setShowAll((v) => !v))}
         onRefresh={refetch}
       />
 
-      {/* Filter active but zero matches → chip-grid empty state */}
+      {/* Filter active but zero matches → empty state with Capitol illustration
+          (1AM-111). The CTA `View all recent filings` routes to Browse when
+          1AM-112 is wired (onBrowseAll prop), otherwise falls back to the
+          in-place show-all toggle. */}
       {filterHasNoMatches && (
         <FilterEmptyState
           followedPoliticians={followedPoliticians}
-          onShowAll={() => setShowAll(true)}
+          onShowAll={onBrowseAll || (() => setShowAll(true))}
           onUnfollow={onUnfollow}
           onNavigateToPoliticians={onNavigateToPoliticians}
         />

@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
 import DiscoveryFeedScreen from './components/DiscoveryFeedScreen';
+import BrowseAllFilingsScreen from './components/BrowseAllFilingsScreen';
 import PoliticiansScreen from './components/PoliticiansScreen';
 import PoliticianDetailScreen from './components/PoliticianDetailScreen';
 // 1AM-66 v0.13.1: Welcome + Explainer screens removed; Discovery makes them
@@ -79,6 +80,11 @@ function App() {
   // name being viewed. Not persisted — feels right that returning to the app
   // lands on the last tab, not on a stale detail page.
   const [detailPolitician, setDetailPolitician] = useState(null);
+  // 1AM-112: Browse All Filings overlay state. When true, render the
+  // dedicated browse screen with no TabBar (overlay pattern, similar to
+  // detailPolitician). Reached from FeedScreen `Show all` button or from
+  // the FilterEmptyState recovery CTA.
+  const [isBrowsingAll, setIsBrowsingAll] = useState(false);
 
   // 1AM-69: trades shared between FeedScreen and PoliticianDetailScreen.
   // Lifted to App level so the detail page can compute stats/holdings/history
@@ -142,6 +148,19 @@ function App() {
         onToggle={togglePolitician}
         onNext={() => setOnboardingStep('done')}
         onBack={() => setOnboardingStep('discovery')}
+      />
+    );
+  }
+
+  // ── Browse All Filings overlay (1AM-112) ─────────────────────────────────
+  // Full-screen overlay reached from the Personal feed `Show all` button or
+  // from the FilterEmptyState recovery CTA. Replaces the previous in-place
+  // toggle on FeedScreen — that behaviour is deprecated.
+  // No TabBar while browsing — page-style header has its own ← Back link.
+  if (isBrowsingAll) {
+    return (
+      <BrowseAllFilingsScreen
+        onBack={() => setIsBrowsingAll(false)}
       />
     );
   }
@@ -230,6 +249,7 @@ function App() {
             onUnfollow={togglePolitician}
             onNavigateToPoliticians={() => setActiveTab('politicians')}
             onShowPoliticianDetail={setDetailPolitician}
+            onBrowseAll={() => setIsBrowsingAll(true)}
           />
         )}
 
