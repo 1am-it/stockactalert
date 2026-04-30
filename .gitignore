@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# 1AM-109: audit-trade-names output (generated, not committed)
+unmatched-trades.json

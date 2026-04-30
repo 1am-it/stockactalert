@@ -1,5 +1,6 @@
 // SAA-15 + SAA-16 + SAA-18 + 1AM-24: App entry
-// Steps: 'welcome' → 'explainer' → 'pick-politicians' → 'done' (main app)
+// Steps: 'discovery' → 'pick-politicians' → 'done' (main app)
+// 1AM-66 v0.13.1: Welcome + Explainer removed (replaced by Discovery feed).
 //
 // 1AM-24: Politicians tab is now functional — same grid as onboarding,
 // minus the Back/Continue chrome. State is shared with the feed via
@@ -19,10 +20,12 @@
 import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
+import DiscoveryFeedScreen from './components/DiscoveryFeedScreen';
 import PoliticiansScreen from './components/PoliticiansScreen';
 import PoliticianDetailScreen from './components/PoliticianDetailScreen';
-import OnboardingWelcome from './components/OnboardingWelcome';
-import OnboardingDataExplainer from './components/OnboardingDataExplainer';
+// 1AM-66 v0.13.1: Welcome + Explainer screens removed; Discovery makes them
+// redundant. Steps simplified to 'discovery' → 'pick-politicians' → 'done'.
+// Migration of explainer content tracked in 1AM-110.
 import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
 import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
 import { useTrades } from './hooks/useTrades';
@@ -50,8 +53,11 @@ function migrateFollowedNames(names) {
 function App() {
   // Hydrate initial state from localStorage. Lazy initial state so we only
   // touch storage once on mount.
+  // 1AM-66: First-time visitors land on Discovery feed (anonymous landing) —
+  // not on Welcome onboarding screen. The CTA in DiscoveryFeedScreen advances
+  // to 'welcome' which then walks the original onboarding chain.
   const [onboardingStep, setOnboardingStep] = useState(() =>
-    getJSON(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'welcome'
+    getJSON(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'discovery'
   );
   const [followedPoliticians, setFollowedPoliticians] = useState(() =>
     migrateFollowedNames(getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, []))
@@ -117,19 +123,14 @@ function App() {
   };
 
   // ── Onboarding flow ─────────────────────────────────────────────────────────
-  if (onboardingStep === 'welcome') {
+  // 1AM-66 v0.13.1: Discovery → Pick directly. Welcome + Explainer were
+  // removed because Discovery already shows real STOCK Act filings, making
+  // the generic "See what Congress trades" pitch and the data-conventions
+  // explainer redundant friction. Migrated explainer content lives in 1AM-110.
+  if (onboardingStep === 'discovery') {
     return (
-      <OnboardingWelcome
-        onNext={() => setOnboardingStep('explainer')}
-      />
-    );
-  }
-
-  if (onboardingStep === 'explainer') {
-    return (
-      <OnboardingDataExplainer
-        onNext={() => setOnboardingStep('pick-politicians')}
-        onBack={() => setOnboardingStep('welcome')}
+      <DiscoveryFeedScreen
+        onStartOnboarding={() => setOnboardingStep('pick-politicians')}
       />
     );
   }
@@ -140,7 +141,7 @@ function App() {
         selected={followedPoliticians}
         onToggle={togglePolitician}
         onNext={() => setOnboardingStep('done')}
-        onBack={() => setOnboardingStep('explainer')}
+        onBack={() => setOnboardingStep('discovery')}
       />
     );
   }

@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "fetch:congress": "node scripts/fetch-congress.mjs"
+    "fetch:congress": "node scripts/fetch-congress.mjs",
+    "audit:names": "node --env-file=.env.local scripts/audit-trade-names.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.3",

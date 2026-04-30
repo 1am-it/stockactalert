@@ -12,6 +12,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.3] — 2026-04-30
+
+### Added
+- `src/components/CapitolIllustration.jsx` — minimal SVG illustration of the US Capitol (1AM-111). Soft `#E5F0FF` circle background (matches Politicians-tab blue), navy `#0D1B2A` building elements at 25/35/55% opacity. Decorative-only, sized via `size` prop (default 140px). Reusable for future surfaces (Settings/About, FAQ).
+
+### Changed
+- Personal feed empty state redesigned (1AM-111): Capitol illustration anchors the card, headline reframed to `No recent filings for the politicians you follow` (Playfair, navy), and a new 45-day disclosure-window explainer addresses the "is the app broken?" question directly. Replaces the previous `None of your followed politicians have recent filings.` headline + body pair. Following pills, Manage link, and recovery CTA all preserved.
+- Empty-state Manage link: `Manage politicians →` → `Manage followed politicians →` (per mockup).
+- Empty-state CTA: `Browse all trades` → `View all recent filings` (per mockup). Underlying behaviour unchanged — falls back to `onShowAll` toggle until 1AM-112 (Browse page) ships, at which point the CTA will route there instead.
+
+---
+
+## [0.13.2] — 2026-04-30
+
+### Added
+- `src/lib/relativeTime.js` — `formatRelativeTime(ts)` ("just now" / "5 min ago" / "2 hours ago" / "yesterday" / "N days ago" / locale date) and `getStaleness(ts)` ('fresh' ≤ 4h / 'stale' 4–24h / 'old' > 24h). Thresholds aligned with Vercel CDN cache (s-maxage=3600, swr=7200) so the indicator doesn't flicker on cache-revalidate.
+- `src/components/FreshnessIndicator.jsx` — at-a-glance freshness signal rendered between the page title and FilterBar on Personal feed (1AM-38). Shows: optional dot (amber when stale, grey when old, **no dot when fresh** per design decision), `Latest publicly available filings` label, optional `N new` badge when refetch surfaces unseen trades, and `Updated X ago` pill right-aligned. Auto-ticks every 60s so relative-time updates without user interaction.
+- `useTrades` hook now exposes `lastUpdatedAt` (ms-epoch of last successful fetch) and `newTradeCount` (id-delta from previous fetch, 0 on first load).
+
+### Changed
+- Personal feed italic subtitle shortened from `Latest STOCK Act filings from Senate + House` to `From Senate and House`. The "latest" framing is now carried by the freshness indicator above, so the older copy was redundant.
+
+---
+
+## [0.13.1] — 2026-04-30
+
+### Changed
+- Discovery feed (1AM-66): trade list capped at 3 preview items (was 50). Anonymous visitors get a credibility check, not a browsing experience. Trailing hint reads `+ N more filings` and is computed from the live trade count, only shown when there's more than the preview window.
+- Onboarding flow simplified: Discovery → Pick politicians (was Discovery → Welcome → Explainer → Pick). Welcome + Explainer became redundant once Discovery already shows real STOCK Act filings on first paint. The "Select politicians →" CTA now lands directly on the picker. Back button on the picker returns to Discovery.
+
+### Removed
+- `src/components/OnboardingWelcome.jsx` deleted — generic "See what Congress trades" pitch fully replaced by Discovery's real-data landing. No content carried forward.
+- `src/components/OnboardingDataExplainer.jsx` deleted — three content blocks (STOCK Act intro, update cadence, ranges-not-exact) tracked in 1AM-110 for migration to trade-detail page (1AM-70) and a future Settings/About surface. Recoverable via `git show f282554:src/components/OnboardingDataExplainer.jsx`.
+
+---
+
+## [0.13.0] — 2026-04-30
+
+### Added
+- `src/components/DiscoveryFeedScreen.jsx` — public anonymous landing showing the live trade feed without onboarding (1AM-66). First-time visitors see real STOCK Act filings before being asked to follow politicians. Centered Playfair header, navy-outlined CTA card with green "Select politicians →" button, "RECENT STOCK ACT FILINGS" section, full unfiltered trade list. No tab bar, no filter chips, no detail-page navigation — anonymous mode is read-only by design.
+
+### Changed
+- App.jsx routing: first-time visitors land on Discovery feed (`onboardingStep === 'discovery'`) instead of OnboardingWelcome. CTA advances to 'welcome' which preserves the existing welcome → explainer → pick-politicians → done chain. Returning users (with `STORAGE_KEYS.ONBOARDING_DONE = true`) bypass Discovery and land directly on Personal feed.
+- FeedScreen FilterBar label now includes the followedCount explicitly: `5 TRADES FROM THE 17 POLITICIANS YOU FOLLOW` (was `5 RECENT TRADES FROM POLITICIANS YOU FOLLOW`). Singular/plural handling preserved for both numbers.
+
+---
+
+## [0.12.2] — 2026-04-30
+
+### Added
+- `src/data/name-overrides.json` — manual alias map for stubborn upstream politicus names that don't resolve via the cascading `findByName` match (1AM-109). Entries under `"_overrides"` are keyed on raw upstream name → bioguideId. File ships empty; populate as `audit:names` surfaces real mismatches.
+- `findByName` in `src/lib/congress.js` consults overrides BEFORE the cascade match (1AM-109). Default-pool calls only — explicit-pool calls skip overrides for predictability. Normalisation (lowercase + diacritic-strip) applied to both keys and queries so the JSON file stays human-readable.
+- `scripts/audit-trade-names.mjs` — observability tool that fetches recent trades and reports unique politicus names that don't resolve against the directory (1AM-109). Two fetch modes: `via-api` (production endpoint, default) and `direct-fmp` (fallback when deployment-protection blocks the API). Output: `unmatched-trades.json` at repo root, gitignored. Run with `npm run audit:names`.
+
+### Changed
+- Internal-quality release — no user-visible UI changes. Bug-detection infrastructure for the name-resolution path.
+
+---
+
 ## [0.12.1] — 2026-04-30
 
 ### Changed

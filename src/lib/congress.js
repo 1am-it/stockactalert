@@ -19,6 +19,7 @@
 //   } from './lib/congress';
 
 import congressData from '../data/congress.json' with { type: 'json' };
+import nameOverridesData from '../data/name-overrides.json' with { type: 'json' };
 
 /** @typedef {import('../data/schema.js').Member} Member */
 
@@ -29,6 +30,25 @@ import congressData from '../data/congress.json' with { type: 'json' };
  * @type {ReadonlyArray<Member>}
  */
 export const MEMBERS = Object.freeze(congressData);
+
+// ── Manual name overrides (1AM-109) ─────────────────────────────────────────
+// Pre-compute a normalised-key → bioguideId map from name-overrides.json so
+// findByName can short-circuit on stubborn upstream names (e.g. "Pelosi, Nancy"
+// from FMP that doesn't match the directory's "Nancy Pelosi" via the cascade).
+//
+// Entries live in src/data/name-overrides.json under the "_overrides" key.
+// Keys are normalised at load time so the JSON file itself can keep raw names
+// for human readability.
+const NAME_OVERRIDES = (() => {
+  const raw = nameOverridesData?._overrides ?? {};
+  const map = new Map();
+  for (const [key, bioguideId] of Object.entries(raw)) {
+    if (!key || !bioguideId) continue;
+    const normalised = normaliseSearchString(key);
+    if (normalised) map.set(normalised, bioguideId);
+  }
+  return map;
+})();
 
 // ── Suggested members for onboarding ────────────────────────────────────────
 // Hand-picked 8 high-profile members for the "Suggested to follow" section
@@ -93,6 +113,19 @@ export function findByBioguide(bioguideId) {
 export function findByName(query, members = MEMBERS) {
   const q = normaliseSearchString(query);
   if (!q) return [];
+
+  // 1AM-109: consult manual overrides first. If the raw query matches a key
+  // in name-overrides.json, return the canonical member directly. This lets us
+  // resolve stubborn upstream-source names (e.g. "Pelosi, Nancy" from FMP)
+  // without changes to the cascade logic. Only applies when searching the
+  // default MEMBERS pool — explicit pools skip overrides for predictability.
+  if (members === MEMBERS) {
+    const overrideId = NAME_OVERRIDES.get(q);
+    if (overrideId) {
+      const override = MEMBERS.find((m) => m.bioguideId === overrideId);
+      if (override) return [override];
+    }
+  }
 
   const exactMatches = [];
   const prefixMatches = [];
