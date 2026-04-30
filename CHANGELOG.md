@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.2] — 2026-04-30
+
+### Added
+- `src/data/name-overrides.json` — manual alias map for stubborn upstream politicus names that don't resolve via the cascading `findByName` match (1AM-109). Entries under `"_overrides"` are keyed on raw upstream name → bioguideId. File ships empty; populate as `audit:names` surfaces real mismatches.
+- `findByName` in `src/lib/congress.js` consults overrides BEFORE the cascade match (1AM-109). Default-pool calls only — explicit-pool calls skip overrides for predictability. Normalisation (lowercase + diacritic-strip) applied to both keys and queries so the JSON file stays human-readable.
+- `scripts/audit-trade-names.mjs` — observability tool that fetches recent trades and reports unique politicus names that don't resolve against the directory (1AM-109). Two fetch modes: `via-api` (production endpoint, default) and `direct-fmp` (fallback when deployment-protection blocks the API). Output: `unmatched-trades.json` at repo root, gitignored. Run with `npm run audit:names`.
+
+### Changed
+- Internal-quality release — no user-visible UI changes. Bug-detection infrastructure for the name-resolution path.
+
+---
+
 ## [0.12.1] — 2026-04-30
 
 ### Changed
