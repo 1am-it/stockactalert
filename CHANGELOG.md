@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.1] — 2026-04-30
+
+### Changed
+- Discovery feed (1AM-66): trade list capped at 3 preview items (was 50). Anonymous visitors get a credibility check, not a browsing experience. Trailing hint reads `+ N more filings` and is computed from the live trade count, only shown when there's more than the preview window.
+- Onboarding flow simplified: Discovery → Pick politicians (was Discovery → Welcome → Explainer → Pick). Welcome + Explainer became redundant once Discovery already shows real STOCK Act filings on first paint. The "Select politicians →" CTA now lands directly on the picker. Back button on the picker returns to Discovery.
+
+### Removed
+- `src/components/OnboardingWelcome.jsx` deleted — generic "See what Congress trades" pitch fully replaced by Discovery's real-data landing. No content carried forward.
+- `src/components/OnboardingDataExplainer.jsx` deleted — three content blocks (STOCK Act intro, update cadence, ranges-not-exact) tracked in 1AM-110 for migration to trade-detail page (1AM-70) and a future Settings/About surface. Recoverable via `git show f282554:src/components/OnboardingDataExplainer.jsx`.
+
+---
+
 ## [0.13.0] — 2026-04-30
 
 ### Added

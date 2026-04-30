@@ -1,18 +1,21 @@
 // 1AM-66: DiscoveryFeedScreen — public anonymous landing
 //
-// Renders the unfiltered live trade feed for first-time visitors. Sits in
+// Renders a preview of the live trade feed for first-time visitors. Sits in
 // front of the onboarding flow per v6 design — anonymous users see real data
-// before being asked to commit to following politicians.
+// before being asked to follow politicians.
 //
 // Routing entry: App.jsx renders this when onboardingStep === 'discovery'.
-// CTA "Select politicians →" advances onboardingStep to 'welcome', which
-// the existing OnboardingWelcome → OnboardingDataExplainer → OnboardingPickPoliticians
-// chain takes from there.
+// CTA "Select politicians →" advances onboardingStep directly to
+// 'pick-politicians' (v0.13.1 — Welcome + Explainer screens removed because
+// Discovery makes them redundant; see 1AM-110 for the content-migration plan).
 //
 // Design vs FeedScreen:
 //   - Centered Playfair header "Live from Congress" (no subtitle, per ticket)
 //   - Prominent CTA card with green button (entry to onboarding)
 //   - "RECENT STOCK ACT FILINGS" section header (positioning: civic-tech transparency)
+//   - Renders only DISCOVERY_PREVIEW_COUNT (3) trades — enough to prove the data
+//     is real without dragging anonymous users into a long scroll. The remainder
+//     is teased via "+ N more filings" hint.
 //   - TradeCards rendered WITHOUT onPoliticianClick (anonymous user can't access detail)
 //   - TradeCards WITHOUT following pill (anonymous user has no follow state)
 //   - Owner badges (spouse / joint / dependent) STILL shown — owner is a property
@@ -26,8 +29,20 @@
 import TradeCard from './TradeCard';
 import { useTrades } from '../hooks/useTrades';
 
+// 1AM-66 v0.13.1: limit Discovery preview to 3 trades. Anonymous users need
+// proof-of-real-data, not a browsing experience. Three is enough to establish
+// credibility and create curiosity for "+ N more filings".
+const DISCOVERY_PREVIEW_COUNT = 3;
+
 export default function DiscoveryFeedScreen({ onStartOnboarding }) {
   const { trades, loading, error, refetch } = useTrades();
+
+  // Slice to preview length; the rest is teased via the trailing hint.
+  const previewTrades = trades?.slice(0, DISCOVERY_PREVIEW_COUNT) ?? [];
+  const remainingCount =
+    trades && trades.length > DISCOVERY_PREVIEW_COUNT
+      ? trades.length - DISCOVERY_PREVIEW_COUNT
+      : 0;
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
@@ -177,7 +192,7 @@ export default function DiscoveryFeedScreen({ onStartOnboarding }) {
 
         {!loading && !error && trades && trades.length > 0 && (
           <>
-            {trades.map((trade) => (
+            {previewTrades.map((trade) => (
               <TradeCard
                 key={trade.id}
                 trade={trade}
@@ -189,19 +204,22 @@ export default function DiscoveryFeedScreen({ onStartOnboarding }) {
               />
             ))}
 
-            {/* Trailing hint — observational only, no CTA repeat (CTA is at top) */}
-            <div style={{ textAlign: 'center', marginTop: 16, padding: 12 }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: '#9CA3AF',
-                  fontStyle: 'italic',
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                + {trades.length} filings shown
+            {/* Trailing hint — observational only, no CTA repeat (CTA is at top).
+                Only shown when there are more filings than the preview window. */}
+            {remainingCount > 0 && (
+              <div style={{ textAlign: 'center', marginTop: 16, padding: 12 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: '#9CA3AF',
+                    fontStyle: 'italic',
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                >
+                  + {remainingCount} more filings
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
 
