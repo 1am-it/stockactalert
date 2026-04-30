@@ -12,6 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.0] — 2026-04-30
+
+### Added
+- `src/components/BrowseAllFilingsScreen.jsx` — dedicated screen for browsing all recent STOCK Act filings beyond the user's followed politicians (1AM-112). Page-style header with `← Back to feed` link + Playfair "Browse All Filings" title, single-input search (politician name OR ticker symbol — uppercase 2–5 chars detected as ticker, sent as `?ticker=...`; otherwise sent as `?politician=...`), single-select chamber + action filter chips, single-select sort chips (`Newest` / `Largest amount`), freshness pill reusing 1AM-38 logic, result count, honest "earlier history coming soon" footer, and reset-filters recovery in the empty state. Reachable from the Personal feed `Show all` button and from the FilterEmptyState recovery CTA (1AM-111).
+- `src/components/SingleChipGroup.jsx` — single-select variant of the existing `ChipGroup` pattern. Always has a selected value (defaults to "All"), used for filters where one option must be active. Visually identical to `ChipGroup` for consistency.
+- `App.jsx` overlay routing for Browse — new `isBrowsingAll` boolean state, mirrors the `detailPolitician` overlay pattern. While true, BrowseAllFilingsScreen renders full-screen with no TabBar.
+- "Largest amount" sort uses an inline copy of the `parseAmountMidpoint` helper from `PoliticianDetailScreen` (TODO: extract to `src/lib/amountParse.js` when the helper is touched again — kept inline for delivery scope).
+
+### Changed
+- Personal feed `Show all` FilterBar button no longer toggles the in-place filter — it now navigates to BrowseAllFilingsScreen. The previous toggle behaviour is deprecated; users get the dedicated browse experience instead. Fallback to the in-place toggle is preserved for callers that don't wire `onBrowseAll`.
+- FilterEmptyState `View all recent filings` CTA (1AM-111) now routes to BrowseAllFilingsScreen as originally intended. Fallback wiring kept for safety.
+
+### Out of scope (deferred)
+- Search by company name (e.g. "Nvidia", "Apple") — requires ticker→company mapping that doesn't exist yet.
+- `Load more` pagination — blocked on 1AM-108 (Stock Watcher migration).
+- Date-range filter — blocked on 1AM-108.
+- Historical filings beyond the FMP free-tier 50-trade window — tracked in 1AM-113.
+- Compact TradeCard variant — uses existing TradeCard for consistency.
+
+---
+
 ## [0.13.3] — 2026-04-30
 
 ### Added
