@@ -1,5 +1,6 @@
 // SAA-15 + SAA-16 + SAA-18 + 1AM-24: App entry
-// Steps: 'welcome' → 'explainer' → 'pick-politicians' → 'done' (main app)
+// Steps: 'discovery' → 'pick-politicians' → 'done' (main app)
+// 1AM-66 v0.13.1: Welcome + Explainer removed (replaced by Discovery feed).
 //
 // 1AM-24: Politicians tab is now functional — same grid as onboarding,
 // minus the Back/Continue chrome. State is shared with the feed via
@@ -22,8 +23,9 @@ import FeedScreen from './components/FeedScreen';
 import DiscoveryFeedScreen from './components/DiscoveryFeedScreen';
 import PoliticiansScreen from './components/PoliticiansScreen';
 import PoliticianDetailScreen from './components/PoliticianDetailScreen';
-import OnboardingWelcome from './components/OnboardingWelcome';
-import OnboardingDataExplainer from './components/OnboardingDataExplainer';
+// 1AM-66 v0.13.1: Welcome + Explainer screens removed; Discovery makes them
+// redundant. Steps simplified to 'discovery' → 'pick-politicians' → 'done'.
+// Migration of explainer content tracked in 1AM-110.
 import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
 import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
 import { useTrades } from './hooks/useTrades';
@@ -121,30 +123,14 @@ function App() {
   };
 
   // ── Onboarding flow ─────────────────────────────────────────────────────────
-  // 1AM-66: Discovery feed is the public anonymous landing. Tap "Select
-  // politicians" → advance to 'welcome' which kicks off the original
-  // onboarding chain (welcome → explainer → pick-politicians → done).
+  // 1AM-66 v0.13.1: Discovery → Pick directly. Welcome + Explainer were
+  // removed because Discovery already shows real STOCK Act filings, making
+  // the generic "See what Congress trades" pitch and the data-conventions
+  // explainer redundant friction. Migrated explainer content lives in 1AM-110.
   if (onboardingStep === 'discovery') {
     return (
       <DiscoveryFeedScreen
-        onStartOnboarding={() => setOnboardingStep('welcome')}
-      />
-    );
-  }
-
-  if (onboardingStep === 'welcome') {
-    return (
-      <OnboardingWelcome
-        onNext={() => setOnboardingStep('explainer')}
-      />
-    );
-  }
-
-  if (onboardingStep === 'explainer') {
-    return (
-      <OnboardingDataExplainer
-        onNext={() => setOnboardingStep('pick-politicians')}
-        onBack={() => setOnboardingStep('welcome')}
+        onStartOnboarding={() => setOnboardingStep('pick-politicians')}
       />
     );
   }
@@ -155,7 +141,7 @@ function App() {
         selected={followedPoliticians}
         onToggle={togglePolitician}
         onNext={() => setOnboardingStep('done')}
-        onBack={() => setOnboardingStep('explainer')}
+        onBack={() => setOnboardingStep('discovery')}
       />
     );
   }
