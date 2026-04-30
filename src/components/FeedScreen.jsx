@@ -43,6 +43,7 @@
 import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
 import FreshnessIndicator from './FreshnessIndicator';
+import CapitolIllustration from './CapitolIllustration';
 import { useTrades } from '../hooks/useTrades';
 
 // How many chips to show in the empty state before requiring "View all"
@@ -471,28 +472,43 @@ function FilterEmptyState({
         fontFamily: "'DM Sans', sans-serif",
       }}
     >
+      {/* 1AM-111: Capitol illustration anchors the empty state and gives it
+          personality. Decorative — aria-hidden on the SVG itself. */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+        <CapitolIllustration size={140} />
+      </div>
+
+      {/* 1AM-111: Headline reframed from "None of your followed politicians..."
+          to a calmer, more journalistic phrasing. Playfair to match other
+          editorial headers (Welcome screen, page titles). */}
       <div
         style={{
-          fontSize: 14,
-          fontWeight: 700,
+          fontFamily: "'Playfair Display', serif",
+          fontSize: 18,
+          fontWeight: 500,
           color: '#0D1B2A',
-          marginBottom: 6,
+          marginBottom: 10,
           textAlign: 'center',
+          lineHeight: 1.3,
         }}
       >
-        None of your followed politicians have recent filings.
+        No recent filings for the politicians you follow
       </div>
+
+      {/* 1AM-111: 45-day disclosure-window explainer. Addresses the most
+          common user question (is the app broken?) by surfacing the actual
+          STOCK Act filing window. */}
       <div
         style={{
           fontSize: 13,
           color: '#6B7280',
-          lineHeight: 1.5,
+          lineHeight: 1.55,
           textAlign: 'center',
-          marginBottom: 20,
+          marginBottom: 22,
         }}
       >
-        Filings appear when they're submitted. None of the politicians you
-        follow have a recent one — that's normal.
+        Stock Act filings can be submitted up to 45 days after a trade. This
+        means recent activity may not yet be visible.
       </div>
 
       {/* ── Followed politicians chips ── */}
@@ -604,7 +620,7 @@ function FilterEmptyState({
               cursor: 'pointer',
             }}
           >
-            Manage politicians →
+            Manage followed politicians →
           </button>
         </div>
       )}
@@ -625,7 +641,7 @@ function FilterEmptyState({
             cursor: 'pointer',
           }}
         >
-          Browse all trades
+          View all recent filings
         </button>
       </div>
     </div>

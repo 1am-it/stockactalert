@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.3] — 2026-04-30
+
+### Added
+- `src/components/CapitolIllustration.jsx` — minimal SVG illustration of the US Capitol (1AM-111). Soft `#E5F0FF` circle background (matches Politicians-tab blue), navy `#0D1B2A` building elements at 25/35/55% opacity. Decorative-only, sized via `size` prop (default 140px). Reusable for future surfaces (Settings/About, FAQ).
+
+### Changed
+- Personal feed empty state redesigned (1AM-111): Capitol illustration anchors the card, headline reframed to `No recent filings for the politicians you follow` (Playfair, navy), and a new 45-day disclosure-window explainer addresses the "is the app broken?" question directly. Replaces the previous `None of your followed politicians have recent filings.` headline + body pair. Following pills, Manage link, and recovery CTA all preserved.
+- Empty-state Manage link: `Manage politicians →` → `Manage followed politicians →` (per mockup).
+- Empty-state CTA: `Browse all trades` → `View all recent filings` (per mockup). Underlying behaviour unchanged — falls back to `onShowAll` toggle until 1AM-112 (Browse page) ships, at which point the CTA will route there instead.
+
+---
+
 ## [0.13.2] — 2026-04-30
 
 ### Added
