@@ -30,6 +30,7 @@
 import { useMemo } from 'react';
 import TradeCard from './TradeCard';
 import { findByName } from '../lib/congress';
+import { fullStateName } from '../lib/states';
 import { ACTIONS } from '../data/schema';
 import { useTradesByPolitician } from '../hooks/useTradesByPolitician';
 
@@ -209,13 +210,12 @@ export default function PoliticianDetailScreen({
     [politicianTrades]
   );
 
-  const districtSuffix =
-    member && member.chamber === 'House' && member.district !== undefined
-      ? `-${member.district}`
-      : '';
+  // 1AM-102: state shown as full name, district dropped from header meta-line
+  // (consistent with MemberListRow).
+  const stateLabel = member ? fullStateName(member.state) : '';
 
   const metaLine = member
-    ? `${member.chamber} · ${member.party} · ${member.state}${districtSuffix}`
+    ? `${member.chamber} · ${member.party} · ${stateLabel}`
     : 'Member metadata unavailable';
 
   return (

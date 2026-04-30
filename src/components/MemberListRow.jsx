@@ -19,6 +19,8 @@
 //   onToggle   — () => void
 //   onClickRow — () => void  (optional; when set, splits row body from toggle)
 
+import { fullStateName } from '../lib/states';
+
 const PARTY_COLORS = {
   D: { fg: '#1D4ED8', bg: '#DBEAFE' }, // blue
   R: { fg: '#B91C1C', bg: '#FEE2E2' }, // red
@@ -27,10 +29,12 @@ const PARTY_COLORS = {
 
 export default function MemberListRow({ member, isSelected, onToggle, onClickRow }) {
   const partyColor = PARTY_COLORS[member.party] || PARTY_COLORS.I;
-  const districtSuffix =
-    member.chamber === 'House' && member.district !== undefined
-      ? `-${member.district}`
-      : '';
+
+  // 1AM-102: state shown as full name ("California" not "CA"), district dropped
+  // from the row subtitle — district is power-user signal, available on the
+  // detail page if/when re-introduced. Falls back to the abbreviation if the
+  // code is unknown to the helper.
+  const stateLabel = fullStateName(member.state);
 
   // Mode A: legacy / onboarding — entire row toggles
   // Mode B: split — body navigates, toggle button toggles
@@ -95,8 +99,7 @@ export default function MemberListRow({ member, isSelected, onToggle, onClickRow
             marginTop: 2,
           }}
         >
-          {member.party} · {member.state}
-          {districtSuffix} · {member.chamber}
+          {member.party} · {stateLabel} · {member.chamber}
         </div>
       </div>
     </>
