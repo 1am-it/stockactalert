@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
+import DiscoveryFeedScreen from './components/DiscoveryFeedScreen';
 import PoliticiansScreen from './components/PoliticiansScreen';
 import PoliticianDetailScreen from './components/PoliticianDetailScreen';
 import OnboardingWelcome from './components/OnboardingWelcome';
@@ -50,8 +51,11 @@ function migrateFollowedNames(names) {
 function App() {
   // Hydrate initial state from localStorage. Lazy initial state so we only
   // touch storage once on mount.
+  // 1AM-66: First-time visitors land on Discovery feed (anonymous landing) —
+  // not on Welcome onboarding screen. The CTA in DiscoveryFeedScreen advances
+  // to 'welcome' which then walks the original onboarding chain.
   const [onboardingStep, setOnboardingStep] = useState(() =>
-    getJSON(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'welcome'
+    getJSON(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'discovery'
   );
   const [followedPoliticians, setFollowedPoliticians] = useState(() =>
     migrateFollowedNames(getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, []))
@@ -117,6 +121,17 @@ function App() {
   };
 
   // ── Onboarding flow ─────────────────────────────────────────────────────────
+  // 1AM-66: Discovery feed is the public anonymous landing. Tap "Select
+  // politicians" → advance to 'welcome' which kicks off the original
+  // onboarding chain (welcome → explainer → pick-politicians → done).
+  if (onboardingStep === 'discovery') {
+    return (
+      <DiscoveryFeedScreen
+        onStartOnboarding={() => setOnboardingStep('welcome')}
+      />
+    );
+  }
+
   if (onboardingStep === 'welcome') {
     return (
       <OnboardingWelcome
