@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.0] — 2026-04-30
+
+### Added
+- `src/components/DiscoveryFeedScreen.jsx` — public anonymous landing showing the live trade feed without onboarding (1AM-66). First-time visitors see real STOCK Act filings before being asked to follow politicians. Centered Playfair header, navy-outlined CTA card with green "Select politicians →" button, "RECENT STOCK ACT FILINGS" section, full unfiltered trade list. No tab bar, no filter chips, no detail-page navigation — anonymous mode is read-only by design.
+
+### Changed
+- App.jsx routing: first-time visitors land on Discovery feed (`onboardingStep === 'discovery'`) instead of OnboardingWelcome. CTA advances to 'welcome' which preserves the existing welcome → explainer → pick-politicians → done chain. Returning users (with `STORAGE_KEYS.ONBOARDING_DONE = true`) bypass Discovery and land directly on Personal feed.
+- FeedScreen FilterBar label now includes the followedCount explicitly: `5 TRADES FROM THE 17 POLITICIANS YOU FOLLOW` (was `5 RECENT TRADES FROM POLITICIANS YOU FOLLOW`). Singular/plural handling preserved for both numbers.
+
+---
+
 ## [0.12.2] — 2026-04-30
 
 ### Added

@@ -1,8 +1,11 @@
 {
-  "_comment": "Manual alias map — raw politicus names from upstream sources that don't resolve via cascading findByName match. Keys are case-insensitive, diacritic-tolerant. Add entries here when audit-trade-names.mjs reports unmatched names that you want to resolve. See 1AM-109 in Linear for context.",
+  "_comment": "Manual alias map — raw politicus names from upstream sources that don't resolve via the cascading findByName match. Keys are case-insensitive, diacritic-tolerant. Add entries here when audit-trade-names.mjs reports unmatched names that you want to resolve. See 1AM-109 in Linear for context.",
   "_schema": {
     "key": "raw name string as it appears in upstream feed",
     "value": "bioguideId from src/data/congress.json"
   },
-  "_overrides": {}
+  "_overrides": {
+    "Robert E Latta": "L000566",
+    "James E Hon Banks": "B001299"
+  }
 }

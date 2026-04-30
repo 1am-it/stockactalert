@@ -238,9 +238,13 @@ function FilterBar({
   onRefresh,
 }) {
   const tradeWord = visibleCount === 1 ? 'TRADE' : 'TRADES';
+  // 1AM-66: include followedCount explicitly in the active-filter label so
+  // the user sees both numbers — how many trades visible AND how many
+  // politicians they follow. Replaces "RECENT" framing with explicit count.
+  const politicianWord = followedCount === 1 ? 'POLITICIAN' : 'POLITICIANS';
 
   const label = filterActive
-    ? `${visibleCount} RECENT ${tradeWord} FROM POLITICIANS YOU FOLLOW`
+    ? `${visibleCount} ${tradeWord} FROM THE ${followedCount} ${politicianWord} YOU FOLLOW`
     : hasFollowed
       ? 'SHOWING ALL RECENT TRADES'
       : `${visibleCount} RECENT ${tradeWord}`;
