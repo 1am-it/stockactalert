@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.2] — 2026-04-30
+
+### Added
+- `src/lib/relativeTime.js` — `formatRelativeTime(ts)` ("just now" / "5 min ago" / "2 hours ago" / "yesterday" / "N days ago" / locale date) and `getStaleness(ts)` ('fresh' ≤ 4h / 'stale' 4–24h / 'old' > 24h). Thresholds aligned with Vercel CDN cache (s-maxage=3600, swr=7200) so the indicator doesn't flicker on cache-revalidate.
+- `src/components/FreshnessIndicator.jsx` — at-a-glance freshness signal rendered between the page title and FilterBar on Personal feed (1AM-38). Shows: optional dot (amber when stale, grey when old, **no dot when fresh** per design decision), `Latest publicly available filings` label, optional `N new` badge when refetch surfaces unseen trades, and `Updated X ago` pill right-aligned. Auto-ticks every 60s so relative-time updates without user interaction.
+- `useTrades` hook now exposes `lastUpdatedAt` (ms-epoch of last successful fetch) and `newTradeCount` (id-delta from previous fetch, 0 on first load).
+
+### Changed
+- Personal feed italic subtitle shortened from `Latest STOCK Act filings from Senate + House` to `From Senate and House`. The "latest" framing is now carried by the freshness indicator above, so the older copy was redundant.
+
+---
+
 ## [0.13.1] — 2026-04-30
 
 ### Changed

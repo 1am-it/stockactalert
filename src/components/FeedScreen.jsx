@@ -42,6 +42,7 @@
 
 import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
+import FreshnessIndicator from './FreshnessIndicator';
 import { useTrades } from '../hooks/useTrades';
 
 // How many chips to show in the empty state before requiring "View all"
@@ -53,7 +54,7 @@ export default function FeedScreen({
   onNavigateToPoliticians,
   onShowPoliticianDetail,
 }) {
-  const { trades, loading, error, refetch } = useTrades();
+  const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } = useTrades();
 
   // Whether to bypass the followed-filter for the current session
   const [showAll, setShowAll] = useState(false);
@@ -182,6 +183,13 @@ export default function FeedScreen({
           onNavigateToPoliticians={onNavigateToPoliticians}
         />
       )}
+
+      {/* 1AM-38: Freshness indicator — dot only when stale, label, optional 'N new' badge,
+          and "Updated X ago" pill. Tracks per-fetch state from useTrades. */}
+      <FreshnessIndicator
+        lastUpdatedAt={lastUpdatedAt}
+        newTradeCount={newTradeCount}
+      />
 
       {/* Filter indicator + toggle */}
       <FilterBar
@@ -312,7 +320,9 @@ function FilterBar({
         </div>
       </div>
 
-      {/* Subtle scope subtitle — tells the user what "recent" means */}
+      {/* Compact chamber-scope subtitle — 1AM-38: shortened from
+          "Latest STOCK Act filings from Senate + House" because the
+          freshness indicator above already conveys "latest" + scope. */}
       <div
         style={{
           fontSize: 11,
@@ -323,7 +333,7 @@ function FilterBar({
           padding: '0 2px',
         }}
       >
-        Latest STOCK Act filings from Senate + House
+        From Senate and House
       </div>
     </div>
   );
