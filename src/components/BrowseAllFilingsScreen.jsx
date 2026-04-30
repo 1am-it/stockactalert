@@ -50,6 +50,33 @@ const ACTION_OPTIONS = [
   { value: 'sell', label: 'Sell' },
 ];
 
+// 1AM-112: sort options. "Newest" matches the default API order; "Largest"
+// uses the amount range midpoint estimate for ordering.
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'largest', label: 'Largest amount' },
+];
+
+// Inline copy of the amount-midpoint parser used in PoliticianDetailScreen.
+// Duplicated here to keep this delivery scope-tight; should be DRY-ed into
+// src/lib/amountParse.js when next touched.
+function parseAmountMidpoint(amountStr) {
+  if (!amountStr || typeof amountStr !== 'string') return 0;
+  const cleaned = amountStr.replace(/[$,]/g, '').replace(/–|—/g, '-');
+  const parts = cleaned.split('-').map((s) => s.trim());
+  const parseSingle = (s) => {
+    if (!s) return 0;
+    const trimmed = s.trim().toUpperCase();
+    const num = parseFloat(trimmed);
+    if (isNaN(num)) return 0;
+    if (trimmed.includes('M')) return num * 1_000_000;
+    if (trimmed.includes('K')) return num * 1_000;
+    return num;
+  };
+  if (parts.length !== 2) return parseSingle(parts[0]);
+  return (parseSingle(parts[0]) + parseSingle(parts[1])) / 2;
+}
+
 export default function BrowseAllFilingsScreen({ onBack }) {
   // Local UI state — not persisted across sessions per ticket scope ("Browse
   // is a stateless utility for v1").
@@ -57,6 +84,8 @@ export default function BrowseAllFilingsScreen({ onBack }) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [chamberFilter, setChamberFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
+  // 1AM-112: sort order. Default 'newest' matches API order.
+  const [sortOrder, setSortOrder] = useState('newest');
 
   // Debounce the search input to avoid hitting the API on every keystroke.
   useEffect(() => {
@@ -80,10 +109,11 @@ export default function BrowseAllFilingsScreen({ onBack }) {
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } =
     useTrades(searchFilters);
 
-  // Client-side chamber + action filters layered on top of the fetched set.
+  // Client-side chamber + action filters layered on top of the fetched set,
+  // then sorted per sortOrder.
   const visibleTrades = useMemo(() => {
     if (!trades) return [];
-    return trades.filter((t) => {
+    const filtered = trades.filter((t) => {
       if (chamberFilter !== 'all') {
         // trade.chamber is "Senate" or "House" (titlecased upstream). Compare
         // case-insensitively to be safe across data sources.
@@ -98,7 +128,17 @@ export default function BrowseAllFilingsScreen({ onBack }) {
       }
       return true;
     });
-  }, [trades, chamberFilter, actionFilter]);
+
+    // 1AM-112: sort. 'newest' keeps API order (most-recently-filed first).
+    // 'largest' sorts by amount midpoint descending — cheap proxy for
+    // "noteworthy" trades. Returns a new array (don't mutate the slice).
+    if (sortOrder === 'largest') {
+      return [...filtered].sort(
+        (a, b) => parseAmountMidpoint(b.amount) - parseAmountMidpoint(a.amount)
+      );
+    }
+    return filtered;
+  }, [trades, chamberFilter, actionFilter, sortOrder]);
 
   const hasActiveFilter =
     chamberFilter !== 'all' || actionFilter !== 'all' || debouncedSearch !== '';
@@ -107,6 +147,7 @@ export default function BrowseAllFilingsScreen({ onBack }) {
     setSearchInput('');
     setChamberFilter('all');
     setActionFilter('all');
+    setSortOrder('newest');
   };
 
   return (
@@ -214,12 +255,21 @@ export default function BrowseAllFilingsScreen({ onBack }) {
             onChange={setChamberFilter}
           />
         </div>
-        <div style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: 10 }}>
           <SingleChipGroup
             label="Action"
             options={ACTION_OPTIONS}
             value={actionFilter}
             onChange={setActionFilter}
+          />
+        </div>
+        {/* 1AM-112: sort chip row. Filters narrow, sort orders. */}
+        <div style={{ marginBottom: 18 }}>
+          <SingleChipGroup
+            label="Sort"
+            options={SORT_OPTIONS}
+            value={sortOrder}
+            onChange={setSortOrder}
           />
         </div>
 
@@ -340,13 +390,15 @@ export default function BrowseAllFilingsScreen({ onBack }) {
             <div style={{ textAlign: 'center', marginTop: 16, padding: 8 }}>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   color: '#9CA3AF',
                   fontStyle: 'italic',
                   fontFamily: "'DM Sans', sans-serif",
+                  lineHeight: 1.5,
                 }}
               >
-                — end of recent filings —
+                Showing the latest {visibleTrades.length} filings · earlier
+                history coming soon
               </div>
             </div>
           </>
