@@ -27,3 +27,4 @@ dist-ssr
 
 # 1AM-109: audit-trade-names output (generated, not committed)
 unmatched-trades.json
+.env.local

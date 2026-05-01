@@ -12,7 +12,7 @@
     "audit:names": "node --env-file=.env.local scripts/audit-trade-names.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.103.3",
+    "@supabase/supabase-js": "^2.105.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.1"
