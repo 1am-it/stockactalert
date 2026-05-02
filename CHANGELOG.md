@@ -12,6 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.1] — 2026-05-02
+
+### Added
+- Supabase `filings` table — historical congressional trades archive (1AM-113 backend phase). Composite unique index on `(politician_name, ticker, trade_date, amount_low, amount_high)` provides idempotent dedup; bookkeeping indexes on `filed_date desc`, `bioguide_id`, and `chamber` cover read paths. `raw_data jsonb` column preserves the full FMP payload for future enrichment without re-fetching. Service-role-only access (RLS disabled). Seeded with the latest 50 trades from `senate-latest` + `house-latest`.
+- `scripts/lib/archive-helpers.mjs` — shared module with `loadConfig`, `getSupabaseClient`, `fetchChamber`, `mapToRow`, `upsertTrades`, `getArchiveCount`, `parseAmountRange`, and `resolveBioguide`. Single source of truth for the FMP-to-Supabase ETL path.
+- `scripts/seed-archive.mjs` — one-time entry point for seeding the archive. Idempotent: re-running is a no-op thanks to the composite unique index.
+- `scripts/cron-fetch-trades.mjs` — daily entry point. Structured ISO-timestamped logs for GitHub Actions readability, partial-success tolerance (one chamber failing logs a warning but doesn't fail the run; both failing exits 1), explicit exit-code signalling.
+- `.github/workflows/refresh-archive.yml` — GitHub Actions workflow that schedules `cron-fetch-trades.mjs` daily at 06:00 UTC, with `workflow_dispatch` manual trigger. Three repository secrets required: `FMP_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- `@supabase/supabase-js` runtime dependency.
+
+### Changed
+- Internal-infrastructure release — no user-visible UI changes. `/api/trades` continues to read directly from FMP; the Supabase archive accumulates in the background.
+
+### Out of scope (deferred)
+- `/api/trades` rewire to read from Supabase — ships with 1AM-114 frontend work as v0.15.0.
+- Browse `Load more` and date-range filter — tracked in 1AM-114, blocked on this archive being live and the API rewire.
+
+---
+
 ## [0.14.0] — 2026-04-30
 
 ### Added
