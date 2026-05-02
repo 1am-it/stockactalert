@@ -56,6 +56,8 @@ const PAGE_SIZE = 50;
 // Matches ARCHIVE_ACTIVATION_DATE in api/trades/stats.js. If the archive ever
 // migrates to a new backing store, update both constants in lockstep.
 const ARCHIVE_START_LABEL = 'May 1, 2026';
+// 1AM-114: short form for the footer copy ("47 of 312 · since May 2026").
+const ARCHIVE_START_MONTH_LABEL = 'May 2026';
 
 const CHAMBER_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -137,6 +139,11 @@ export default function BrowseAllFilingsScreen({ onBack }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
+  // 1AM-114: archive total for the footer copy. Fetched once on mount from
+  // /api/trades/stats. null while loading or on error → footer falls back
+  // to a copy without the "of N" total.
+  const [archiveTotal, setArchiveTotal] = useState(null);
+
   // Debounce the search input to avoid hitting the API on every keystroke.
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -144,6 +151,26 @@ export default function BrowseAllFilingsScreen({ onBack }) {
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [searchInput]);
+
+  // 1AM-114: fetch archive total once on mount for the footer copy. Silent
+  // failure — footer falls back to a copy without total when archiveTotal
+  // stays null.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/trades/stats')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.total === 'number') {
+          setArchiveTotal(data.total);
+        }
+      })
+      .catch(() => {
+        // Silent — fallback footer copy is acceptable
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Translate the debounced search into a backend filter. Ticker pattern
   // detection runs against the raw (non-uppercased) input — we don't auto-
@@ -554,8 +581,12 @@ export default function BrowseAllFilingsScreen({ onBack }) {
                   lineHeight: 1.5,
                 }}
               >
-                Showing the latest {visibleTrades.length} filings · earlier
-                history coming soon
+                {/* 1AM-114: footer copy variant D. archiveTotal may be null
+                    while stats fetch is in flight or after a failed fetch —
+                    fall back to a count-only copy in that case. */}
+                {archiveTotal !== null
+                  ? `${visibleTrades.length} of ${archiveTotal} · since ${ARCHIVE_START_MONTH_LABEL}`
+                  : `${visibleTrades.length} filings · since ${ARCHIVE_START_MONTH_LABEL}`}
               </div>
             </div>
           </>
