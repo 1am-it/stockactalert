@@ -74,7 +74,7 @@ export default async function handler(req) {
     let query = supabase
       .from('filings')
       .select('chamber, raw_data')
-      .order('filed_date', { ascending: false });
+      .order('trade_date', { ascending: false });
 
     if (ticker) {
       query = query.eq('ticker', ticker.toUpperCase());
