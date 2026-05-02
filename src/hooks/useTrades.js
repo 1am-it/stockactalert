@@ -12,6 +12,10 @@
 //                    previous fetch (per-session memory; resets on remount)
 // Both are null/0 on first fetch since there's no "previous" state to delta from.
 //
+// 1AM-114: filters.since (YYYY-MM-DD) is forwarded to /api/trades as the
+// `since` query param. Backend filters on trade_date >= since. Used by
+// BrowseAllFilingsScreen's date-range chip.
+//
 // Features:
 //   - Automatic fetch on mount
 //   - Refetch when filters change (shallow comparison via JSON.stringify)
@@ -29,6 +33,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * @param {Object}  filters
  * @param {string} [filters.ticker]     — filter by ticker e.g. 'NVDA'
  * @param {string} [filters.politician] — substring match on politician name
+ * @param {string} [filters.since]      — YYYY-MM-DD, filter trade_date >= since
  * @param {number} [filters.limit]      — max results (default 50, server-side)
  */
 export function useTrades(filters = {}) {
@@ -64,6 +69,7 @@ export function useTrades(filters = {}) {
       const params = new URLSearchParams();
       if (filters.ticker) params.set('ticker', filters.ticker);
       if (filters.politician) params.set('politician', filters.politician);
+      if (filters.since) params.set('since', filters.since);
       if (filters.limit) params.set('limit', String(filters.limit));
 
       const query = params.toString();

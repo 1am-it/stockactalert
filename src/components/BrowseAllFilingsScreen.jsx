@@ -24,6 +24,10 @@
 //   - Search is sent to backend (politician/ticker query params) because
 //     /api/trades supports them natively and it scopes results before they
 //     hit the client.
+//   - 1AM-114: time-period filter is sent to backend as `since` query param,
+//     filtering trade_date >= since. Server-side because the chip can narrow
+//     results below the 50-trade page (e.g. Past 30d when only 12 of 50 trades
+//     fall in window).
 //
 // Props:
 //   onBack — callback when user clicks "Back to feed"
@@ -49,6 +53,28 @@ const ACTION_OPTIONS = [
   { value: 'buy', label: 'Buy' },
   { value: 'sell', label: 'Sell' },
 ];
+
+const TIME_PERIOD_OPTIONS = [
+  { value: 'all', label: 'All time' },
+  { value: 'past30d', label: 'Past 30d' },
+  { value: 'past90d', label: 'Past 90d' },
+  { value: 'pastYear', label: 'Past year' },
+];
+
+const TIME_PERIOD_DAYS = {
+  past30d: 30,
+  past90d: 90,
+  pastYear: 365,
+};
+
+function computeSince(timePeriod) {
+  if (timePeriod === 'all') return null;
+  const days = TIME_PERIOD_DAYS[timePeriod];
+  if (!days) return null;
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}
 
 // 1AM-112: sort options. "Newest" matches the default API order; "Largest"
 // uses the amount range midpoint estimate for ordering.
@@ -84,6 +110,7 @@ export default function BrowseAllFilingsScreen({ onBack }) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [chamberFilter, setChamberFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
+  const [timePeriod, setTimePeriod] = useState('all');
   // 1AM-112: sort order. Default 'newest' matches API order.
   const [sortOrder, setSortOrder] = useState('newest');
 
@@ -98,13 +125,22 @@ export default function BrowseAllFilingsScreen({ onBack }) {
   // Translate the debounced search into a backend filter. Ticker pattern
   // detection runs against the raw (non-uppercased) input — we don't auto-
   // uppercase because that would make every short query a ticker search.
+  // 1AM-114: also forward `since` derived from the time-period chip.
   const searchFilters = useMemo(() => {
-    if (!debouncedSearch) return {};
-    if (TICKER_PATTERN.test(debouncedSearch)) {
-      return { ticker: debouncedSearch };
+    const base = {};
+    if (debouncedSearch) {
+      if (TICKER_PATTERN.test(debouncedSearch)) {
+        base.ticker = debouncedSearch;
+      } else {
+        base.politician = debouncedSearch;
+      }
     }
-    return { politician: debouncedSearch };
-  }, [debouncedSearch]);
+    const since = computeSince(timePeriod);
+    if (since) {
+      base.since = since;
+    }
+    return base;
+  }, [debouncedSearch, timePeriod]);
 
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } =
     useTrades(searchFilters);
@@ -141,12 +177,16 @@ export default function BrowseAllFilingsScreen({ onBack }) {
   }, [trades, chamberFilter, actionFilter, sortOrder]);
 
   const hasActiveFilter =
-    chamberFilter !== 'all' || actionFilter !== 'all' || debouncedSearch !== '';
+    chamberFilter !== 'all' ||
+    actionFilter !== 'all' ||
+    timePeriod !== 'all' ||
+    debouncedSearch !== '';
 
   const resetFilters = () => {
     setSearchInput('');
     setChamberFilter('all');
     setActionFilter('all');
+    setTimePeriod('all');
     setSortOrder('newest');
   };
 
@@ -261,6 +301,14 @@ export default function BrowseAllFilingsScreen({ onBack }) {
             options={ACTION_OPTIONS}
             value={actionFilter}
             onChange={setActionFilter}
+          />
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <SingleChipGroup
+            label="Time period"
+            options={TIME_PERIOD_OPTIONS}
+            value={timePeriod}
+            onChange={setTimePeriod}
           />
         </div>
         {/* 1AM-112: sort chip row. Filters narrow, sort orders. */}
