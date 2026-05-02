@@ -12,6 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.15.0] — 2026-05-02
+
+### Changed
+- `/api/trades` now reads from the Supabase `filings` archive instead of calling FMP `senate-latest` + `house-latest` directly on every request (1AM-113 phase 6). Response shape is byte-identical to the FMP-direct version — the same `normaliseFMPTrade` function reconstructs trades from the preserved `raw_data jsonb` column. Frontend requires no changes. Filtering moved into the Supabase query (`eq` for ticker, `ilike` for politician name, `gte` for date) instead of post-fetch JS filtering — leverages DB indexes and reduces data-over-wire.
+- `/api/trades` no longer reads `FMP_API_KEY` from its environment. The endpoint never touches FMP directly anymore — only the daily cron (`scripts/cron-fetch-trades.mjs`) consumes the key. Slight security-surface reduction. (`/api/trades/by-politician` still calls FMP directly and continues to use `FMP_API_KEY`; the env var stays in place project-wide.)
+- Failure mode: hard 503 `Archive temporarily unavailable` if Supabase is unreachable. No fallback to FMP — clean failure signal preferred over hidden degradation pre-launch. To revisit before 1AM-50 marketing launch when uptime expectations rise.
+
+### Added
+- `/api/trades` accepts two new optional query params, both backwards compatible (frontend that doesn't pass them gets identical behaviour to before):
+  - `offset` (default 0) for pagination — unblocks Browse `Load more` in 1AM-114.
+  - `since` (YYYY-MM-DD format, validated) for date-range filtering — unblocks Browse date-range chip in 1AM-114.
+- `MAX_LIMIT = 500` sanity cap on the `?limit=N` query param.
+- DB-vs-frontend `chamber` mapping: DB stores `chamber` lowercase (`'senate'` | `'house'`) per Postgres convention; `CHAMBERS` constant in `src/data/schema.js` is Title Case (`'Senate'` | `'House'`) per frontend convention. New `CHAMBER_MAP` constant in `api/trades.js` is the single translation point. Documented so future readers don't introduce a third convention.
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` Vercel project-level env vars (Production + Preview + Development).
+
+### Out of scope (deferred)
+- Browse `Load more` button — 1AM-114, was blocked on this rewire, now unblocked.
+- Browse date-range filter chip — 1AM-114, same as above.
+- Footer messaging update from `Showing the latest N filings · earlier history coming soon` to `Showing N of total filings · since [activation date]` — 1AM-114.
+- Soft fallback to FMP when Supabase is down — revisit before 1AM-50 launch.
+
+---
+
 ## [0.14.1] — 2026-05-02
 
 ### Added
