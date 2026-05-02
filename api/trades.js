@@ -106,7 +106,7 @@ export default async function handler(req) {
       return normaliseFMPTrade(row.raw_data, frontendChamber);
     });
 
-    const finalTrades = sortTradesByDate(deduplicateTrades(trades));
+    const finalTrades = sortTradesByDate(trades);
 
     return new Response(
       JSON.stringify({
