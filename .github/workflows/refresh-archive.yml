@@ -1,0 +1,59 @@
+# 1AM-113: daily archive refresh cron
+#
+# Runs scripts/cron-fetch-trades.mjs every morning to append new congressional
+# trades to the Supabase filings archive. Uses the same script that runs
+# locally with `node --env-file=.env.local`, but with secrets injected from
+# GitHub repository settings instead of .env.local.
+#
+# TRIGGERS:
+#   - schedule: daily at 06:00 UTC (~02:00 ET, ~08:00 NL)
+#   - workflow_dispatch: manual "Run workflow" button in Actions UI
+#
+# REQUIRED REPOSITORY SECRETS (Settings → Secrets and variables → Actions):
+#   FMP_API_KEY
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#
+# OBSERVABILITY:
+#   - Failed runs (exit code 1) appear as red X in Actions tab
+#   - Successful runs show green checkmark plus structured logs
+#   - GitHub auto-emails the repo admin on consecutive failures
+
+name: Refresh archive
+
+on:
+  schedule:
+    # Daily 06:00 UTC. Note: GitHub Actions does not guarantee exact timing —
+    # runs can be delayed by 0-15 min during peak load. That is fine for our
+    # use case since we only need eventual consistency.
+    - cron: '0 6 * * *'
+
+  # Manual trigger from the Actions tab — useful for testing or backfilling
+  # after a failure, without waiting for the next scheduled run.
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    name: Fetch latest + upsert into Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run cron-fetch-trades
+        env:
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/cron-fetch-trades.mjs
