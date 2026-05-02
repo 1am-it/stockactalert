@@ -207,8 +207,20 @@ export default function BrowseAllFilingsScreen({ onBack }) {
   // 1AM-114: combine first-page trades (from useTrades) with appended extra
   // pages. Order preserved — useTrades' first page first, then extras in
   // load order. Client-side filter/sort runs over the combined array below.
+  //
+  // 1AM-114 dedup: backend sort by trade_date desc has no tiebreaker, so on a
+  // page boundary the same row can appear in two consecutive pages when
+  // multiple trades share the trade_date. Frontend dedup by trade.id is a
+  // defensive cap; root-cause fix (backend secondary sort) is tracked
+  // separately.
   const allFetchedTrades = useMemo(() => {
-    return [...(trades || []), ...extraTrades];
+    const combined = [...(trades || []), ...extraTrades];
+    const seen = new Set();
+    return combined.filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
   }, [trades, extraTrades]);
 
   // Client-side chamber + action filters layered on top of the fetched set,
