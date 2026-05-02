@@ -12,6 +12,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.16.0] — 2026-05-02
+
+### Added
+- Browse All Filings now consumes the Supabase archive end-to-end (1AM-114). Three user-visible features ship together:
+  - **Time period filter chip-row** — single-select chips `[All time]` (default) `[Past 30d]` `[Past 90d]` `[Past year]`, sits between Action and Sort. Sends `since=YYYY-MM-DD` to `/api/trades`, filters server-side on `trade_date >= since` (a trade executed 60 days ago but filed yesterday is correctly excluded from "Past 30d").
+  - **Load more button** — outlined navy, full-width, paginates through the entire archive in 50-row batches via the `offset` query param. Shows `Loading…` (60% opacity) during in-flight fetch. When the last batch returns less than 50 rows the button is replaced by an italic `Start of archive · May 1, 2026` line.
+  - **Footer copy** — `Showing the latest N filings · earlier history coming soon` becomes `N of TOTAL · since May 2026`. TOTAL is fetched once from the new `/api/trades/stats` endpoint; if the stats fetch fails the footer falls back to a count-only copy.
+- `/api/trades/stats` endpoint — lightweight Edge Function returning `{ total, archiveStartDate, timestamp }`. Exact count via Supabase `head:true, count:'exact'`. Same CDN cache posture as `/api/trades` (1h fresh, 2h SWR). Hardcoded `ARCHIVE_ACTIVATION_DATE = '2026-05-01'` constant; update both this constant and the matching frontend label if the archive ever migrates to a new backing store.
+- TradeCard Variant A — bottom-right "FILED" cell now combines the trade date with the filing delta inline: `May 1 · filed 4 days later`. Late-filing amber cue (`#D97706` on >30 day delays) preserved. Applied globally so Personal feed, Discovery, Browse, and Politician detail all gain visual confirmation of the date the user is looking at.
+- Two new helpers in `src/lib/dates.js`: `formatShortDate(YYYY-MM-DD)` returning `"May 1"`, and `formatFiledRelative(filedDate, tradeDate)` returning `"filed N days later"` form (sister to existing `formatFiledDelta`).
+
+### Changed
+- `/api/trades` `since` query param now filters on `trade_date` instead of `filed_date` (1AM-114 decision). Reasoning: a chip labelled "Past 30 days" should mean "trades executed in the last 30 days", not "trades filed in the last 30 days" — otherwise the chip lies. Filed-date is still relevant for the late-filing amber cue and the inline `· filed N days later` text on TradeCard.
+- `/api/trades` default sort changed from `filed_date desc` to `trade_date desc` so the visible card order matches the filter semantics.
+- FMP trade `id` template now includes `amount` (`fmp-{name}-{ticker}-{date}-{amount}`) so two trades on the same day from the same politician for the same ticker but different amount tranches (e.g. spouse account) get distinct ids. Was a real-data issue: 2 of 94 archive rows were collapsed into 1 by the old id-template.
+- `useTrades` hook accepts `filters.since` and forwards it to `/api/trades`. Existing consumers (FeedScreen, DiscoveryFeed) unchanged — they don't pass `since`, behaviour identical.
+
+### Removed
+- `deduplicateTrades(...)` wrapper call in `api/trades.js`. The helper deduplicated on `politician + ticker + tradeDate`, narrower than the Supabase unique index `(politician_name, ticker, trade_date, amount_low, amount_high)`. The wrapper was a v0.13.x-era safety net for the FMP-direct read path; redundant and incorrect now that uniqueness is guaranteed at the DB layer. The helper itself stays exported in `src/data/schema.js` for backward compatibility with anything outside this read path.
+
+### Out of scope (deferred)
+- `sortTradesByDate` in `api/trades.js` re-sorts by `filed_date desc` after the `trade_date desc` SQL order, partially undoing the new sort intent. Visually invisible because filed-date and trade-date correlate strongly (typical filing-delays 0–7 days), but worth fixing as schema hygiene. Tracked separately for v0.16.1 or v0.17.0.
+- `normaliseFinnhubTrade` and `normaliseUnusualWhalesTrade` use the same amount-less id-template as the pre-fix FMP function. Not in active use (FMP is primary), so not patched in this release. Apply the same fix when those sources are reactivated.
+- Reusable Browse pagination via the `useTrades` hook itself. For now, pagination state lives locally in `BrowseAllFilingsScreen` because no other consumer needs it. Promote to the hook when the second consumer (e.g. PoliticianDetailScreen deep history) materialises.
+
+---
+
 ## [0.15.0] — 2026-05-02
 
 ### Changed

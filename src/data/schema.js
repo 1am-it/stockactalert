@@ -154,7 +154,10 @@ export function normaliseFMPTrade(raw, chamber) {
     '';
 
   return {
-    id: `fmp-${fullName}-${symbol}-${transactionDate}`,
+    // 1AM-114: amount included in id-key so two trades with same politician
+    // + ticker + date but different amounts (e.g. spouse account separate
+    // tranche) get distinct ids. Mirrors the DB unique index criteria.
+    id: `fmp-${fullName}-${symbol}-${transactionDate}-${raw.amount || ''}`,
     source: SOURCES.FMP,
     politician: fullName,
     party: '', // FMP doesn't reliably include party — enrich later

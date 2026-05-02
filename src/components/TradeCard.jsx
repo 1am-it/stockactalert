@@ -10,11 +10,15 @@
 //         link to the detail page. When omitted, the name renders as plain
 //         text — used in PoliticianDetailScreen's own trade history (where
 //         linking to itself would be circular).
+// 1AM-114: bottom-right "FILED" cell now shows the trade date inline with
+//         the filing delta — "May 1 · filed 4 days later". Variant A from
+//         the 1AM-114 mockup decision; applied globally so the filter on
+//         Browse has visual confirmation everywhere.
 
 import { useState } from 'react';
 import Avatar from './Avatar';
 import { PartyBadge, ChamberBadge, SourceBadge } from './Badge';
-import { formatFiledDelta, isLateFiling } from '../lib/dates';
+import { formatShortDate, formatFiledRelative, isLateFiling } from '../lib/dates';
 
 // 1AM-65: shared style for the inline name-row pills (Following + owner).
 // Same shape, different colours — kept inline so the pills are self-contained.
@@ -41,6 +45,16 @@ const OWNER_PILL_STYLE = {
   background: 'rgba(216, 90, 48, 0.1)',
   color: '#D85A30',
 };
+
+// 1AM-114: composes the trade date + filing delta into one inline string.
+// Returns the joined "May 1 · filed 4 days later" form, or a sensible
+// fallback when one or both helpers can't format the input.
+function formatTradeAndFiled(tradeDate, filedDate) {
+  const tradeStr = formatShortDate(tradeDate);
+  const filedStr = formatFiledRelative(filedDate, tradeDate);
+  const combined = [tradeStr, filedStr].filter(Boolean).join(' · ');
+  return combined || filedDate || '—';
+}
 
 export default function TradeCard({
   trade,
@@ -194,7 +208,8 @@ export default function TradeCard({
         </div>
 
         {/* Bottom row: amount (prominent) + filing-delta. 1AM-86: source moved
-            to expanded view; filed-date contextualised as "N days after trade". */}
+            to expanded view; filed-date contextualised as "N days after trade".
+            1AM-114: filed-cell now combines trade date + filing delta inline. */}
         <div
           style={{
             display: 'flex',
@@ -225,7 +240,7 @@ export default function TradeCard({
                 fontFamily: 'monospace',
               }}
             >
-              {formatFiledDelta(trade.filedDate, trade.tradeDate) || trade.filedDate || '—'}
+              {formatTradeAndFiled(trade.tradeDate, trade.filedDate)}
             </div>
           </div>
         </div>
