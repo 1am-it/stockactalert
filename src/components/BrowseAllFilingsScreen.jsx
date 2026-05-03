@@ -73,12 +73,14 @@ const ACTION_OPTIONS = [
 
 const TIME_PERIOD_OPTIONS = [
   { value: 'all', label: 'All time' },
+  { value: 'past7d', label: 'Past 7d' },
   { value: 'past30d', label: 'Past 30d' },
   { value: 'past90d', label: 'Past 90d' },
   { value: 'pastYear', label: 'Past year' },
 ];
 
 const TIME_PERIOD_DAYS = {
+  past7d: 7,
   past30d: 30,
   past90d: 90,
   pastYear: 365,

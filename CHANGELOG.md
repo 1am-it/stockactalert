@@ -12,6 +12,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.16.1] — 2026-05-03
+
+### Added
+- Politicians-tab Activity chip-row (1AM-106) — single-select date-range filter with `Any time` (default) / `Past 7d` / `Past 30d` / `Past 90d`. When active, both the Following and Browse sections narrow to members with at least one trade in the chosen window. Implements the design originally paused in 1AM-106 awaiting 1AM-108's data-source recommendation; unblocked by the Supabase archive shipping in v0.15.0.
+- New `useActivePoliticians(since)` hook — fetches `/api/trades?since=...&limit=500`, cascades each `trade.politician` through `findByName` (1AM-67/1AM-109 name-resolution), returns a `Set<bioguideId>` for O(1) membership tests in the Politicians-tab filter pipeline. Returns `null` when `since` is falsy so consumers can short-circuit when the chip is on `Any time`.
+- "X follows hidden by activity filter" affordance — when one or more followed members are excluded by the active Activity chip, an italic line appears under the Following section (or as a centred message replacing the section header when all follows are hidden), so the user knows their follows haven't been forgotten.
+- Context-aware Browse-section empty state on Politicians-tab — when the Activity chip is the sole non-default filter and matches zero members, the empty state reads `No politicians active in past Nd / Try a wider window — ...` instead of the generic "Try fewer filters" copy. Suggests the next-wider window: Past 7d → Past 30d/90d, Past 30d → Past 90d, Past 90d → Any time.
+- `Past 7d` chip on the Browse Time period row — keeps the Browse and Politicians chip-sets consistent. Browse v0.16.0 shipped without it; surfaced as an inconsistency during 1AM-106 testing.
+
+### Changed
+- Politicians-tab `clearAllFilters` resets the Activity chip to `Any time` alongside Chamber, Party, and search.
+- `isFiltered` predicate on Politicians-tab now also considers `activity !== 'any'` so the Clear filters affordance appears when only the Activity chip is active.
+
+### Removed
+- `sortTradesByDate` re-sort call from `api/trades.js` (1AM-117). The Supabase `ORDER BY trade_date DESC` is canonical; the client-side helper sorted by `filedDate desc` and partially undid the sort intent set in v0.16.0. The helper itself stays exported in `src/data/schema.js` and is still used by `api/trades/by-politician.js`.
+
+### Fixed
+- FMP, Finnhub, and Unusual Whales trade `id` templates now all include the amount/range as a discriminator (1AM-118, complementing the FMP fix in v0.16.0). Prevents two trades on the same day from the same politician for the same ticker but different amount tranches from being collapsed into one by React's `key=` deduplication when those data sources are reactivated.
+
+### Performance & coverage notes
+- The `useActivePoliticians` hook fetches up to 500 archive rows per Activity chip change. With ~94 archive rows today and ~5 days of history, this is ample. Past 90d / Past year accuracy starts to degrade once the archive grows beyond ~5x the current size — at that point promote to a backend `/api/politicians/active` aggregation endpoint (DISTINCT on `politician_name` server-side). Tracked as a follow-up consideration; not blocking for current scale.
+- Activity chip semantically filters on `trade_date` (consistent with the Browse Time period chip from v0.16.0). A trade executed in March but filed last week appears in the Browse feed but is excluded from `Past 7d`. This is intentional: "active in the last N days" should mean "executed", not "appeared in our feed".
+
+### Out of scope (deferred)
+- Per-source name-resolution audit for Stock Watcher and other future sources — `findByName` cascade works against `congress.json`, but new sources may surface name-format edge cases that require additional `name-overrides.json` entries. Tracked under the existing 1AM-109 audit pattern.
+
+---
+
 ## [0.16.0] — 2026-05-02
 
 ### Added

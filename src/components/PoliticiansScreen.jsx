@@ -25,7 +25,9 @@ import { MEMBERS, applyFilters } from '../lib/congress';
 import MemberListRow from './MemberListRow';
 import SearchBar from './SearchBar';
 import ChipGroup from './ChipGroup';
+import SingleChipGroup from './SingleChipGroup';
 import MemberListEmptyState from './MemberListEmptyState';
+import { useActivePoliticians } from '../hooks/useActivePoliticians';
 
 const SEARCH_DEBOUNCE_MS = 150;
 
@@ -40,11 +42,38 @@ const CHAMBER_OPTIONS = [
   { value: 'House', label: 'House' },
 ];
 
+// 1AM-106: date-range chip options. Single-select because windows are nested
+// (Past 7d ⊂ Past 30d ⊂ Past 90d) — multi-select would have no meaningful
+// OR-semantic. "Any time" = no activity filter (returns null since to hook).
+const ACTIVITY_OPTIONS = [
+  { value: 'any', label: 'Any time' },
+  { value: 'past7d', label: 'Past 7d' },
+  { value: 'past30d', label: 'Past 30d' },
+  { value: 'past90d', label: 'Past 90d' },
+];
+
+const ACTIVITY_DAYS = {
+  past7d: 7,
+  past30d: 30,
+  past90d: 90,
+};
+
+function computeSince(activity) {
+  if (activity === 'any') return null;
+  const days = ACTIVITY_DAYS[activity];
+  if (!days) return null;
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
 export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [chamber, setChamber] = useState([]);
   const [party, setParty] = useState([]);
+  // 1AM-106: date-range / activity chip state. 'any' = no activity filter.
+  const [activity, setActivity] = useState('any');
 
   // Debounce search input
   useEffect(() => {
@@ -52,14 +81,33 @@ export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) 
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  // 1AM-106: derive YYYY-MM-DD cutoff from the activity chip and feed it to
+  // useActivePoliticians. Hook returns null Set when activity='any' (no filter)
+  // so downstream code can short-circuit cheaply.
+  const since = useMemo(() => computeSince(activity), [activity]);
+  const { activeBioguideIds, loading: activityLoading, error: activityError } =
+    useActivePoliticians(since);
+
   const isFiltered =
-    search.trim().length > 0 || chamber.length > 0 || party.length > 0;
+    search.trim().length > 0 ||
+    chamber.length > 0 ||
+    party.length > 0 ||
+    activity !== 'any';
 
   // Apply search + filters once to the full directory
   const filtered = useMemo(
     () => applyFilters({ search, chamber, party }),
     [search, chamber, party]
   );
+
+  // 1AM-106: layer the activity filter on top. When activeBioguideIds is null
+  // (chip='any' or hook still loading), this is a no-op — pass-through.
+  // When set, narrow to members whose bioguideId is in the active set. This
+  // applies to BOTH Following and Browse per the chosen design (Pad B).
+  const activityFiltered = useMemo(() => {
+    if (!activeBioguideIds) return filtered;
+    return filtered.filter((m) => activeBioguideIds.has(m.bioguideId));
+  }, [filtered, activeBioguideIds]);
 
   // Split filtered results into Following + Browse all
   // (using a Set for O(1) membership lookup against the selected name list)
@@ -68,12 +116,21 @@ export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) 
   const { followingList, browseList } = useMemo(() => {
     const following = [];
     const browse = [];
-    for (const m of filtered) {
+    for (const m of activityFiltered) {
       if (selectedSet.has(m.name)) following.push(m);
       else browse.push(m);
     }
     return { followingList: following, browseList: browse };
-  }, [filtered, selectedSet]);
+  }, [activityFiltered, selectedSet]);
+
+  // 1AM-106: count of follows hidden by the activity filter — used for the
+  // "X follows hidden by filter" affordance under the Following section.
+  // Computed by comparing pre-activity-filter follows vs post-activity-filter.
+  const followsHiddenByActivity = useMemo(() => {
+    if (!activeBioguideIds) return 0;
+    const preActivityFollowing = filtered.filter((m) => selectedSet.has(m.name));
+    return preActivityFollowing.length - followingList.length;
+  }, [filtered, selectedSet, followingList, activeBioguideIds]);
 
   const totalFollowing = selected.length;
 
@@ -82,6 +139,7 @@ export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) 
     setSearch('');
     setChamber([]);
     setParty([]);
+    setActivity('any');
   };
 
   return (
@@ -122,6 +180,13 @@ export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) 
           value={party}
           onChange={setParty}
         />
+        {/* 1AM-106: activity chip — single-select date-range filter. */}
+        <SingleChipGroup
+          label="Activity"
+          options={ACTIVITY_OPTIONS}
+          value={activity}
+          onChange={setActivity}
+        />
       </div>
 
       {/* Clear filters affordance — top-right when filters active */}
@@ -148,7 +213,10 @@ export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) 
       )}
 
       {/* Following section — only visible when user follows at least one
-          AND at least one of those follows matches the current filter */}
+          AND at least one of those follows matches the current filter.
+          1AM-106: when the activity filter hides ALL followed members, the
+          section header drops and we render a small affordance instead so
+          the user knows their follows are still there, just filtered out. */}
       {totalFollowing > 0 && followingList.length > 0 && (
         <Section
           title="Following"
@@ -161,7 +229,39 @@ export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) 
             onToggle={onToggle}
             onShowDetail={onShowDetail}
           />
+          {followsHiddenByActivity > 0 && (
+            <div
+              style={{
+                fontSize: 11,
+                color: '#9CA3AF',
+                fontFamily: "'DM Sans', sans-serif",
+                fontStyle: 'italic',
+                marginTop: 8,
+                paddingLeft: 4,
+              }}
+            >
+              {followsHiddenByActivity}{' '}
+              {followsHiddenByActivity === 1 ? 'follow' : 'follows'} hidden by
+              activity filter
+            </div>
+          )}
         </Section>
+      )}
+      {totalFollowing > 0 && followingList.length === 0 && activeBioguideIds && (
+        <div
+          style={{
+            fontSize: 11,
+            color: '#9CA3AF',
+            fontFamily: "'DM Sans', sans-serif",
+            fontStyle: 'italic',
+            marginTop: 16,
+            textAlign: 'center',
+          }}
+        >
+          {totalFollowing}{' '}
+          {totalFollowing === 1 ? 'follow' : 'follows'} hidden by activity
+          filter
+        </div>
       )}
 
       {/* Browse-all section — labelled differently if the user has nothing
@@ -171,16 +271,44 @@ export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) 
         count={browseList.length}
       >
         {browseList.length === 0 ? (
-          <MemberListEmptyState
-            title={
-              isFiltered ? 'No politicians match' : 'You follow everyone here'
-            }
-            message={
-              isFiltered
-                ? 'Try fewer filters or a different search.'
-                : "Adjust filters to see members you're not following yet."
-            }
-          />
+          (() => {
+            // 1AM-106: empty-state is context-aware when the activity chip is
+            // the sole non-default filter — gives a clearer signal than the
+            // generic "try fewer filters" when the real cause is "archive
+            // doesn't have trades in this window yet".
+            const onlyActivityActive =
+              activity !== 'any' &&
+              search.trim().length === 0 &&
+              chamber.length === 0 &&
+              party.length === 0;
+            const activityLabel = ACTIVITY_OPTIONS.find(
+              (o) => o.value === activity
+            )?.label.toLowerCase();
+            const widerSuggestion =
+              activity === 'past7d'
+                ? 'Past 30d or Past 90d'
+                : activity === 'past30d'
+                  ? 'Past 90d'
+                  : 'Any time';
+            return (
+              <MemberListEmptyState
+                title={
+                  onlyActivityActive
+                    ? `No politicians active in ${activityLabel}`
+                    : isFiltered
+                      ? 'No politicians match'
+                      : 'You follow everyone here'
+                }
+                message={
+                  onlyActivityActive
+                    ? `Try a wider window — ${widerSuggestion}.`
+                    : isFiltered
+                      ? 'Try fewer filters or a different search.'
+                      : "Adjust filters to see members you're not following yet."
+                }
+              />
+            );
+          })()
         ) : (
           <MemberList
             members={browseList}
