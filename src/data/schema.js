@@ -115,7 +115,11 @@ export const AMOUNT_RANGES = {
 // to our internal Trade schema
 export function normaliseFinnhubTrade(raw) {
   return {
-    id: `finnhub-${raw.name}-${raw.symbol}-${raw.transactionDate}`,
+    // 1AM-118: amount included in id-key for the same reason as FMP (see
+    // 1AM-114): two trades on the same day from the same politician for the
+    // same ticker but different amounts must get distinct ids. Finnhub
+    // exposes the amount range via `raw.amount`.
+    id: `finnhub-${raw.name}-${raw.symbol}-${raw.transactionDate}-${raw.amount || ''}`,
     source: SOURCES.FINNHUB,
     politician: raw.name || '',
     party: normaliseParty(raw.party),
@@ -177,7 +181,10 @@ export function normaliseFMPTrade(raw, chamber) {
 // ─── Normalise Unusual Whales trade ──────────────────────────────────────────
 export function normaliseUnusualWhalesTrade(raw) {
   return {
-    id: `uw-${raw.politician}-${raw.ticker}-${raw.traded}`,
+    // 1AM-118: range included in id-key for the same reason as FMP (see
+    // 1AM-114). Unusual Whales exposes the amount range via `raw.range`
+    // (not `raw.amount` like other sources).
+    id: `uw-${raw.politician}-${raw.ticker}-${raw.traded}-${raw.range || ''}`,
     source: SOURCES.UNUSUAL_WHALES,
     politician: raw.politician || '',
     party: normaliseParty(raw.party),
