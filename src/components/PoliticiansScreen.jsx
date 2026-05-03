@@ -271,16 +271,44 @@ export default function PoliticiansScreen({ selected, onToggle, onShowDetail }) 
         count={browseList.length}
       >
         {browseList.length === 0 ? (
-          <MemberListEmptyState
-            title={
-              isFiltered ? 'No politicians match' : 'You follow everyone here'
-            }
-            message={
-              isFiltered
-                ? 'Try fewer filters or a different search.'
-                : "Adjust filters to see members you're not following yet."
-            }
-          />
+          (() => {
+            // 1AM-106: empty-state is context-aware when the activity chip is
+            // the sole non-default filter — gives a clearer signal than the
+            // generic "try fewer filters" when the real cause is "archive
+            // doesn't have trades in this window yet".
+            const onlyActivityActive =
+              activity !== 'any' &&
+              search.trim().length === 0 &&
+              chamber.length === 0 &&
+              party.length === 0;
+            const activityLabel = ACTIVITY_OPTIONS.find(
+              (o) => o.value === activity
+            )?.label.toLowerCase();
+            const widerSuggestion =
+              activity === 'past7d'
+                ? 'Past 30d or Past 90d'
+                : activity === 'past30d'
+                  ? 'Past 90d'
+                  : 'Any time';
+            return (
+              <MemberListEmptyState
+                title={
+                  onlyActivityActive
+                    ? `No politicians active in ${activityLabel}`
+                    : isFiltered
+                      ? 'No politicians match'
+                      : 'You follow everyone here'
+                }
+                message={
+                  onlyActivityActive
+                    ? `Try a wider window — ${widerSuggestion}.`
+                    : isFiltered
+                      ? 'Try fewer filters or a different search.'
+                      : "Adjust filters to see members you're not following yet."
+                }
+              />
+            );
+          })()
         ) : (
           <MemberList
             members={browseList}
