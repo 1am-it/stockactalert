@@ -1,8 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import {
   normaliseFMPTrade,
-  deduplicateTrades,
-  sortTradesByDate,
   CHAMBERS,
 } from '../src/data/schema.js';
 
@@ -106,7 +104,7 @@ export default async function handler(req) {
       return normaliseFMPTrade(row.raw_data, frontendChamber);
     });
 
-    const finalTrades = sortTradesByDate(trades);
+    const finalTrades = trades;
 
     return new Response(
       JSON.stringify({
