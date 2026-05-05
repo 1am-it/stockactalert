@@ -671,6 +671,26 @@ export default function BrowseAllFilingsScreen({
           />
         </div>
 
+        {/* ── Recent Trades section header (1AM-124 fase 7) ─────────────── */}
+        {/* Cosmetic header that frames the filings-list as its own section,
+            parallel to Trending Tickers and Most Active above. No right-side
+            label like the other two sections — Recent Trades is filtered by
+            the user's chips, not by a fixed window, so a window-label would
+            be misleading. The result-count + freshness pill below stays as
+            the live stats-strip for this section. */}
+        <h2
+          style={{
+            fontFamily: "'Playfair Display', 'Lora', serif",
+            fontSize: 18,
+            fontWeight: 500,
+            color: '#0D1B2A',
+            margin: '0 0 10px',
+            letterSpacing: '-0.2px',
+          }}
+        >
+          Recent Trades
+        </h2>
+
         {/* ── Result count + freshness ────────────────────────────────────── */}
         {/* Reuses 1AM-38 FreshnessIndicator for the "Updated X ago" pill.
             The count label inside the indicator is custom — we override the
