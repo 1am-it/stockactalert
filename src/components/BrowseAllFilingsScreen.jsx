@@ -1,9 +1,18 @@
 // 1AM-112: BrowseAllFilingsScreen — dedicated browse experience
 //
-// Replaces the previous in-place "Show all" toggle on Personal feed. Reached
-// from two entry points:
+// 1AM-124: Promoted from full-screen overlay to top-level tab. Header
+// pattern updated:
+//   - Old: ← Back to feed link + "Browse All Filings" h1 + description
+//   - New: HeaderBar component (title "Browse" + gear icon top-right)
+// `onBack` prop kept for backwards compat — App.jsx still passes it (now
+// switches to feed-tab on tap if anything calls it programmatically), but
+// the link itself is gone from the UI.
+//
+// Originally reached from two entry points:
 //   1. FilterBar `Show all` button on Personal feed (deprecates the old toggle)
 //   2. `View all recent filings` CTA in FilterEmptyState (1AM-111)
+// 1AM-124 makes the bottom-nav Browse-tab a third entry point, and the
+// primary one going forward.
 //
 // Architecture: page-style header (matching Your Feed / Politicians visual
 // language) + search input + chamber/action chips + trade list. No TabBar
@@ -36,11 +45,17 @@
 // extraTrades array. hasMore is heuristic: true while last batch === pageSize.
 //
 // Props:
-//   onBack — callback when user clicks "Back to feed"
+//   onBack           — legacy callback (1AM-112). 1AM-124: still passed by
+//                      App.jsx but no longer reachable via UI link. Kept for
+//                      potential future use (e.g. programmatic "go back to
+//                      feed" calls from empty-state CTAs).
+//   onSettingsClick  — 1AM-124: opens SettingsScreen overlay via the gear
+//                      icon in HeaderBar.
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import TradeCard from './TradeCard';
 import SingleChipGroup from './SingleChipGroup';
+import HeaderBar from './HeaderBar';
 import { useTrades } from '../hooks/useTrades';
 import { formatRelativeTime } from '../lib/relativeTime';
 
@@ -122,7 +137,7 @@ function parseAmountMidpoint(amountStr) {
   return (parseSingle(parts[0]) + parseSingle(parts[1])) / 2;
 }
 
-export default function BrowseAllFilingsScreen({ onBack }) {
+export default function BrowseAllFilingsScreen({ onBack, onSettingsClick }) {
   // Local UI state — not persisted across sessions per ticket scope ("Browse
   // is a stateless utility for v1").
   const [searchInput, setSearchInput] = useState('');
@@ -309,47 +324,14 @@ export default function BrowseAllFilingsScreen({ onBack }) {
         }}
       >
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        {/* Page-style header matching Your Feed / Politicians (Decision 2B). */}
-        <button
-          onClick={onBack}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            fontSize: 13,
-            color: '#0D1B2A',
-            textDecoration: 'underline',
-            textDecorationColor: '#9CA3AF',
-            fontFamily: "'DM Sans', sans-serif",
-            cursor: 'pointer',
-            marginBottom: 8,
-          }}
-        >
-          ← Back to feed
-        </button>
-
-        <h1
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 28,
-            fontWeight: 500,
-            color: '#0D1B2A',
-            margin: '4px 0 4px',
-            letterSpacing: '-0.4px',
-          }}
-        >
-          Browse All Filings
-        </h1>
-        <p
-          style={{
-            fontSize: 12,
-            color: '#6B7280',
-            margin: '0 0 18px',
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        >
-          Search and filter recent STOCK Act filings
-        </p>
+        {/* 1AM-124: HeaderBar replaces the old `← Back to feed` link + h1 +
+            description. Browse is now a top-level tab, so there's nothing to
+            navigate "back" to from a UI perspective. The gear icon top-right
+            opens SettingsScreen overlay. */}
+        <HeaderBar
+          title="Browse"
+          onSettingsClick={onSettingsClick}
+        />
 
         {/* ── Search input ────────────────────────────────────────────────── */}
         {/* Single text input. Type ticker in ALL CAPS for ticker search,

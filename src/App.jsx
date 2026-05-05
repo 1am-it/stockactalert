@@ -35,6 +35,9 @@ import BrowseAllFilingsScreen from './components/BrowseAllFilingsScreen';
 // Component file kept in repo for now in case we need to reference parts
 // of it during Browse-tab implementation; deletion in a follow-up cleanup.
 import PoliticianDetailScreen from './components/PoliticianDetailScreen';
+// 1AM-124: SettingsScreen overlay reached via gear icon in HeaderBar (top-right
+// of each tab). Replaces the Settings-tab in the bottom-nav.
+import SettingsScreen from './components/SettingsScreen';
 // 1AM-66 v0.13.1: Welcome + Explainer screens removed; Discovery makes them
 // redundant. Steps simplified to 'discovery' → 'pick-politicians' → 'done'.
 // Migration of explainer content tracked in 1AM-110.
@@ -93,6 +96,11 @@ function App() {
   // name being viewed. Not persisted — feels right that returning to the app
   // lands on the last tab, not on a stale detail page.
   const [detailPolitician, setDetailPolitician] = useState(null);
+  // 1AM-124: Settings overlay state. true = SettingsScreen rendered as a
+  // full-page overlay (variant A from the architecture decision). Reached
+  // from the gear icon in HeaderBar. Not persisted — same reasoning as
+  // detailPolitician.
+  const [isShowingSettings, setIsShowingSettings] = useState(false);
   // 1AM-124: isBrowsingAll state removed — Browse-tab is now a top-level
   // tab (formerly an overlay reachable from FeedScreen `Show all`). The
   // `Show all` button on FeedScreen now switches activeTab to 'browse'
@@ -169,6 +177,20 @@ function App() {
   // Existing entry-points (FeedScreen `Show all`, FilterEmptyState CTA) now
   // call setActiveTab('browse') instead of toggling the overlay.
 
+  // ── Settings overlay (1AM-124) ────────────────────────────────────────────
+  // Reached from the gear icon in HeaderBar (top-right of any tab). Renders
+  // above any other tab content. `← Back` in SettingsScreen returns the user
+  // to whichever tab they came from — activeTab is preserved underneath.
+  // Rendered before detailPolitician so that tapping the gear from a detail
+  // page also lands on Settings cleanly.
+  if (isShowingSettings) {
+    return (
+      <SettingsScreen
+        onBack={() => setIsShowingSettings(false)}
+      />
+    );
+  }
+
   // ── Detail-page overlay (1AM-69) ───────────────────────────────────────────
   // When a politician name is clicked anywhere, we render the detail screen
   // instead of the active tab. TabBar still visible underneath because users
@@ -220,18 +242,18 @@ function App() {
   const current = screens[activeTab];
 
   // 1AM-124: Browse-tab gets its own render path without the global header
-  // wrapper. The screen (`BrowseAllFilingsScreen`) renders its own page-style
-  // header which we'll redesign in fase 4 of this ticket to match the Lovable
-  // v3-rounded mockup (logo + gear icon top-right).
+  // wrapper. BrowseAllFilingsScreen renders HeaderBar internally (title
+  // "Browse" + gear icon top-right). Gear icon opens SettingsScreen overlay
+  // via onSettingsClick.
   if (activeTab === 'browse') {
     return (
       <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
         <BrowseAllFilingsScreen
-          // 1AM-124: onBack now switches back to Feed-tab instead of closing
-          // an overlay. Will be refined when BrowseAllFilingsScreen is updated
-          // in fase 4 (header redesign drops the `← Back to feed` link in
-          // favour of the gear icon + tab-title pattern).
+          // 1AM-124: onBack kept for backwards compat (no UI link anymore
+          // after fase 4 header redesign — see BrowseAllFilingsScreen header
+          // comment). Switches to feed-tab if anything calls it programmatically.
           onBack={() => setActiveTab('feed')}
+          onSettingsClick={() => setIsShowingSettings(true)}
         />
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
