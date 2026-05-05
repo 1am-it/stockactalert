@@ -118,23 +118,32 @@ const SORT_OPTIONS = [
   { value: 'largest', label: 'Largest amount' },
 ];
 
-// 1AM-124 fase 5: Trending Tickers configuration.
-// Window is fixed to Past 7 days regardless of the user's filter chips on
-// Recent Trades — Trending is a discovery signal, not a filtered view.
-// LIMIT is the max trades fetched for aggregation; 500 is generous given the
-// archive is ~94 trades at v0.16.1 and the daily cron adds a small batch.
-const TRENDING_WINDOW_DAYS = 7;
+// 1AM-124 fase 5: Trending Tickers — adaptive window strategy.
+// The archive is fresh (started 2026-05-01) and STOCK Act filings have weeks
+// of latency between trade_date and filed_date. Past 7 days will be empty for
+// months. Rather than hide Trending or show a permanent empty state, we cascade
+// through tiers: try 7d, fall back to 30d, fall back to all-time. The window
+// label updates to match. As the archive matures, the 7d tier will naturally
+// take over.
+//
+// MIN_TICKERS_THRESHOLD = 3: a Trending list with 1-2 tickers feels thin —
+// "trending" implies a pattern, not a one-off. So we wait until at least 3
+// distinct tickers exist in a window before declaring it the live one.
 const TRENDING_FETCH_LIMIT = 500;
 const TRENDING_TOP_N = 5;
-const TRENDING_WINDOW_LABEL = '7 days';
+const TRENDING_MIN_TICKERS = 3;
+const TRENDING_TIERS = [
+  { days: 7, label: '7 days' },
+  { days: 30, label: '30 days' },
+  { days: null, label: 'all time' }, // null = no `since` filter
+];
 
-// 1AM-124 fase 5: Compute "since" date for Trending fetch.
-// Returns YYYY-MM-DD string for useTrades({ since }). Static for the lifetime
-// of the component — recomputed on remount, which is fine because the value
-// only drifts day-by-day and a remount happens on every tab switch.
-function computeTrendingSince() {
+// 1AM-124 fase 5: Compute YYYY-MM-DD date string `n` days ago.
+// Used by Trending Tickers tier-cascade. null `n` returns null (all-time).
+function computeSinceDaysAgo(n) {
+  if (n === null) return null;
   const d = new Date();
-  d.setDate(d.getDate() - TRENDING_WINDOW_DAYS);
+  d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 }
 
@@ -254,26 +263,79 @@ export default function BrowseAllFilingsScreen({ onBack, onSettingsClick }) {
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } =
     useTrades(searchFilters);
 
-  // 1AM-124 fase 5: Trending Tickers — separate fetch independent of the
-  // user's filter chips on Recent Trades. Always Past 7 days, no chamber/action
-  // filter — Trending is a discovery signal, not a filtered view.
-  // useMemo wraps the date computation so the filters object identity is
-  // stable across renders (otherwise useTrades' dep-comparison via JSON
-  // stringify still works, but we save a stringify per render).
-  const trendingFilters = useMemo(
-    () => ({
-      since: computeTrendingSince(),
-      limit: TRENDING_FETCH_LIMIT,
-    }),
+  // 1AM-124 fase 5: Trending Tickers — adaptive window cascade.
+  // Three useTrades calls (7d / 30d / all-time), each cached separately by
+  // /api/trades CDN headers. We pick the first tier that yields >= MIN_TICKERS
+  // distinct tickers, and surface the matching label so the UI is honest about
+  // which window is showing. As the archive matures (more recent filings), the
+  // 7d tier will start meeting the threshold and the cascade becomes a no-op.
+  //
+  // Memoised separately so each filter object has stable identity — otherwise
+  // useTrades' deps would re-stringify on every render.
+  const trendingFilters7d = useMemo(
+    () => ({ since: computeSinceDaysAgo(7), limit: TRENDING_FETCH_LIMIT }),
     []
   );
-  const { trades: trendingTrades, loading: trendingLoading } =
-    useTrades(trendingFilters);
-
-  const trendingTopTickers = useMemo(
-    () => aggregateTopTickers(trendingTrades, TRENDING_TOP_N),
-    [trendingTrades]
+  const trendingFilters30d = useMemo(
+    () => ({ since: computeSinceDaysAgo(30), limit: TRENDING_FETCH_LIMIT }),
+    []
   );
+  const trendingFiltersAllTime = useMemo(
+    () => ({ limit: TRENDING_FETCH_LIMIT }),
+    []
+  );
+
+  const { trades: trending7dTrades, loading: trending7dLoading } =
+    useTrades(trendingFilters7d);
+  const { trades: trending30dTrades, loading: trending30dLoading } =
+    useTrades(trendingFilters30d);
+  const { trades: trendingAllTrades, loading: trendingAllLoading } =
+    useTrades(trendingFiltersAllTime);
+
+  // Pick the first tier with enough distinct tickers. Cascade: 7d → 30d →
+  // all-time. If even all-time is below threshold, fall back to all-time
+  // anyway (rare; only when archive is genuinely tiny) — better to show what
+  // we have than to hide.
+  const { trendingTopTickers, trendingWindowLabel, trendingLoading } = useMemo(() => {
+    // Aggregate each tier
+    const tier7d = aggregateTopTickers(trending7dTrades, TRENDING_TOP_N);
+    const tier30d = aggregateTopTickers(trending30dTrades, TRENDING_TOP_N);
+    const tierAll = aggregateTopTickers(trendingAllTrades, TRENDING_TOP_N);
+
+    // Show loading if all three are still in flight on first paint.
+    // Once any one has resolved with data, we stop showing the skeleton.
+    const stillLoading =
+      trending7dLoading && trending30dLoading && trendingAllLoading;
+
+    // Cascade selection
+    if (tier7d.length >= TRENDING_MIN_TICKERS) {
+      return {
+        trendingTopTickers: tier7d,
+        trendingWindowLabel: TRENDING_TIERS[0].label,
+        trendingLoading: stillLoading,
+      };
+    }
+    if (tier30d.length >= TRENDING_MIN_TICKERS) {
+      return {
+        trendingTopTickers: tier30d,
+        trendingWindowLabel: TRENDING_TIERS[1].label,
+        trendingLoading: stillLoading,
+      };
+    }
+    // All-time fallback (shown even if below threshold — rare, archive tiny)
+    return {
+      trendingTopTickers: tierAll,
+      trendingWindowLabel: TRENDING_TIERS[2].label,
+      trendingLoading: stillLoading,
+    };
+  }, [
+    trending7dTrades,
+    trending30dTrades,
+    trendingAllTrades,
+    trending7dLoading,
+    trending30dLoading,
+    trendingAllLoading,
+  ]);
 
   // 1AM-114: reset pagination state whenever backend filters change. useTrades
   // refetches the first page on filter change; we drop any appended extra
@@ -397,13 +459,15 @@ export default function BrowseAllFilingsScreen({ onBack, onSettingsClick }) {
         />
 
         {/* ── Trending Tickers (1AM-124 fase 5) ─────────────────────────── */}
-        {/* Top 5 most-traded tickers in the past 7 days. Independent of the
-            search/filter state below — Trending is a discovery signal, not a
-            filtered view. Renders nothing when the window is empty. */}
+        {/* Top 5 most-traded tickers via adaptive window cascade
+            (7d → 30d → all-time). windowLabel reflects the actual tier that
+            met the minimum-tickers threshold so the UI is honest about which
+            slice of the archive is displayed. Independent of the search/filter
+            state below — Trending is a discovery signal, not a filtered view. */}
         <TrendingTickers
           tickers={trendingTopTickers}
           loading={trendingLoading}
-          windowLabel={TRENDING_WINDOW_LABEL}
+          windowLabel={trendingWindowLabel}
         />
 
         {/* ── Search input ────────────────────────────────────────────────── */}
