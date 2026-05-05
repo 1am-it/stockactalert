@@ -56,6 +56,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import TradeCard from './TradeCard';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
+import TrendingTickers from './TrendingTickers';
 import { useTrades } from '../hooks/useTrades';
 import { formatRelativeTime } from '../lib/relativeTime';
 
@@ -116,6 +117,47 @@ const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'largest', label: 'Largest amount' },
 ];
+
+// 1AM-124 fase 5: Trending Tickers configuration.
+// Window is fixed to Past 7 days regardless of the user's filter chips on
+// Recent Trades — Trending is a discovery signal, not a filtered view.
+// LIMIT is the max trades fetched for aggregation; 500 is generous given the
+// archive is ~94 trades at v0.16.1 and the daily cron adds a small batch.
+const TRENDING_WINDOW_DAYS = 7;
+const TRENDING_FETCH_LIMIT = 500;
+const TRENDING_TOP_N = 5;
+const TRENDING_WINDOW_LABEL = '7 days';
+
+// 1AM-124 fase 5: Compute "since" date for Trending fetch.
+// Returns YYYY-MM-DD string for useTrades({ since }). Static for the lifetime
+// of the component — recomputed on remount, which is fine because the value
+// only drifts day-by-day and a remount happens on every tab switch.
+function computeTrendingSince() {
+  const d = new Date();
+  d.setDate(d.getDate() - TRENDING_WINDOW_DAYS);
+  return d.toISOString().slice(0, 10);
+}
+
+// 1AM-124 fase 5: Aggregate trades by ticker, return top N most-traded.
+// Empty/null tickers are skipped so we don't surface "" as a "top ticker".
+// Stable order: ties broken by ticker symbol alphabetically (deterministic
+// across renders and useful for any future snapshot tests).
+function aggregateTopTickers(trades, topN = TRENDING_TOP_N) {
+  if (!Array.isArray(trades) || trades.length === 0) return [];
+  const counts = new Map();
+  for (const t of trades) {
+    const ticker = (t.ticker || '').trim();
+    if (!ticker) continue;
+    counts.set(ticker, (counts.get(ticker) || 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([ticker, count]) => ({ ticker, count }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.ticker.localeCompare(b.ticker);
+    })
+    .slice(0, topN);
+}
 
 // Inline copy of the amount-midpoint parser used in PoliticianDetailScreen.
 // Duplicated here to keep this delivery scope-tight; should be DRY-ed into
@@ -211,6 +253,27 @@ export default function BrowseAllFilingsScreen({ onBack, onSettingsClick }) {
 
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } =
     useTrades(searchFilters);
+
+  // 1AM-124 fase 5: Trending Tickers — separate fetch independent of the
+  // user's filter chips on Recent Trades. Always Past 7 days, no chamber/action
+  // filter — Trending is a discovery signal, not a filtered view.
+  // useMemo wraps the date computation so the filters object identity is
+  // stable across renders (otherwise useTrades' dep-comparison via JSON
+  // stringify still works, but we save a stringify per render).
+  const trendingFilters = useMemo(
+    () => ({
+      since: computeTrendingSince(),
+      limit: TRENDING_FETCH_LIMIT,
+    }),
+    []
+  );
+  const { trades: trendingTrades, loading: trendingLoading } =
+    useTrades(trendingFilters);
+
+  const trendingTopTickers = useMemo(
+    () => aggregateTopTickers(trendingTrades, TRENDING_TOP_N),
+    [trendingTrades]
+  );
 
   // 1AM-114: reset pagination state whenever backend filters change. useTrades
   // refetches the first page on filter change; we drop any appended extra
@@ -331,6 +394,16 @@ export default function BrowseAllFilingsScreen({ onBack, onSettingsClick }) {
         <HeaderBar
           title="Browse"
           onSettingsClick={onSettingsClick}
+        />
+
+        {/* ── Trending Tickers (1AM-124 fase 5) ─────────────────────────── */}
+        {/* Top 5 most-traded tickers in the past 7 days. Independent of the
+            search/filter state below — Trending is a discovery signal, not a
+            filtered view. Renders nothing when the window is empty. */}
+        <TrendingTickers
+          tickers={trendingTopTickers}
+          loading={trendingLoading}
+          windowLabel={TRENDING_WINDOW_LABEL}
         />
 
         {/* ── Search input ────────────────────────────────────────────────── */}
