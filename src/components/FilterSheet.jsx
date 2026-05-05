@@ -33,6 +33,7 @@
 //   sortOrder            — current sort value ('newest' | 'largest')
 //   onSortOrderChange    — callback(value)
 
+import { useEffect } from 'react';
 import SingleChipGroup from './SingleChipGroup';
 
 const CHAMBER_OPTIONS = [
@@ -64,6 +65,22 @@ export default function FilterSheet({
   sortOrder,
   onSortOrderChange,
 }) {
+  // 1AM-124 fase 9: close on Escape key (desktop UX parity). User-feedback
+  // surfaced 2026-05-05 that tap-outside backdrop alone isn't a discoverable
+  // close-affordance. Esc is the standard desktop modal-dismiss, and on
+  // mobile keyboards (when search input has focus) Esc isn't typically
+  // reachable so this is desktop-only in practice — that's fine.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -104,9 +121,13 @@ export default function FilterSheet({
         }}
       >
         {/* Drag-handle. Decorative — actual swipe-to-close gesture is not
-            wired in this version (would need touch event handling). For now
-            users close via backdrop tap. Visual cue still helps signal
-            "this is dismissable". */}
+            wired in this version (would need touch event handling). Users
+            close via:
+              - Tap backdrop (existing)
+              - Tap X-button top-right (1AM-124 fase 9)
+              - Press Escape key on desktop (1AM-124 fase 9)
+            Swipe-down gesture is a mobile-native expectation and could be
+            added in a future ticket if user-feedback surfaces it. */}
         <div
           aria-hidden="true"
           style={{
@@ -118,19 +139,68 @@ export default function FilterSheet({
           }}
         />
 
-        <h2
+        {/* ── Header row: title + close button (1AM-124 fase 9) ──────── */}
+        {/* Title was previously centered with no visible close-affordance.
+            User-feedback surfaced 2026-05-05 that backdrop-tap alone isn't
+            discoverable. X-button on the right gives an explicit close
+            target. Title shifts to left-aligned to balance the layout. */}
+        <div
           style={{
-            fontFamily: "'Playfair Display', 'Lora', serif",
-            fontSize: 22,
-            fontWeight: 500,
-            color: '#0D1B2A',
-            textAlign: 'center',
-            margin: '0 0 20px',
-            letterSpacing: '-0.3px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 20,
           }}
         >
-          Filters
-        </h2>
+          <h2
+            style={{
+              fontFamily: "'Playfair Display', 'Lora', serif",
+              fontSize: 22,
+              fontWeight: 500,
+              color: '#0D1B2A',
+              margin: 0,
+              letterSpacing: '-0.3px',
+            }}
+          >
+            Filters
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close filters"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: 6,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 999,
+              color: '#6B7280',
+              lineHeight: 0,
+            }}
+          >
+            {/* Inline SVG X — design system bans emoji. Stroke matches the
+                outline-icon language used elsewhere in the app (e.g. search
+                magnifying glass). 18px is reachable but unobtrusive. */}
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
 
         {/* ── Chamber section ─────────────────────────────────────────── */}
         <div style={{ marginBottom: 18 }}>
