@@ -16,14 +16,28 @@
 // the architecture minimal. Mute state lives here too (mutedPoliticians)
 // so the toggle persists across renders even though no alert system reads
 // it yet (1AM-71 wires that part).
+//
+// 1AM-124: IA redesign — 4 tabs reduced to 3 (Feed / Browse / Alerts).
+// - Politicians-tab removed; functionality moved to Browse-tab Most Active
+//   section + Feed-tab follows.
+// - Settings-tab removed from bottom-nav; reachable via gear icon top-right
+//   of each screen header (rendered inside each tab component).
+// - Browse-tab promoted from `isBrowsingAll` overlay to full top-level tab.
+// - Stale localStorage activeTab values ('politicians', 'settings') fall
+//   through to 'feed' via VALID_TABS whitelist.
 
 import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
 import FeedScreen from './components/FeedScreen';
 import DiscoveryFeedScreen from './components/DiscoveryFeedScreen';
 import BrowseAllFilingsScreen from './components/BrowseAllFilingsScreen';
-import PoliticiansScreen from './components/PoliticiansScreen';
+// 1AM-124: PoliticiansScreen import removed — Politicians-tab gone.
+// Component file kept in repo for now in case we need to reference parts
+// of it during Browse-tab implementation; deletion in a follow-up cleanup.
 import PoliticianDetailScreen from './components/PoliticianDetailScreen';
+// 1AM-124: SettingsScreen overlay reached via gear icon in HeaderBar (top-right
+// of each tab). Replaces the Settings-tab in the bottom-nav.
+import SettingsScreen from './components/SettingsScreen';
 // 1AM-66 v0.13.1: Welcome + Explainer screens removed; Discovery makes them
 // redundant. Steps simplified to 'discovery' → 'pick-politicians' → 'done'.
 // Migration of explainer content tracked in 1AM-110.
@@ -71,7 +85,9 @@ function App() {
   );
   // Whitelist of valid tab IDs — guards against stale or corrupted localStorage
   // values (e.g. after a tab is renamed or removed in a future version).
-  const VALID_TABS = ['feed', 'politicians', 'alerts', 'settings'];
+  // 1AM-124: reduced to 3 tabs (feed / browse / alerts). Stale values
+  // 'politicians' or 'settings' fall back to 'feed' on hydration.
+  const VALID_TABS = ['feed', 'browse', 'alerts'];
   const [activeTab, setActiveTab] = useState(() => {
     const saved = getJSON(STORAGE_KEYS.ACTIVE_TAB, 'feed');
     return VALID_TABS.includes(saved) ? saved : 'feed';
@@ -80,11 +96,15 @@ function App() {
   // name being viewed. Not persisted — feels right that returning to the app
   // lands on the last tab, not on a stale detail page.
   const [detailPolitician, setDetailPolitician] = useState(null);
-  // 1AM-112: Browse All Filings overlay state. When true, render the
-  // dedicated browse screen with no TabBar (overlay pattern, similar to
-  // detailPolitician). Reached from FeedScreen `Show all` button or from
-  // the FilterEmptyState recovery CTA.
-  const [isBrowsingAll, setIsBrowsingAll] = useState(false);
+  // 1AM-124: Settings overlay state. true = SettingsScreen rendered as a
+  // full-page overlay (variant A from the architecture decision). Reached
+  // from the gear icon in HeaderBar. Not persisted — same reasoning as
+  // detailPolitician.
+  const [isShowingSettings, setIsShowingSettings] = useState(false);
+  // 1AM-124: isBrowsingAll state removed — Browse-tab is now a top-level
+  // tab (formerly an overlay reachable from FeedScreen `Show all`). The
+  // `Show all` button on FeedScreen now switches activeTab to 'browse'
+  // instead of triggering the overlay.
 
   // 1AM-69: trades shared between FeedScreen and PoliticianDetailScreen.
   // Lifted to App level so the detail page can compute stats/holdings/history
@@ -152,15 +172,21 @@ function App() {
     );
   }
 
-  // ── Browse All Filings overlay (1AM-112) ─────────────────────────────────
-  // Full-screen overlay reached from the Personal feed `Show all` button or
-  // from the FilterEmptyState recovery CTA. Replaces the previous in-place
-  // toggle on FeedScreen — that behaviour is deprecated.
-  // No TabBar while browsing — page-style header has its own ← Back link.
-  if (isBrowsingAll) {
+  // ── Browse All Filings overlay (1AM-112) — REMOVED in 1AM-124 ───────────
+  // Browse is now a top-level tab. The full-screen overlay pattern is gone.
+  // Existing entry-points (FeedScreen `Show all`, FilterEmptyState CTA) now
+  // call setActiveTab('browse') instead of toggling the overlay.
+
+  // ── Settings overlay (1AM-124) ────────────────────────────────────────────
+  // Reached from the gear icon in HeaderBar (top-right of any tab). Renders
+  // above any other tab content. `← Back` in SettingsScreen returns the user
+  // to whichever tab they came from — activeTab is preserved underneath.
+  // Rendered before detailPolitician so that tapping the gear from a detail
+  // page also lands on Settings cleanly.
+  if (isShowingSettings) {
     return (
-      <BrowseAllFilingsScreen
-        onBack={() => setIsBrowsingAll(false)}
+      <SettingsScreen
+        onBack={() => setIsShowingSettings(false)}
       />
     );
   }
@@ -194,30 +220,50 @@ function App() {
   }
 
   // ── Main app (onboardingStep === 'done') ───────────────────────────────────
+  // 1AM-124: screens metadata reduced to 3 tabs. The global header (h1 +
+  // description in App.jsx) is preserved for `feed` and `alerts` so existing
+  // FeedScreen + Alerts placeholder still get rendered the same way. For
+  // `browse` we render BrowseAllFilingsScreen directly without the global
+  // header — that screen has its own page-style header (1AM-112) which we'll
+  // refine in fase 4 of this ticket to match the Lovable v3-rounded mockup.
   const screens = {
     feed: {
       title: 'Your Feed',
       description: 'Live congressional trades — filed under the STOCK Act',
       color: '#059669',
     },
-    politicians: {
-      title: 'Politicians',
-      description: 'Tap to follow or unfollow — see trades in your Feed',
-      color: '#1D4ED8',
-    },
     alerts: {
       title: 'Alerts',
       description: 'Your active alerts — get notified on new trades',
       color: '#D97706',
     },
-    settings: {
-      title: 'Settings',
-      description: 'App settings and preferences',
-      color: '#6B7280',
-    },
   };
 
   const current = screens[activeTab];
+
+  // 1AM-124: Browse-tab gets its own render path without the global header
+  // wrapper. BrowseAllFilingsScreen renders HeaderBar internally (title
+  // "Browse" + gear icon top-right). Gear icon opens SettingsScreen overlay
+  // via onSettingsClick.
+  // 1AM-124 fase 6: followedPoliticians + togglePolitician are passed in so
+  // the Most Active section's Follow toggle drives the same `selected` state
+  // used by Feed and other parts of the app.
+  if (activeTab === 'browse') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
+        <BrowseAllFilingsScreen
+          // 1AM-124: onBack kept for backwards compat (no UI link anymore
+          // after fase 4 header redesign — see BrowseAllFilingsScreen header
+          // comment). Switches to feed-tab if anything calls it programmatically.
+          onBack={() => setActiveTab('feed')}
+          onSettingsClick={() => setIsShowingSettings(true)}
+          followedPoliticians={followedPoliticians}
+          onTogglePolitician={togglePolitician}
+        />
+        <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
@@ -247,22 +293,20 @@ function App() {
           <FeedScreen
             followedPoliticians={followedPoliticians}
             onUnfollow={togglePolitician}
-            onNavigateToPoliticians={() => setActiveTab('politicians')}
+            // 1AM-124: Politicians-tab is gone; Browse-tab Most Active section
+            // is the new entry point for following politicians. FeedScreen
+            // empty-state CTA "Discover politicians to follow" now navigates
+            // to Browse instead of Politicians.
+            onNavigateToPoliticians={() => setActiveTab('browse')}
             onShowPoliticianDetail={setDetailPolitician}
-            onBrowseAll={() => setIsBrowsingAll(true)}
+            // 1AM-124: Show all button on FeedScreen now switches to Browse-tab
+            // (was: triggered isBrowsingAll overlay).
+            onBrowseAll={() => setActiveTab('browse')}
           />
         )}
 
-        {activeTab === 'politicians' && (
-          <PoliticiansScreen
-            selected={followedPoliticians}
-            onToggle={togglePolitician}
-            onShowDetail={setDetailPolitician}
-          />
-        )}
-
-        {(activeTab === 'alerts' || activeTab === 'settings') && (
-          // Placeholder for tabs not yet implemented
+        {activeTab === 'alerts' && (
+          // Placeholder — content built in 1AM-126.
           <div
             style={{
               padding: '20px',
@@ -286,8 +330,7 @@ function App() {
                 fontSize: 20,
               }}
             >
-              {activeTab === 'alerts' && '🔔'}
-              {activeTab === 'settings' && '⚙️'}
+              🔔
             </div>
             <div
               style={{

@@ -1,6 +1,8 @@
-// SAA-8: TabBar Component
+// SAA-8 / 1AM-124: TabBar Component
 // Fixed bottom navigation bar used across all main screens
-// Four tabs: Feed / Politicians / Alerts / Settings
+// Three tabs: Feed / Browse / Alerts
+// Politicians-tab functionality moved to Browse + Feed (1AM-124).
+// Settings-tab moved to gear icon top-right of each screen header (1AM-124).
 // Props: activeTab, onTabChange
 
 const TABS = [
@@ -37,21 +39,23 @@ const TABS = [
     ),
   },
   {
-    id: 'politicians',
-    label: 'Politicians',
+    // 1AM-124: Browse-tab semantically "discover/explore" — compass icon.
+    id: 'browse',
+    label: 'Browse',
     icon: (active) => (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
         <circle
-          cx="12" cy="8" r="4"
+          cx="12" cy="12" r="9"
           fill={active ? '#0D1B2A' : 'none'}
           stroke={active ? '#0D1B2A' : '#9CA3AF'}
           strokeWidth="2"
         />
         <path
-          d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
-          stroke={active ? '#0D1B2A' : '#9CA3AF'}
-          strokeWidth="2"
-          strokeLinecap="round"
+          d="M15.5 8.5L13 13l-4.5 2.5L11 11l4.5-2.5z"
+          fill={active ? '#FAFAF7' : 'none'}
+          stroke={active ? '#FAFAF7' : '#9CA3AF'}
+          strokeWidth="1.5"
+          strokeLinejoin="round"
         />
       </svg>
     ),
@@ -70,26 +74,6 @@ const TABS = [
         />
         <path
           d="M10 19a2 2 0 004 0"
-          stroke={active ? '#0D1B2A' : '#9CA3AF'}
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: (active) => (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <circle
-          cx="12" cy="12" r="3"
-          fill={active ? '#0D1B2A' : 'none'}
-          stroke={active ? '#0D1B2A' : '#9CA3AF'}
-          strokeWidth="2"
-        />
-        <path
-          d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
           stroke={active ? '#0D1B2A' : '#9CA3AF'}
           strokeWidth="2"
           strokeLinecap="round"
