@@ -245,6 +245,9 @@ function App() {
   // wrapper. BrowseAllFilingsScreen renders HeaderBar internally (title
   // "Browse" + gear icon top-right). Gear icon opens SettingsScreen overlay
   // via onSettingsClick.
+  // 1AM-124 fase 6: followedPoliticians + togglePolitician are passed in so
+  // the Most Active section's Follow toggle drives the same `selected` state
+  // used by Feed and other parts of the app.
   if (activeTab === 'browse') {
     return (
       <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
@@ -254,6 +257,8 @@ function App() {
           // comment). Switches to feed-tab if anything calls it programmatically.
           onBack={() => setActiveTab('feed')}
           onSettingsClick={() => setIsShowingSettings(true)}
+          followedPoliticians={followedPoliticians}
+          onTogglePolitician={togglePolitician}
         />
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>

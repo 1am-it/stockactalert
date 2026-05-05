@@ -57,7 +57,9 @@ import TradeCard from './TradeCard';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
 import TrendingTickers from './TrendingTickers';
+import MostActivePoliticians from './MostActivePoliticians';
 import { useTrades } from '../hooks/useTrades';
+import { findByName } from '../lib/congress';
 import { formatRelativeTime } from '../lib/relativeTime';
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -168,6 +170,80 @@ function aggregateTopTickers(trades, topN = TRENDING_TOP_N) {
     .slice(0, topN);
 }
 
+// 1AM-124 fase 6: Most Active Politicians configuration.
+// Same adaptive-window cascade as Trending Tickers — re-uses the tier
+// definitions and threshold so behaviour is consistent across both sections.
+const MOST_ACTIVE_TOP_N = 3;
+const MOST_ACTIVE_MIN_POLITICIANS = 3;
+
+// 1AM-124 fase 6: Aggregate trades by politician, return top N most-active.
+// Resolves each trade.politician to a Member object via findByName cascade
+// (1AM-67 / 1AM-68 / 1AM-109) — same name-resolution logic the rest of the
+// app uses, so legacy aliases ("Bernie Sanders" → "Bernard Sanders") collapse
+// to one bucket.
+//
+// When findByName fails (rare — politician not in directory), we still count
+// the trade under the raw name with party/chamber from the trade record. The
+// row will render with a generic avatar and no state/bioguideId, but the
+// activity signal isn't lost. Set bioguideId to null in that case so the
+// React key is deterministic.
+//
+// initials are derived from "First Last" → "FL" or "F" if single token.
+// trade.party / trade.chamber are used as Member fallbacks when the directory
+// resolve fails.
+function deriveInitials(fullName) {
+  if (!fullName || typeof fullName !== 'string') return '?';
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function aggregateMostActivePoliticians(trades, topN = MOST_ACTIVE_TOP_N) {
+  if (!Array.isArray(trades) || trades.length === 0) return [];
+
+  // Bucket by resolved bioguideId when possible; fall back to raw name as key
+  // if directory lookup fails. The bucket key is a string either way so Map
+  // works uniformly.
+  const buckets = new Map(); // key → { name, bioguideId, party, chamber, state, count, initials }
+
+  for (const t of trades) {
+    const rawName = (t.politician || '').trim();
+    if (!rawName) continue;
+
+    const matches = findByName(rawName);
+    const member = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
+
+    const key = member?.bioguideId || rawName;
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.count += 1;
+      continue;
+    }
+
+    // Prefer Member directory data (canonical name, state, bioguideId);
+    // fall back to trade-level fields when directory lookup failed.
+    const displayName = member?.name || rawName;
+    buckets.set(key, {
+      name: displayName,
+      bioguideId: member?.bioguideId || null,
+      party: member?.party || t.party || null,
+      chamber: member?.chamber || t.chamber || '',
+      state: member?.state || '',
+      count: 1,
+      initials: deriveInitials(displayName),
+    });
+  }
+
+  return Array.from(buckets.values())
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      // Stable tiebreaker: alphabetical by name.
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, topN);
+}
+
 // Inline copy of the amount-midpoint parser used in PoliticianDetailScreen.
 // Duplicated here to keep this delivery scope-tight; should be DRY-ed into
 // src/lib/amountParse.js when next touched.
@@ -188,7 +264,14 @@ function parseAmountMidpoint(amountStr) {
   return (parseSingle(parts[0]) + parseSingle(parts[1])) / 2;
 }
 
-export default function BrowseAllFilingsScreen({ onBack, onSettingsClick }) {
+export default function BrowseAllFilingsScreen({
+  onBack,
+  onSettingsClick,
+  // 1AM-124 fase 6: follow-state passed in from App so Most Active rows can
+  // toggle politicians via the same `selected` follows state used by Feed.
+  followedPoliticians = [],
+  onTogglePolitician,
+}) {
   // Local UI state — not persisted across sessions per ticket scope ("Browse
   // is a stateless utility for v1").
   const [searchInput, setSearchInput] = useState('');
@@ -296,37 +379,62 @@ export default function BrowseAllFilingsScreen({ onBack, onSettingsClick }) {
   // all-time. If even all-time is below threshold, fall back to all-time
   // anyway (rare; only when archive is genuinely tiny) — better to show what
   // we have than to hide.
-  const { trendingTopTickers, trendingWindowLabel, trendingLoading } = useMemo(() => {
-    // Aggregate each tier
-    const tier7d = aggregateTopTickers(trending7dTrades, TRENDING_TOP_N);
-    const tier30d = aggregateTopTickers(trending30dTrades, TRENDING_TOP_N);
-    const tierAll = aggregateTopTickers(trendingAllTrades, TRENDING_TOP_N);
+  //
+  // 1AM-124 fase 6: Most Active Politicians uses the SAME fetched trade sets
+  // (re-aggregated by politician instead of ticker). Each section evaluates
+  // its own threshold against its own aggregation, so the selected tier may
+  // differ between Trending and MostActive — e.g. 30d has 5 distinct tickers
+  // but only 2 distinct politicians, so Trending shows 30d while MostActive
+  // falls through to all-time. Independent labels reflect that.
+  const {
+    trendingTopTickers,
+    trendingWindowLabel,
+    trendingLoading,
+    mostActivePoliticians,
+    mostActiveWindowLabel,
+    mostActiveLoading,
+  } = useMemo(() => {
+    // Trending tiers
+    const trendingTier7d = aggregateTopTickers(trending7dTrades, TRENDING_TOP_N);
+    const trendingTier30d = aggregateTopTickers(trending30dTrades, TRENDING_TOP_N);
+    const trendingTierAll = aggregateTopTickers(trendingAllTrades, TRENDING_TOP_N);
 
-    // Show loading if all three are still in flight on first paint.
-    // Once any one has resolved with data, we stop showing the skeleton.
+    // Most Active tiers (same trades, different aggregator)
+    const activeTier7d = aggregateMostActivePoliticians(trending7dTrades, MOST_ACTIVE_TOP_N);
+    const activeTier30d = aggregateMostActivePoliticians(trending30dTrades, MOST_ACTIVE_TOP_N);
+    const activeTierAll = aggregateMostActivePoliticians(trendingAllTrades, MOST_ACTIVE_TOP_N);
+
+    // Show loading if all three fetches are still in flight on first paint.
     const stillLoading =
       trending7dLoading && trending30dLoading && trendingAllLoading;
 
-    // Cascade selection
-    if (tier7d.length >= TRENDING_MIN_TICKERS) {
-      return {
-        trendingTopTickers: tier7d,
-        trendingWindowLabel: TRENDING_TIERS[0].label,
-        trendingLoading: stillLoading,
-      };
+    // Trending cascade
+    let trendingPick;
+    if (trendingTier7d.length >= TRENDING_MIN_TICKERS) {
+      trendingPick = { tickers: trendingTier7d, label: TRENDING_TIERS[0].label };
+    } else if (trendingTier30d.length >= TRENDING_MIN_TICKERS) {
+      trendingPick = { tickers: trendingTier30d, label: TRENDING_TIERS[1].label };
+    } else {
+      trendingPick = { tickers: trendingTierAll, label: TRENDING_TIERS[2].label };
     }
-    if (tier30d.length >= TRENDING_MIN_TICKERS) {
-      return {
-        trendingTopTickers: tier30d,
-        trendingWindowLabel: TRENDING_TIERS[1].label,
-        trendingLoading: stillLoading,
-      };
+
+    // Most Active cascade (independent of Trending pick)
+    let activePick;
+    if (activeTier7d.length >= MOST_ACTIVE_MIN_POLITICIANS) {
+      activePick = { politicians: activeTier7d, label: TRENDING_TIERS[0].label };
+    } else if (activeTier30d.length >= MOST_ACTIVE_MIN_POLITICIANS) {
+      activePick = { politicians: activeTier30d, label: TRENDING_TIERS[1].label };
+    } else {
+      activePick = { politicians: activeTierAll, label: TRENDING_TIERS[2].label };
     }
-    // All-time fallback (shown even if below threshold — rare, archive tiny)
+
     return {
-      trendingTopTickers: tierAll,
-      trendingWindowLabel: TRENDING_TIERS[2].label,
+      trendingTopTickers: trendingPick.tickers,
+      trendingWindowLabel: trendingPick.label,
       trendingLoading: stillLoading,
+      mostActivePoliticians: activePick.politicians,
+      mostActiveWindowLabel: activePick.label,
+      mostActiveLoading: stillLoading,
     };
   }, [
     trending7dTrades,
@@ -468,6 +576,20 @@ export default function BrowseAllFilingsScreen({ onBack, onSettingsClick }) {
           tickers={trendingTopTickers}
           loading={trendingLoading}
           windowLabel={trendingWindowLabel}
+        />
+
+        {/* ── Most Active Politicians (1AM-124 fase 6) ──────────────────── */}
+        {/* Top 3 most-active politicians via the same adaptive window cascade
+            as Trending (re-aggregated by politician). Each row has a Follow
+            toggle wired to the App-level `selected` follows state. windowLabel
+            may differ from Trending's because the threshold is checked against
+            distinct politicians, not distinct tickers. */}
+        <MostActivePoliticians
+          politicians={mostActivePoliticians}
+          loading={mostActiveLoading}
+          windowLabel={mostActiveWindowLabel}
+          followedNames={followedPoliticians}
+          onToggleFollow={onTogglePolitician}
         />
 
         {/* ── Search input ────────────────────────────────────────────────── */}
