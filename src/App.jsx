@@ -38,6 +38,12 @@ import PoliticianDetailScreen from './components/PoliticianDetailScreen';
 // 1AM-124: SettingsScreen overlay reached via gear icon in HeaderBar (top-right
 // of each tab). Replaces the Settings-tab in the bottom-nav.
 import SettingsScreen from './components/SettingsScreen';
+// 1AM-125 fase 1: HeaderBar imported directly so Feed and Alerts tabs share
+// the same editorial header pattern as Browse-tab. Previously each tab had
+// inline h1+description rendered via the `screens` config; with this change
+// all three tabs use HeaderBar — Browse renders it internally,
+// Feed/Alerts wrap it here in App.jsx around their respective screens.
+import HeaderBar from './components/HeaderBar';
 // 1AM-66 v0.13.1: Welcome + Explainer screens removed; Discovery makes them
 // redundant. Steps simplified to 'discovery' → 'pick-politicians' → 'done'.
 // Migration of explainer content tracked in 1AM-110.
@@ -87,10 +93,20 @@ function App() {
   // values (e.g. after a tab is renamed or removed in a future version).
   // 1AM-124: reduced to 3 tabs (feed / browse / alerts). Stale values
   // 'politicians' or 'settings' fall back to 'feed' on hydration.
+  // 1AM-125 fase 2: smart default routing for first-time users. If there is
+  // no saved tab (or it's invalid), default to 'browse' for users with no
+  // follows (browsing exists, exploring needed) and 'feed' for users with
+  // follows (their personalized stream is the destination). Existing users
+  // with a saved valid tab are unaffected — saved tab always wins.
   const VALID_TABS = ['feed', 'browse', 'alerts'];
   const [activeTab, setActiveTab] = useState(() => {
-    const saved = getJSON(STORAGE_KEYS.ACTIVE_TAB, 'feed');
-    return VALID_TABS.includes(saved) ? saved : 'feed';
+    const saved = getJSON(STORAGE_KEYS.ACTIVE_TAB, null);
+    if (VALID_TABS.includes(saved)) return saved;
+    // No saved tab: route based on whether user follows anyone.
+    const initialFollows = migrateFollowedNames(
+      getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, [])
+    );
+    return initialFollows.length > 0 ? 'feed' : 'browse';
   });
   // 1AM-69: detail-page overlay. null = no overlay; otherwise the politician
   // name being viewed. Not persisted — feels right that returning to the app
@@ -226,20 +242,17 @@ function App() {
   // `browse` we render BrowseAllFilingsScreen directly without the global
   // header — that screen has its own page-style header (1AM-112) which we'll
   // refine in fase 4 of this ticket to match the Lovable v3-rounded mockup.
-  const screens = {
-    feed: {
-      title: 'Your Feed',
-      description: 'Live congressional trades — filed under the STOCK Act',
-      color: '#059669',
-    },
-    alerts: {
-      title: 'Alerts',
-      description: 'Your active alerts — get notified on new trades',
-      color: '#D97706',
-    },
+  // 1AM-125 fase 1: Feed and Alerts tabs share the HeaderBar pattern with
+  // Browse-tab. Title-only — no description line. Previous "Your Feed" +
+  // "Live congressional trades — filed under the STOCK Act" tagline removed
+  // for visual consistency across all three tabs (Browse has no tagline,
+  // Feed/Alerts shouldn't either).
+  const screenTitles = {
+    feed: 'Feed',
+    alerts: 'Alerts',
   };
 
-  const current = screens[activeTab];
+  const currentTitle = screenTitles[activeTab];
 
   // 1AM-124: Browse-tab gets its own render path without the global header
   // wrapper. BrowseAllFilingsScreen renders HeaderBar internally (title
@@ -272,21 +285,16 @@ function App() {
         style={{
           maxWidth: 420,
           margin: '0 auto',
-          padding: '40px 24px 100px',
+          padding: '20px 24px 100px',
         }}
       >
-        <h1
-          style={{
-            fontSize: 32,
-            marginBottom: 8,
-            color: '#0D1B2A',
-          }}
-        >
-          {current.title}
-        </h1>
-        <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 32 }}>
-          {current.description}
-        </p>
+        {/* 1AM-125 fase 1: HeaderBar replaces the previous inline h1+p block.
+            Same component as Browse-tab uses internally — title in Playfair
+            32px navy + gear icon top-right that opens SettingsScreen. */}
+        <HeaderBar
+          title={currentTitle}
+          onSettingsClick={() => setIsShowingSettings(true)}
+        />
 
         {/* ── Active tab content ── */}
         {activeTab === 'feed' && (
