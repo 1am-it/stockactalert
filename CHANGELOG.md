@@ -12,6 +12,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.18.0] — 2026-05-06
+
+Feed-tab and Alerts-tab IA-alignment with Browse-tab (1AM-125, fasen 1+2). Completes the three-tab editorial pattern from 1AM-124 by giving Feed and Alerts the same HeaderBar component (titel-only + gear-icon top-right) that Browse already uses since v0.17.0. Also introduces a small smart-default-routing tweak so first-time users land on a tab with data instead of an empty Feed.
+
+This release deliberately keeps the existing FeedScreen body (filter-bar, TradeCards, FreshnessIndicator, empty states) untouched. The Feed empty-state itself was identified during testing as a separate redesign concern based on user-feedback ("onoverzichtelijk en onlogisch") and split off into its own ticket (1AM-145, Backlog) with a Lovable v2 mockup attached. Shipping IA-alignment now means the Feed empty-state redesign can land later without creating a long-running parallel branch and without delaying v0.18.0.
+
+### Added
+- **HeaderBar in Feed-tab and Alerts-tab** (1AM-125 fase 1) — both tabs now use the same `HeaderBar` component that Browse-tab introduced in v0.17.0, with gear-icon top-right that opens the SettingsScreen overlay. Previously these tabs had inline `h1` + description rendered via a `screens` config object in App.jsx; that block is replaced with a single `<HeaderBar title={currentTitle} onSettingsClick={...} />`. Result: identical editorial header pattern across all three tabs (Browse renders it internally, Feed/Alerts wrap it in App.jsx around their respective screens).
+- **Smart default-routing** (1AM-125 fase 2) — first-time users with no follows now land on Browse-tab instead of an empty Feed. The `activeTab` lazy initializer now reads `localStorage.ACTIVE_TAB` first (saved tab wins for returning users — backwards compatible), and falls back to `selected.length > 0 ? 'feed' : 'browse'` when no saved tab exists. Eliminates the "I just installed this and the Feed is empty, am I doing something wrong?" first impression for cold-start users.
+
+### Changed
+- **Feed-tab title** — `"Your Feed"` becomes `"Feed"`. Possessive ("Your") drops to match the title-only convention shared with `"Browse"` and `"Alerts"`. Editorial consistency across the three tabs.
+- **Feed-tab tagline removed** — `"Live congressional trades — filed under the STOCK Act"` no longer renders. Browse has no tagline either; the HeaderBar pattern is intentionally minimal. Tagline content can resurface elsewhere (about page, marketing site) if it adds value there, but not in the tab header.
+- **Alerts-tab title** — `"Alerts"` (unchanged), but description `"Your active alerts — get notified on new trades"` removed for the same reason as Feed.
+
+### Removed
+- **`screens` config object in App.jsx** — replaced by a smaller `screenTitles` lookup. Description fields had no consumer left after the tagline removal, so the whole config simplifies to title-only.
+
+### Performance & coverage notes
+- The smart-routing init reads `STORAGE_KEYS.FOLLOWED_POLITICIANS` from localStorage on first mount when there's no saved tab — same call that the `followedPoliticians` state already makes. Two reads instead of one in the no-saved-tab path; not measurable.
+- HeaderBar rendering moves from inline JSX in App.jsx to a child component invocation. Same DOM output, same render cost. Slight win on JSX readability and on Alerts-tab future-proofing (one component touch for header changes instead of two locations).
+
+### Out of scope (deferred)
+- **Feed empty-state redesign** (1AM-145) — three-state layout (`Following 0` / `Following 1-9` / `Following 10+`), metrics-strip component, "While you wait — Most Active" embed, party-letter badges. Sourced from user-feedback during testing of fase 1+2 ("onoverzichtelijk en onlogisch"). Lovable v2 mockup attached to the ticket. Estimated ~3-4u when picked up. Held back from v0.18.0 deliberately to keep this release focused on IA-alignment.
+- **Alerts-tab MVP** (1AM-126) — Alerts-tab now has a HeaderBar but the screen body is still a placeholder. Real implementation (subscribe to followed politicians, deliver notifications, manage alert preferences) is its own significant scope.
+- **Dark mode** (1AM-128) — the HeaderBar pattern works in both light and dark, but theme switching itself needs the broader design-token uitbreiding from 1AM-128 before it can ship safely across all components.
+- **Feed → Browse tab-state preservation when navigating back** — currently switching tabs is a hard switch with no pending-state carry-over. Acceptable for v1.
+
+---
+
 ## [0.17.0] — 2026-05-05
 
 Major Browse-tab IA-redesign (1AM-124, fasen 1-9). Direct response to user-feedback describing the previous Browse experience as a "doolhof" — unclear bottom-nav icons, no perceived feed structure, scattered filter chip-rows, dead-end information sections. The redesign reorganizes the tab around three vertically-stacked sections (Trending Tickers, Most Active politicians, Recent Trades) and folds secondary filters into a bottom-sheet so the main view stays editorial and scannable.
