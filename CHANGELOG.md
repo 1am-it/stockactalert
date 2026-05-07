@@ -12,6 +12,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.19.0] — 2026-05-07
+
+Feed empty-state redesign (1AM-145). User-feedback during 1AM-125 testing described the previous Feed-tab empty experience as "onoverzichtelijk en onlogisch" — a generic "no trades" message that didn't explain *why* it was quiet, didn't reassure that the system was working, and didn't guide the user toward useful next actions. This release replaces that with a three-variant empty-state takeover (metrics strip + hero card + "While you wait — Most Active" embed) based on Lovable's v2 mockup.
+
+The implementation follows Pad B from the design discussion: both empty-state CTAs ("Browse all recent filings" and "Manage who you follow") route to Browse-tab with different scroll-anchors. The `Manage who you follow` destination is a placeholder until 1AM-28 (FollowedList screen) ships — that's when the CTA gets rewired to the dedicated management screen. ~5-line rework when the time comes.
+
+Released as MINOR (not PATCH) — new components, new empty-state UX, behaviour change for users with 0 follows (previously saw "browse mode" with all trades; now see a clean takeover funneling them toward Browse-tab discovery).
+
+### Added
+- **`FeedMetricsStrip` component** — three-column metrics display (Following / Window / Last check) rendered inside the Feed-tab empty-state. Em-dash "—" convention for zero-follows (feels like "to be set" rather than "failed"). Window hardcoded to "30d" for v1 (dynamic-window experimentation deferred). Last-check pulls from the existing `lastUpdatedAt` from useTrades, compressed to short form (`1m ago`, `2h ago`).
+- **`FeedEmptyHero` component** — variant-aware empty-state hero card. Three variants based on `selected.length`:
+  - `empty-zero` (0 follows): three-people SVG icon, "Pick a few politicians to follow" headline, "Browse 535 members of Congress" reassurance with green check, primary CTA "Manage who you follow", secondary "Browse all recent filings"
+  - `empty-low` (1-9 follows): green check-circle icon, "All quiet — 0 filings this week" headline, "Following N politicians — all set" reassurance, primary CTA "Browse all recent filings", secondary "Manage who you follow"
+  - `empty-high` (10+ follows): same shape as empty-low (separate variant for future tuning)
+- **"While you wait — Most Active" embed** in Feed empty-state — reuses the `MostActivePoliticians` component from Browse-tab. Aggregates from already-loaded trades (no separate cascade fetch). Window label "recent" reflects this honestly. Provides discovery bridge to politicians the user might want to follow.
+- **`onManageFollowing` prop** on `FeedScreen` — separate CTA destination for the "Manage who you follow" affordance. Currently wired in `App.jsx` to navigate to Browse-tab + scroll to `#most-active-section` (Pad B placeholder); will be rewired to the FollowedList screen when 1AM-28 ships.
+- **`id="most-active-section"`** anchor on the Most Active wrapper in `BrowseAllFilingsScreen` — scroll-anchor target for the new `onManageFollowing` handler.
+
+### Changed
+- **`FeedScreen.jsx` render-tree** restructured around an `emptyVariant` decision. When `emptyVariant` is set, the screen renders the new takeover (metrics + hero + Most Active). When null, the existing `FreshnessIndicator` + `FilterBar` + `TradeCard` flow renders unchanged. No regression on the trades-present path.
+- **`MOST_ACTIVE_TOP_N`, `deriveInitials`, `aggregateMostActivePoliticians`** extracted from `BrowseAllFilingsScreen.jsx` to a new shared lib `src/lib/politicianAggregation.js`. DRY: aggregator changes ripple to both Browse and Feed without duplication. `MOST_ACTIVE_MIN_POLITICIANS` stays in BrowseAllFilingsScreen — it's the cascade threshold, specific to Browse's adaptive-window pattern.
+- **Behaviour change for 0-follow users**: previously saw `EmptyFollowedListBanner` above all trades in "browse mode". Now see the new `empty-zero` takeover — no trades render in Feed, user is funneled to Browse-tab via the primary CTA. Browse-tab is a top-level tab since v0.17.0, so the workaround is no longer needed.
+
+### Removed
+- **`EmptyFollowedListBanner` function** — replaced by `FeedEmptyHero` variant `empty-zero`.
+- **`FilterEmptyState` function** (chip-grid for "filter active + no matches" case) — replaced by `FeedEmptyHero` variants `empty-low` and `empty-high`. The chip-grid pattern is preserved in git history if needed for a future feature.
+- **Unused imports** (`CapitolIllustration`) and constants (`CHIPS_INITIAL`) cleaned up after the dead-code removal.
+
+### Out of scope (deferred)
+- **Dedicated FollowedList screen** (1AM-28) — the actual destination for "Manage who you follow" CTA. Lovable v1 mockup ready (three states with mute concept). Activates as second consumer of the parked component.
+- **Party-letter badges** on Most Active rows — depends on theunitedstates.io YAML integration (1AM-146). Avatar party-color rendering remains unchanged in v1.
+- **Filter empty-state chip-grid** — the old chip-grid showed *who* the user follows when filter active + no matches. Removed pending FollowedList screen rebuild.
+- **Distinct copy for `empty-high` vs `empty-low`** — both variants share copy at v1. Separated as variants so future tuning can differ (e.g. high-volume users might benefit from "Most active politicians this week" framing).
+
+### Known limitation
+The `Manage who you follow` CTA scrolls to Browse-tab Most Active section, which shows top-3 most-active politicians overall — not the user's followed list. This is the intentional Pad B placeholder. Users can still unfollow individual politicians via TradeCard / Politician detail page in the meantime. Fix lands with 1AM-28.
+
+### Related
+- 1AM-145 — this ticket
+- 1AM-125 — preceding IA-alignment (released as v0.18.0; surfaced the user-feedback that drove this redesign)
+- 1AM-28 — FollowedList screen (parked, will replace the Manage-CTA placeholder)
+- 1AM-146 — Politician headshot images + party-data via theunitedstates.io
+- 1AM-37 — Sector + company name enrichment + klikbare sector
+
+---
+
 ## [0.18.1] — 2026-05-07
 
 Small UX-gap fix on Browse-tab Trending Tickers section (1AM-134). Tapping a ticker row in Trending now populates the search input with that ticker symbol and smooth-scrolls to Recent Trades — turning a previously read-only section into a discovery → drill-down affordance. Closes the asymmetry from v0.17.0 where Most Active politicians rows were interactive (Follow toggle) but Trending Tickers rows were dead-ends.
