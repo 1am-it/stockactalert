@@ -20,12 +20,31 @@
 // Loading state: while parent's trending-fetch is in flight, render a soft
 // skeleton (3 grey rows) so the page doesn't jump when data arrives.
 //
+// 1AM-134: rows are interactive — tap a row to filter Recent Trades by that
+// ticker. The parent passes onTickerSelect(ticker), which populates the
+// search input and smooth-scrolls to Recent Trades. Affordance: cursor-pointer,
+// hover background-shift, button semantics for keyboard support.
+//
 // Props:
-//   tickers       — array of { ticker: string, count: number }, length 0-5
-//   loading       — boolean, show skeleton while true
-//   windowLabel   — string shown in the section header right side, e.g. "7 days"
+//   tickers          — array of { ticker: string, count: number }, length 0-5
+//   loading          — boolean, show skeleton while true
+//   windowLabel      — string shown in the section header right side, e.g. "7 days"
+//   onTickerSelect   — optional callback(ticker: string). When provided, rows
+//                      become tappable buttons. When omitted, rows render as
+//                      non-interactive divs (graceful fallback).
 
-export default function TrendingTickers({ tickers = [], loading = false, windowLabel = '7 days' }) {
+import { useState } from 'react';
+
+export default function TrendingTickers({
+  tickers = [],
+  loading = false,
+  windowLabel = '7 days',
+  onTickerSelect,
+}) {
+  // 1AM-134: track which row is currently hovered so we can style it.
+  // null = no hover. Inline state pattern matches the rest of the codebase.
+  const [hoveredTicker, setHoveredTicker] = useState(null);
+
   // Hide section entirely when not loading and no data — quieter UX.
   if (!loading && tickers.length === 0) {
     return null;
@@ -102,41 +121,109 @@ export default function TrendingTickers({ tickers = [], loading = false, windowL
                 />
               </div>
             ))
-          : tickers.map(({ ticker, count }) => (
-              <div
-                key={ticker}
-                style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E8E5D8',
-                  borderRadius: 10,
-                  padding: '12px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <span
+          : tickers.map(({ ticker, count }) => {
+              const isHovered = hoveredTicker === ticker;
+              const isInteractive = typeof onTickerSelect === 'function';
+
+              // 1AM-134: when onTickerSelect is provided, render as a button
+              // for native keyboard support (Enter/Space) and aria semantics.
+              // Otherwise fall back to a non-interactive div (defensive — not
+              // expected in current usage, but keeps the component reusable).
+              if (!isInteractive) {
+                return (
+                  <div
+                    key={ticker}
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid #E8E5D8',
+                      borderRadius: 10,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "'Playfair Display', 'Lora', serif",
+                        fontSize: 16,
+                        fontWeight: 500,
+                        color: '#0D1B2A',
+                        letterSpacing: '0.3px',
+                      }}
+                    >
+                      {ticker}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: '#6B7280',
+                        fontFamily: "'DM Sans', sans-serif",
+                      }}
+                    >
+                      {count} {count === 1 ? 'trade' : 'trades'}
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={ticker}
+                  type="button"
+                  onClick={() => onTickerSelect(ticker)}
+                  onMouseEnter={() => setHoveredTicker(ticker)}
+                  onMouseLeave={() => setHoveredTicker(null)}
+                  aria-label={`Filter Recent Trades by ${ticker}`}
                   style={{
-                    fontFamily: "'Playfair Display', 'Lora', serif",
-                    fontSize: 16,
-                    fontWeight: 500,
-                    color: '#0D1B2A',
-                    letterSpacing: '0.3px',
+                    // Reset native button styling so it visually matches the
+                    // other rows on the page (Most Active, etc.). Without
+                    // this the browser default border+background bleeds through.
+                    appearance: 'none',
+                    font: 'inherit',
+                    color: 'inherit',
+                    textAlign: 'left',
+                    width: '100%',
+                    cursor: 'pointer',
+
+                    // Visual: same as old div, plus hover-state shift.
+                    // Hover background uses the warm-secondary that's also used
+                    // on the chip-rows in BrowseAllFilingsScreen — keeps the
+                    // editorial palette tight.
+                    background: isHovered ? '#F5F2E8' : '#FFFFFF',
+                    border: `1px solid ${isHovered ? '#D8D5C8' : '#E8E5D8'}`,
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition:
+                      'background 0.15s ease, border-color 0.15s ease',
                   }}
                 >
-                  {ticker}
-                </span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: '#6B7280',
-                    fontFamily: "'DM Sans', sans-serif",
-                  }}
-                >
-                  {count} {count === 1 ? 'trade' : 'trades'}
-                </span>
-              </div>
-            ))}
+                  <span
+                    style={{
+                      fontFamily: "'Playfair Display', 'Lora', serif",
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: '#0D1B2A',
+                      letterSpacing: '0.3px',
+                    }}
+                  >
+                    {ticker}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: '#6B7280',
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    {count} {count === 1 ? 'trade' : 'trades'}
+                  </span>
+                </button>
+              );
+            })}
       </div>
     </section>
   );
