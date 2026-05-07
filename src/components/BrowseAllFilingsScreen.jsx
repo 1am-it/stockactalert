@@ -61,6 +61,11 @@ import MostActivePoliticians from './MostActivePoliticians';
 import FilterSheet from './FilterSheet';
 import { useTrades } from '../hooks/useTrades';
 import { findByName } from '../lib/congress';
+import {
+  MOST_ACTIVE_TOP_N,
+  deriveInitials,
+  aggregateMostActivePoliticians,
+} from '../lib/politicianAggregation';
 import { formatRelativeTime } from '../lib/relativeTime';
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -171,79 +176,15 @@ function aggregateTopTickers(trades, topN = TRENDING_TOP_N) {
     .slice(0, topN);
 }
 
-// 1AM-124 fase 6: Most Active Politicians configuration.
-// Same adaptive-window cascade as Trending Tickers — re-uses the tier
-// definitions and threshold so behaviour is consistent across both sections.
-const MOST_ACTIVE_TOP_N = 3;
+// 1AM-124 fase 6: Most Active Politicians cascade configuration.
+// MOST_ACTIVE_TOP_N + aggregateMostActivePoliticians + deriveInitials are
+// imported from `lib/politicianAggregation` (extracted 1AM-145 so Feed-tab
+// can render its own Most Active embed using the same logic).
+//
+// MOST_ACTIVE_MIN_POLITICIANS stays here — it's the cascade threshold
+// specific to Browse-tab's adaptive window pattern (7d → 30d → all-time).
+// Feed doesn't cascade; it aggregates from already-loaded trades.
 const MOST_ACTIVE_MIN_POLITICIANS = 3;
-
-// 1AM-124 fase 6: Aggregate trades by politician, return top N most-active.
-// Resolves each trade.politician to a Member object via findByName cascade
-// (1AM-67 / 1AM-68 / 1AM-109) — same name-resolution logic the rest of the
-// app uses, so legacy aliases ("Bernie Sanders" → "Bernard Sanders") collapse
-// to one bucket.
-//
-// When findByName fails (rare — politician not in directory), we still count
-// the trade under the raw name with party/chamber from the trade record. The
-// row will render with a generic avatar and no state/bioguideId, but the
-// activity signal isn't lost. Set bioguideId to null in that case so the
-// React key is deterministic.
-//
-// initials are derived from "First Last" → "FL" or "F" if single token.
-// trade.party / trade.chamber are used as Member fallbacks when the directory
-// resolve fails.
-function deriveInitials(fullName) {
-  if (!fullName || typeof fullName !== 'string') return '?';
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function aggregateMostActivePoliticians(trades, topN = MOST_ACTIVE_TOP_N) {
-  if (!Array.isArray(trades) || trades.length === 0) return [];
-
-  // Bucket by resolved bioguideId when possible; fall back to raw name as key
-  // if directory lookup fails. The bucket key is a string either way so Map
-  // works uniformly.
-  const buckets = new Map(); // key → { name, bioguideId, party, chamber, state, count, initials }
-
-  for (const t of trades) {
-    const rawName = (t.politician || '').trim();
-    if (!rawName) continue;
-
-    const matches = findByName(rawName);
-    const member = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
-
-    const key = member?.bioguideId || rawName;
-    const existing = buckets.get(key);
-    if (existing) {
-      existing.count += 1;
-      continue;
-    }
-
-    // Prefer Member directory data (canonical name, state, bioguideId);
-    // fall back to trade-level fields when directory lookup failed.
-    const displayName = member?.name || rawName;
-    buckets.set(key, {
-      name: displayName,
-      bioguideId: member?.bioguideId || null,
-      party: member?.party || t.party || null,
-      chamber: member?.chamber || t.chamber || '',
-      state: member?.state || '',
-      count: 1,
-      initials: deriveInitials(displayName),
-    });
-  }
-
-  return Array.from(buckets.values())
-    .sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      // Stable tiebreaker: alphabetical by name.
-      return a.name.localeCompare(b.name);
-    })
-    .slice(0, topN);
-}
 
 // Inline copy of the amount-midpoint parser used in PoliticianDetailScreen.
 // Duplicated here to keep this delivery scope-tight; should be DRY-ed into
@@ -617,14 +558,20 @@ export default function BrowseAllFilingsScreen({
             as Trending (re-aggregated by politician). Each row has a Follow
             toggle wired to the App-level `selected` follows state. windowLabel
             may differ from Trending's because the threshold is checked against
-            distinct politicians, not distinct tickers. */}
-        <MostActivePoliticians
-          politicians={mostActivePoliticians}
-          loading={mostActiveLoading}
-          windowLabel={mostActiveWindowLabel}
-          followedNames={followedPoliticians}
-          onToggleFollow={onTogglePolitician}
-        />
+            distinct politicians, not distinct tickers.
+            1AM-145: id="most-active-section" is the scroll-anchor used by the
+            Feed empty-state "Manage who you follow" CTA — Pad B routes that
+            CTA to Browse-tab + scroll here as a placeholder until 1AM-28
+            (FollowedList screen) ships. */}
+        <div id="most-active-section">
+          <MostActivePoliticians
+            politicians={mostActivePoliticians}
+            loading={mostActiveLoading}
+            windowLabel={mostActiveWindowLabel}
+            followedNames={followedPoliticians}
+            onToggleFollow={onTogglePolitician}
+          />
+        </div>
 
         {/* ── Search input ────────────────────────────────────────────────── */}
         {/* Single text input. Type ticker in ALL CAPS for ticker search,
