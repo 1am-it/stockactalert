@@ -12,6 +12,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.18.1] — 2026-05-07
+
+Small UX-gap fix on Browse-tab Trending Tickers section (1AM-134). Tapping a ticker row in Trending now populates the search input with that ticker symbol and smooth-scrolls to Recent Trades — turning a previously read-only section into a discovery → drill-down affordance. Closes the asymmetry from v0.17.0 where Most Active politicians rows were interactive (Follow toggle) but Trending Tickers rows were dead-ends.
+
+Surfaced 2026-05-05 during 1AM-124 fase 9 testing as a follow-up. Implemented as a PATCH (not MINOR) — no API changes, no new components, no behavioural changes for users who don't tap a ticker row.
+
+### Added
+- **Trending Tickers tap-to-filter** (1AM-134) — tap any row in the Trending Tickers section on Browse-tab to populate the search input with that ticker symbol and smooth-scroll to the Recent Trades section. The existing debounced search filter mechanism then narrows Recent Trades to filings for that ticker. Last-action-wins: if the user already had something in the search bar, the ticker overwrites it; clearing happens via the existing X-button in the search bar. Hover state added to ticker rows (warm-cream background `#F5F2E8`, slightly darker border `#D8D5C8`) to signal the new affordance on desktop.
+
+### Changed
+- **TrendingTickers.jsx** rows are now `<button>` elements when the parent provides an `onTickerSelect` callback (same visual styling as before, just semantic upgrade for keyboard support — Enter and Space both trigger the tap). Aria-label `"Filter Recent Trades by {ticker}"` added per row for screen-reader clarity. Non-interactive `<div>` rendering preserved as a fallback path when no callback is provided, keeping the component reusable in other contexts.
+- **BrowseAllFilingsScreen.jsx** Recent Trades section header (h2) gains `id="recent-trades-section"` as the scroll-anchor target. Pure semantic addition — no visual change.
+
+### Performance & coverage notes
+- The 50ms `setTimeout` between `setSearchInput(ticker)` and `scrollIntoView` exists to give React one paint cycle to flush the state update before the scroll fires. Without it the scroll could race the result-count strip update and feel visually jumpy. Empirically reliable on test devices.
+- Native `<button>` semantics mean keyboard-only users get tap-to-filter for free (Tab to focus a row, Enter or Space to activate). No additional `tabIndex` or keypress handler needed.
+- The existing search debounce (300ms) means there's a small delay between tap and Recent Trades update — same delay users experience when typing in the search bar manually. Consistent UX, not a regression.
+
+### Out of scope (deferred)
+- **Dedicated Ticker detail page** — separate feature if user-feedback signals it
+- **+Watch toggle per ticker** — would need a watchlist concept; separate ticket
+- **Multi-ticker filter** (tap two tickers → show union) — single-ticker overwrite is the v1 model
+- **Tap-to-filter by sector** — depends on sector enrichment from 1AM-37
+
+### Related
+- 1AM-124 — parent IA-redesign (this fills a gap surfaced during fase 9 testing)
+- 1AM-133 — view-mode toggle (By ticker view-mode is the broader version of "show me trades for this ticker"; both can coexist)
+- 1AM-37 — sector enrichment (will inform a future tap-to-filter-by-sector pattern)
+
+---
+
 ## [0.18.0] — 2026-05-06
 
 Feed-tab and Alerts-tab IA-alignment with Browse-tab (1AM-125, fasen 1+2). Completes the three-tab editorial pattern from 1AM-124 by giving Feed and Alerts the same HeaderBar component (titel-only + gear-icon top-right) that Browse already uses since v0.17.0. Also introduces a small smart-default-routing tweak so first-time users land on a tab with data instead of an empty Feed.

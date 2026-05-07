@@ -561,6 +561,25 @@ export default function BrowseAllFilingsScreen({
     setSortOrder('newest');
   };
 
+  // 1AM-134: tap a Trending Tickers row → populate search input and scroll
+  // smoothly to the Recent Trades section. Last-action-wins: if user already
+  // had something in the search bar, the ticker symbol overwrites it. The
+  // user can clear by tapping the X-button in the search input (existing
+  // affordance) or by tapping a different ticker row.
+  //
+  // The 50ms timeout gives React one paint cycle to update the search input
+  // before scrollIntoView fires — avoids a race where the scroll happens
+  // before the result-count strip reflects the new filter (visually jumpy).
+  const handleTickerSelect = useCallback((ticker) => {
+    setSearchInput(ticker);
+    setTimeout(() => {
+      const target = document.getElementById('recent-trades-section');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
+  }, []);
+
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
       <div
@@ -590,6 +609,7 @@ export default function BrowseAllFilingsScreen({
           tickers={trendingTopTickers}
           loading={trendingLoading}
           windowLabel={trendingWindowLabel}
+          onTickerSelect={handleTickerSelect}
         />
 
         {/* ── Most Active Politicians (1AM-124 fase 6) ──────────────────── */}
@@ -751,8 +771,12 @@ export default function BrowseAllFilingsScreen({
             label like the other two sections — Recent Trades is filtered by
             the user's chips, not by a fixed window, so a window-label would
             be misleading. The result-count + freshness pill below stays as
-            the live stats-strip for this section. */}
+            the live stats-strip for this section.
+            1AM-134: id="recent-trades-section" is the scroll-anchor used by
+            the Trending Tickers tap-to-filter handler — tapping a ticker row
+            populates the search input and scrolls smoothly to this header. */}
         <h2
+          id="recent-trades-section"
           style={{
             fontFamily: "'Playfair Display', 'Lora', serif",
             fontSize: 18,
