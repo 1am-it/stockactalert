@@ -307,9 +307,30 @@ function App() {
             // to Browse instead of Politicians.
             onNavigateToPoliticians={() => setActiveTab('browse')}
             onShowPoliticianDetail={setDetailPolitician}
-            // 1AM-124: Show all button on FeedScreen now switches to Browse-tab
-            // (was: triggered isBrowsingAll overlay).
-            onBrowseAll={() => setActiveTab('browse')}
+            // 1AM-145: Feed empty-state CTAs route to Browse-tab with different
+            // scroll-anchors — Pad B (temporary placeholder until 1AM-28
+            // FollowedList screen ships, then onManageFollowing rewires to
+            // navigate there directly).
+            //   onBrowseAll       → Browse + scroll #recent-trades-section
+            //   onManageFollowing → Browse + scroll #most-active-section
+            // 50ms setTimeout gives React one paint cycle for the tab switch
+            // before scrollIntoView fires — same pattern as 1AM-134.
+            onBrowseAll={() => {
+              setActiveTab('browse');
+              setTimeout(() => {
+                document
+                  .getElementById('recent-trades-section')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 50);
+            }}
+            onManageFollowing={() => {
+              setActiveTab('browse');
+              setTimeout(() => {
+                document
+                  .getElementById('most-active-section')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 50);
+            }}
           />
         )}
 
