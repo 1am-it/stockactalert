@@ -48,6 +48,10 @@ import HeaderBar from './components/HeaderBar';
 // redundant. Steps simplified to 'discovery' → 'pick-politicians' → 'done'.
 // Migration of explainer content tracked in 1AM-110.
 import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
+// 1AM-28 phase 1: FollowedListScreen — full-page management surface for
+// followed politicians, reachable from the "Manage who you follow" CTA in
+// FeedScreen empty-state. Renders as a feed sub-screen (not a separate tab).
+import FollowedListScreen from './components/FollowedListScreen';
 import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
 import { useTrades } from './hooks/useTrades';
 
@@ -117,6 +121,20 @@ function App() {
   // from the gear icon in HeaderBar. Not persisted — same reasoning as
   // detailPolitician.
   const [isShowingSettings, setIsShowingSettings] = useState(false);
+  // 1AM-28: Feed sub-screen state. null = render the regular FeedScreen;
+  // 'followedList' = render FollowedListScreen instead. Same overlay pattern
+  // as detailPolitician — not persisted, returns to feed on tab-switch.
+  // Lives at App level (not inside FeedScreen) so the bottom-nav and gear
+  // icon stay wired without prop-drilling through the feed.
+  const [feedSubScreen, setFeedSubScreen] = useState(null);
+  // 1AM-28: sort preference for FollowedListScreen, persisted across sessions.
+  // Valid values: 'most-active' (default), 'alphabetical', 'recently-added'.
+  // Whitelist guards against stale or malformed localStorage values.
+  const VALID_FOLLOWED_SORT = ['most-active', 'alphabetical', 'recently-added'];
+  const [followedListSort, setFollowedListSort] = useState(() => {
+    const saved = getJSON(STORAGE_KEYS.FOLLOWED_LIST_SORT, null);
+    return VALID_FOLLOWED_SORT.includes(saved) ? saved : 'most-active';
+  });
   // 1AM-124: isBrowsingAll state removed — Browse-tab is now a top-level
   // tab (formerly an overlay reachable from FeedScreen `Show all`). The
   // `Show all` button on FeedScreen now switches activeTab to 'browse'
@@ -150,6 +168,11 @@ function App() {
   useEffect(() => {
     setJSON(STORAGE_KEYS.ACTIVE_TAB, activeTab);
   }, [activeTab]);
+
+  // 1AM-28: Persist FollowedListScreen sort preference on every change.
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.FOLLOWED_LIST_SORT, followedListSort);
+  }, [followedListSort]);
 
   const togglePolitician = (name) => {
     setFollowedPoliticians((prev) =>
@@ -247,6 +270,55 @@ function App() {
   // "Live congressional trades — filed under the STOCK Act" tagline removed
   // for visual consistency across all three tabs (Browse has no tagline,
   // Feed/Alerts shouldn't either).
+
+  // ── 1AM-28: FollowedListScreen sub-screen of Feed-tab ─────────────────────
+  // Reached from the "Manage who you follow" CTA in FeedScreen empty-state.
+  // Renders standalone (no global HeaderBar wrapper) because the screen has
+  // its own back-chevron + count + Edit-button header. TabBar stays visible.
+  // Tab-tap clears the sub-screen + switches tabs (same pattern as
+  // detailPolitician). Tapping a row opens the politician detail page —
+  // detailPolitician is checked above this block, so detail overlays the
+  // sub-screen and back from detail returns the user here.
+  if (activeTab === 'feed' && feedSubScreen === 'followedList') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
+        <FollowedListScreen
+          followedPoliticians={followedPoliticians}
+          mutedPoliticians={mutedPoliticians}
+          trades={trades}
+          sortOption={followedListSort}
+          onSortChange={setFollowedListSort}
+          onTogglePolitician={togglePolitician}
+          onToggleMute={toggleMute}
+          onShowPoliticianDetail={setDetailPolitician}
+          onBack={() => setFeedSubScreen(null)}
+          onSettingsClick={() => setIsShowingSettings(true)}
+          onAddMore={() => {
+            setActiveTab('browse');
+            setFeedSubScreen(null);
+            setTimeout(() => {
+              document
+                .getElementById('most-active-section')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+          }}
+          onSearchByName={() => {
+            setActiveTab('browse');
+            setFeedSubScreen(null);
+          }}
+        />
+        <TabBar
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            // Tab-tap closes the sub-screen AND switches tabs
+            setFeedSubScreen(null);
+            setActiveTab(tab);
+          }}
+        />
+      </div>
+    );
+  }
+
   const screenTitles = {
     feed: 'Feed',
     alerts: 'Alerts',
@@ -300,6 +372,9 @@ function App() {
         {activeTab === 'feed' && (
           <FeedScreen
             followedPoliticians={followedPoliticians}
+            // 1AM-28: pass muted list so Feed cards from muted politicians
+            // are filtered out (in both filterActive and showAll views).
+            mutedPoliticians={mutedPoliticians}
             onUnfollow={togglePolitician}
             // 1AM-124: Politicians-tab is gone; Browse-tab Most Active section
             // is the new entry point for following politicians. FeedScreen
@@ -307,14 +382,14 @@ function App() {
             // to Browse instead of Politicians.
             onNavigateToPoliticians={() => setActiveTab('browse')}
             onShowPoliticianDetail={setDetailPolitician}
-            // 1AM-145: Feed empty-state CTAs route to Browse-tab with different
-            // scroll-anchors — Pad B (temporary placeholder until 1AM-28
-            // FollowedList screen ships, then onManageFollowing rewires to
-            // navigate there directly).
+            // 1AM-145 / 1AM-28: Feed empty-state CTAs.
             //   onBrowseAll       → Browse + scroll #recent-trades-section
-            //   onManageFollowing → Browse + scroll #most-active-section
-            // 50ms setTimeout gives React one paint cycle for the tab switch
-            // before scrollIntoView fires — same pattern as 1AM-134.
+            //   onManageFollowing → FollowedListScreen sub-screen (1AM-28
+            //                       rewire from the Pad B placeholder that
+            //                       previously scrolled to Most Active).
+            // 50ms setTimeout on the Browse-bound handler gives React one
+            // paint cycle for the tab switch before scrollIntoView fires —
+            // same pattern as 1AM-134.
             onBrowseAll={() => {
               setActiveTab('browse');
               setTimeout(() => {
@@ -323,14 +398,7 @@ function App() {
                   ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }, 50);
             }}
-            onManageFollowing={() => {
-              setActiveTab('browse');
-              setTimeout(() => {
-                document
-                  .getElementById('most-active-section')
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }, 50);
-            }}
+            onManageFollowing={() => setFeedSubScreen('followedList')}
           />
         )}
 

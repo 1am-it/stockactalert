@@ -72,4 +72,8 @@ export const STORAGE_KEYS = {
   // Migrates to bioguideId-keyed format as part of 1AM-82 Phase C.
   // Currently a no-op for actual alert delivery — wired into 1AM-71 later.
   MUTED_POLITICIANS: 'mutedPoliticians',
+  // 1AM-28: persist sort preference for FollowedListScreen. Values:
+  // 'most-active' (default), 'alphabetical', 'recently-added'.
+  // Read by FollowedListScreen; falls back to 'most-active' on missing/invalid.
+  FOLLOWED_LIST_SORT: 'followedListSort',
 };
