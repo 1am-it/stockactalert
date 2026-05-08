@@ -7,8 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- Reusable FollowedList component (1AM-28, parked — activate on second consumer)
+---
+
+## [0.20.0] — 2026-05-08
+
+FollowedList management screen (1AM-28). Replaces the Pad B scroll-anchor placeholder from v0.19.0 — the "Manage who you follow" CTA in the Feed empty-state now lands on a dedicated full-page management surface instead of scrolling to Most Active in Browse-tab. Three variant-states based on follow count (0 / 1-9 / 10+), reusing the threshold convention from v0.19.0's empty-state hero so the two surfaces stay consistent.
+
+The release also makes mute a first-class concept end-to-end. Mute previously existed as a no-op preference state in PoliticianDetailScreen (1AM-69) — the toggle persisted but nothing read it. v0.20.0 wires `mutedPoliticians` through to FeedScreen so muted politicians' trades are filtered out of the Feed in both `Show followed` and `Show all` views, and adds a per-row mute toggle in the high-volume FollowedListScreen variant for quick access. Relationship-preserving suppression: muted politicians stay in the user's follow list, just don't take up Feed real-estate.
+
+Released as MINOR (not PATCH) — new top-level screen, behavioural change for the v0.19.0 CTA destination, new mute filtering semantics in FeedScreen, new persisted user preference (`followedListSort`).
+
+### Added
+
+- **`FollowedListScreen` component** — full-page surface under the Feed-tab, reachable via the "Manage who you follow" CTA in the FeedScreen empty-state. Three variants:
+  - **Variant 1 (Following 0)**: three-people SVG icon (matches the empty-zero hero icon from `FeedEmptyHero` for visual consistency), "Pick a few politicians to follow" headline, primary CTA `Browse Most Active →` (Browse-tab + scroll Most Active), secondary CTA `Search by name` (Browse-tab, lands on search bar).
+  - **Variant 2 (Following 1-9)**: rows with Avatar (party-color circle, `deriveInitials` fallback), name in Playfair Display, monospace sub-line `chamber · state · N trades` or `chamber · state · no recent activity` for zero-count politicians, filled-navy `✓ Following` toggle pill (right-aligned). Tap-on-row-body navigates to `PoliticianDetailScreen` via the split-mode pattern from `MemberListRow`. `+ Add more` button below the list (full-width, dashed border) → Browse-tab Most Active section.
+  - **Variant 3 (Following 10+)**: variant 2 row shape plus per-row mute icon (bell ↔ bell-with-slash SVG) between sub-line and Following toggle. Filter bar above the rows: search input (300ms debounce, clear-button, "No matches in your follows" empty state with Clear action), chamber-tabs (`All N` / `Senate N` / `House N` with dynamic counts; individual tab hidden when its count is 0; auto-fallback to All when active tab's count drops to 0), and sort dropdown (`Most active` default / `Alphabetical` / `Recently added`). Sort persists across sessions via localStorage.
+- **Edit mode** in variants 2 and 3 — `Edit` button top-right toggles to `Done` and replaces the navy `✓ Following` pills with red destructive `Unfollow` pills (white bg, `#DC2626` text, red-tinted border — matches the existing pattern in `PoliticianDetailScreen`). Same `onClick` handler under the hood; visual emphasis on destructive intent only. Auto-resets when count hits 0 so state doesn't persist behind variant 1.
+- **Mute filtering in `FeedScreen`** — `visibleTrades` now strips muted politicians in both `filterActive` (followed-only) and `showAll` (everyone) views. Mute is the user's explicit "don't show me this person right now" decision and overrides the show-all toggle.
+- **`STORAGE_KEYS.FOLLOWED_LIST_SORT`** — new storage key persisting the FollowedListScreen sort preference. Whitelist-guarded (`most-active` / `alphabetical` / `recently-added`); falls back to `most-active` on missing or invalid values.
+- **Muted-row visual indicator** — dimmed avatar (opacity 0.45) + small `MUTED` pill badge next to the name. Renders in both variant 2 and variant 3 even though the mute toggle icon is variant-3-only — extends the ticket's strict reading so low-volume users with mutes (set via `PoliticianDetailScreen`) still get a visual cue without leaving the screen.
+- **`feedSubScreen` state in `App.jsx`** — overlay-pattern guard (parallel to `detailPolitician`) that swaps FeedScreen for FollowedListScreen while keeping TabBar visible. Tab-tap from FollowedListScreen clears the sub-screen and switches tabs; back from detail-page returns to FollowedListScreen with state preserved.
+
+### Changed
+
+- **`onManageFollowing` handler in `App.jsx`** — rewired from the v0.19.0 Pad B placeholder (Browse-tab + scroll `#most-active-section`) to `setFeedSubScreen('followedList')`. The "Manage who you follow" CTA in the Feed empty-state now opens the dedicated management screen instead of cross-navigating to Browse.
+- **`FeedScreen` accepts `mutedPoliticians` prop** with the documented contract that mute applies regardless of the `Show all` filter toggle. Lifted from PoliticianDetailScreen-only consumption (1AM-69) to a Feed-wide filter.
+- **App.jsx render-tree** adds a new guard between detail-page and browse-tab: when `activeTab === 'feed' && feedSubScreen === 'followedList'`, FollowedListScreen renders standalone (no global HeaderBar wrapper, since it has its own back-chevron + count + Edit-button header). Order of overlays is now: settings → detail → feed sub-screen → browse-tab → default.
+
+### Out of scope (deferred)
+
+- **`PoliticianDetailScreen` mute-toggle relabel** — the existing toggle reads `Mute alerts` / `Alerts muted`, dating from before mute-affects-Feed semantics shipped. Label is now slightly imprecise (it doesn't just affect alerts) but functionally correct. Relabel deferred to a follow-up — outside 1AM-28 scope.
+- **Bulk actions** (`Unfollow all`, `Mute all`) — defer until user-feedback signals need.
+- **Undo affordance after Unfollow** — minimal v1; refollow via Browse if mistaken.
+- **Confirmation modal for destructive Unfollow** — per ticket open-design-question proposal: skip for v1.
+- **Politician headshots** in FollowedList rows — depends on 1AM-146 (theunitedstates.io). v1 uses the existing initials-based Avatar.
+- **Dark mode** for FollowedListScreen — depends on 1AM-128 design-token rollout.
+- **Animations between variant-states** — visual polish for v2.
+- **Spouse/dependent management** — not part of `selected[]` model, separate concern.
+- **Onboarding flow that brings new users here** — current onboarding pattern stays.
+
+### Known limitations
+
+- **Trade-count for name-matching-mismatch follows** (e.g. Mark Warner stored as `"Mark Warner"` while FMP returns `"Mark R. Warner"`) reads as 0 in the FollowedListScreen sub-line, so the row shows `no recent activity` even when the politician trades regularly. Affects `MostActivePoliticians` follow-state too. Tracked and scoped under 1AM-148 — fixable at the source (alias map + bioguide-fallback) in a follow-up patch.
+- **Sub-line drops the time-window label** — early design referenced "90d" but `useTrades` returns the 50 most recent filings without a fixed-window guarantee. Honest fallback: `chamber · state · N trades` (or `no recent activity` when N=0). Decision rationale in the 1AM-28 phase 1 chat log (2026-05-08).
+- **`onSettingsClick` prop on FollowedListScreen is currently unused** — accepted to keep the prop interface stable for a future iteration that may surface a more menu, but no gear icon renders on this screen per the ticket's header layout. Settings reachable via the gear on Feed/Browse/Alerts tabs.
+
+### Related
+
+- 1AM-28 — this ticket
+- 1AM-145 — parent ticket (FollowedListScreen replaces the Pad B placeholder for "Manage who you follow")
+- 1AM-69 — original mute state + PoliticianDetailScreen toggle. v0.20.0 promotes mute from no-op preference to first-class Feed-filter input.
+- 1AM-123 — overarching IA-redesign epic
+- 1AM-126 — Alerts MVP (will inherit mute semantics — muted politicians should not trigger alerts when shipped)
+- 1AM-146 — politician headshots via theunitedstates.io (Avatar upgrade benefits this screen automatically)
+- 1AM-128 — dark mode (deferred soft-blocks dark variant of this screen)
+- 1AM-147 — Vercel `v0-stockactalert` project hygiene (surfaced during 1AM-28 phase 1 testing)
+- 1AM-148 — Most Active follow-state name-matching desync (surfaced during 1AM-28 phase 1 testing; affects FollowedListScreen sub-line counts too)
 
 ---
 

@@ -37,6 +37,12 @@
 //
 // Props:
 //   followedPoliticians     — array of politician names the user follows
+//   mutedPoliticians        — array of politician names the user has muted (1AM-28).
+//                             Mute = relationship preserved, but Feed cards from
+//                             that politician are suppressed. Filter applies in
+//                             both filtered and showAll views — muting is an
+//                             explicit "don't show me this person right now"
+//                             decision that overrides the show-all toggle.
 //   onUnfollow              — toggle callback (name). Despite the legacy name,
 //                             this is wired to togglePolitician in App.jsx and
 //                             handles both follow + unfollow. Used by the
@@ -46,8 +52,10 @@
 //                             EmptyFollowedListBanner / FilterEmptyState callers)
 //   onShowPoliticianDetail  — navigate to politician detail page
 //   onBrowseAll             — navigate to Browse-tab + scroll Recent Trades (1AM-145)
-//   onManageFollowing       — navigate to Browse-tab + scroll Most Active (1AM-145
-//                             Pad B; rewires to FollowedList screen when 1AM-28 ships)
+//   onManageFollowing       — navigate to FollowedListScreen (1AM-28). Previously
+//                             a Browse-tab scroll-anchor placeholder (1AM-145
+//                             Pad B); rewired in 1AM-28 to navigate to the
+//                             dedicated management screen.
 
 import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
@@ -66,13 +74,17 @@ const FOLLOW_VOLUME_HIGH = 10;
 
 export default function FeedScreen({
   followedPoliticians = [],
+  // 1AM-28: muted politicians list lifted to App.jsx (mutedPoliticians state),
+  // passed in here so the Feed-tab filter excludes them. Mute applies in both
+  // filterActive and showAll views — the user's mute decision overrides the
+  // show-all toggle.
+  mutedPoliticians = [],
   onUnfollow,
   onNavigateToPoliticians,
   onShowPoliticianDetail,
   onBrowseAll,
-  // 1AM-145: temporary CTA for "Manage who you follow" — Pad B routes both
-  // CTAs to Browse-tab with different scroll-anchors. When 1AM-28 ships
-  // (FollowedList screen) this gets rewired to navigate there instead.
+  // 1AM-28: rewired from the 1AM-145 Pad B scroll-anchor placeholder to
+  // navigate directly to FollowedListScreen.
   onManageFollowing,
 }) {
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } = useTrades();
@@ -83,10 +95,14 @@ export default function FeedScreen({
   const hasFollowed = followedPoliticians.length > 0;
   const filterActive = hasFollowed && !showAll;
 
-  // Apply the filter client-side
-  const visibleTrades = filterActive
-    ? trades.filter((t) => followedPoliticians.includes(t.politician))
-    : trades;
+  // Apply the followed-filter client-side, then strip muted politicians.
+  // Muting is independent of the followed-filter: a muted politician is
+  // hidden in both `Show followed` and `Show all` modes.
+  const visibleTrades = (
+    filterActive
+      ? trades.filter((t) => followedPoliticians.includes(t.politician))
+      : trades
+  ).filter((t) => !mutedPoliticians.includes(t.politician));
 
   // 1AM-145: empty-state variant selection.
   //   - 0 follows                                    → 'empty-zero' (regardless of trades)
