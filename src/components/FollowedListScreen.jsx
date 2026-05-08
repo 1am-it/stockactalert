@@ -23,9 +23,10 @@
 // PoliticianDetailScreen mute toggle. The variant-3-only thing per the
 // ticket is the toggle icon (the affordance), not the indication.
 //
-// Phase 4 will read the editMode state set here and flip row affordances
-// to destructive red Unfollow + Done. No row-level Edit-modus logic in
-// phase 3 yet.
+// Phase 4: edit mode toggles destructive red Unfollow buttons in place of
+// the navy Following pills. Same onClick (calls onUnfollow), purely a
+// visual emphasis on the destructive intent. Auto-resets when count drops
+// to 0 so editMode never persists silently behind variant 1.
 
 import { useEffect, useMemo, useState } from 'react';
 import Avatar from './Avatar';
@@ -56,21 +57,11 @@ export default function FollowedListScreen({
   onAddMore,
   onSearchByName,
 }) {
-  // Edit-modus state — phase 4 reads this to flip row affordances to
-  // destructive red Unfollow + Done. Phase 3 only toggles the button label.
   const [editMode, setEditMode] = useState(false);
-
-  // Search state. searchInput is the raw input value (drives the controlled
-  // input); searchQuery is the debounced value used for filtering.
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Active chamber filter for variant 3. 'all' | 'senate' | 'house'.
-  // Not persisted across sessions — feels session-local; sort-preference
-  // persists, chamber-filter resets on reopen.
   const [chamberFilter, setChamberFilter] = useState('all');
 
-  // Debounce search input.
   useEffect(() => {
     const handle = setTimeout(() => setSearchQuery(searchInput), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
@@ -90,8 +81,6 @@ export default function FollowedListScreen({
     }
   }, [count, editMode]);
 
-  // Trade-count per politician by exact name match. Mark-Warner-class
-  // mismatches tracked in 1AM-148.
   const tradeCountByName = useMemo(() => {
     const map = new Map();
     for (const t of trades) {
@@ -100,9 +89,6 @@ export default function FollowedListScreen({
     return map;
   }, [trades]);
 
-  // Resolve each followed name → row object with directory metadata + count.
-  // addedIndex preserves insertion order from selected[] for the
-  // 'recently-added' sort (latest follows pushed to end of array).
   const allRows = useMemo(() => {
     return followedPoliticians.map((name, idx) => {
       const matches = findByName(name);
@@ -122,9 +108,6 @@ export default function FollowedListScreen({
     });
   }, [followedPoliticians, tradeCountByName, mutedSet]);
 
-  // Chamber counts for tab badges. Counts politicians whose directory
-  // chamber resolved to 'Senate' / 'House'. Politicians without directory
-  // hits (chamber === '') are counted in 'all' but not in either chamber tab.
   const senateCount = useMemo(
     () => allRows.filter((r) => r.chamber === 'Senate').length,
     [allRows]
@@ -134,8 +117,6 @@ export default function FollowedListScreen({
     [allRows]
   );
 
-  // If the active chamber tab's count drops to 0 (e.g. user unfollows the
-  // last Senator while Senate tab was active), silently fall back to All.
   useEffect(() => {
     if (chamberFilter === 'senate' && senateCount === 0) {
       setChamberFilter('all');
@@ -144,35 +125,26 @@ export default function FollowedListScreen({
     }
   }, [chamberFilter, senateCount, houseCount]);
 
-  // Filter pipeline: chamber → search → sort. Each step is a pure transform
-  // over the previous list.
   const filteredRows = useMemo(() => {
     let list = allRows;
 
-    // Chamber filter (variant 3 only — variant 2 keeps chamberFilter='all'
-    // because the tabs UI never renders).
     if (isHighVolume && chamberFilter !== 'all') {
       const wanted = chamberFilter === 'senate' ? 'Senate' : 'House';
       list = list.filter((r) => r.chamber === wanted);
     }
 
-    // Search filter (variant 3 only). Case-insensitive substring on name.
     if (isHighVolume && searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter((r) => r.name.toLowerCase().includes(q));
     }
 
-    // Sort. Phase 3 wires all three options. Variant 2 always uses
-    // most-active default (no UI to change it).
     const effectiveSort = isHighVolume ? sortOption : 'most-active';
     const sorted = [...list];
     if (effectiveSort === 'alphabetical') {
       sorted.sort((a, b) => a.name.localeCompare(b.name));
     } else if (effectiveSort === 'recently-added') {
-      // Most-recent first — selected[] pushes new follows to end.
       sorted.sort((a, b) => b.addedIndex - a.addedIndex);
     } else {
-      // 'most-active' — count desc, alphabetical tiebreaker.
       sorted.sort((a, b) => {
         if (b.count !== a.count) return b.count - a.count;
         return a.name.localeCompare(b.name);
@@ -193,7 +165,6 @@ export default function FollowedListScreen({
         fontFamily: "'DM Sans', sans-serif",
       }}
     >
-      {/* ── Header bar — back chevron + (variant 2/3 only) Edit toggle ─ */}
       <div
         style={{
           display: 'flex',
@@ -241,7 +212,6 @@ export default function FollowedListScreen({
         )}
       </div>
 
-      {/* ── Title + subtitle ───────────────────────────────────────────── */}
       <h1
         style={{
           fontFamily: "'Playfair Display', 'Lora', serif",
@@ -267,7 +237,6 @@ export default function FollowedListScreen({
           : `${count} ${count === 1 ? 'politician' : 'politicians'}`}
       </div>
 
-      {/* ── Body ───────────────────────────────────────────────────────── */}
       {count === 0 ? (
         <EmptyZeroState
           onAddMore={onAddMore}
@@ -275,8 +244,6 @@ export default function FollowedListScreen({
         />
       ) : (
         <>
-          {/* High-volume filter bar: search + chamber tabs + sort dropdown.
-              Renders only at count >= 10. */}
           {isHighVolume && (
             <HighVolumeFilters
               searchInput={searchInput}
@@ -296,8 +263,6 @@ export default function FollowedListScreen({
             />
           )}
 
-          {/* Empty-search state — only fires when search query has matches
-              that all got filtered out. */}
           {hasNoSearchMatches ? (
             <NoSearchMatchesState
               onClear={() => {
@@ -321,9 +286,6 @@ export default function FollowedListScreen({
             </div>
           )}
 
-          {/* + Add more button — present in both variant 2 and 3. Hides
-              during an active search to avoid mixing search results UX
-              with discovery affordance. */}
           {!hasActiveSearch && (
             <button
               type="button"
@@ -352,8 +314,6 @@ export default function FollowedListScreen({
     </div>
   );
 }
-
-// ── Empty-zero variant ─────────────────────────────────────────────────────
 
 function EmptyZeroState({ onAddMore, onSearchByName }) {
   return (
@@ -430,8 +390,6 @@ function EmptyZeroState({ onAddMore, onSearchByName }) {
   );
 }
 
-// ── High-volume filter bar (variant 3 only) ────────────────────────────────
-
 function HighVolumeFilters({
   searchInput,
   onSearchInputChange,
@@ -447,7 +405,6 @@ function HighVolumeFilters({
 }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      {/* Search input row. Cross-icon clear button only when there's a query. */}
       <div
         style={{
           position: 'relative',
@@ -497,9 +454,6 @@ function HighVolumeFilters({
         )}
       </div>
 
-      {/* Chamber tabs (left) + sort dropdown (right). Chamber tabs are
-          hidden individually when their count is 0. The All tab is always
-          visible whenever this row renders (we only render at count >= 10). */}
       <div
         style={{
           display: 'flex',
@@ -582,8 +536,6 @@ function ChamberTab({ label, count, active, onClick }) {
   );
 }
 
-// ── Empty-search state (variant 3 only) ────────────────────────────────────
-
 function NoSearchMatchesState({ onClear }) {
   return (
     <div
@@ -626,8 +578,6 @@ function NoSearchMatchesState({ onClear }) {
     </div>
   );
 }
-
-// ── Politician row (variants 2 + 3) ────────────────────────────────────────
 
 function PoliticianRow({
   row,
@@ -724,10 +674,6 @@ function PoliticianRow({
         </div>
       </button>
 
-      {/* Mute toggle — variant 3 only per ticket. The muted-status indicator
-          (dimmed avatar + Muted pill above) renders in both variants when
-          isMuted is true, so users with 1-9 follows still see at a glance
-          which politicians are muted. */}
       {showMuteIcon && (
         <button
           type="button"
@@ -859,7 +805,6 @@ function formatSubline({ chamber, state, count }) {
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
-// Three-people icon for empty-zero (matches FeedEmptyHero).
 function PeopleIcon() {
   return (
     <svg
@@ -884,7 +829,6 @@ function PeopleIcon() {
   );
 }
 
-// Bell icon — not muted state. Inline SVG; design system bans emoji.
 function BellIcon() {
   return (
     <svg
@@ -904,8 +848,6 @@ function BellIcon() {
   );
 }
 
-// Bell-with-slash icon — muted state. Filled-grey version signals "active
-// suppression" rather than "available action".
 function BellSlashIcon() {
   return (
     <svg
