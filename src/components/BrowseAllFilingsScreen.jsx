@@ -67,11 +67,13 @@
 //   onSettingsClick  — 1AM-124: opens SettingsScreen overlay via the gear
 //                      icon in HeaderBar.
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TradeCard from './TradeCard';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
 import FilterSheet from './FilterSheet';
+import FilterPill from './FilterPill';
+import FilterSummaryLine from './FilterSummaryLine';
 import { useTrades } from '../hooks/useTrades';
 import { formatRelativeTime } from '../lib/relativeTime';
 
@@ -189,6 +191,35 @@ export default function BrowseAllFilingsScreen({
   // /api/trades/stats. null while loading or on error → footer falls back
   // to a copy without the "of N" total.
   const [archiveTotal, setArchiveTotal] = useState(null);
+
+  // 1AM-153: ref to the search input so the search-pill body-tap can return
+  // focus to a freshly-revealed input with cursor at the end of the value
+  // (edit-affordance per design Q&A 2026-05-09). Without this, tap-on-pill
+  // would just remove the pill and the user would have to find the input
+  // and click into it manually.
+  const searchInputRef = useRef(null);
+
+  // 1AM-153: search-pill swap state. Decouples input visibility from
+  // debouncedSearch, so toggling between pill-mode and input-mode doesn't
+  // disturb the search query itself (no flicker, no premature backend
+  // refetch). Default true (input visible) — auto-switches to false when
+  // a search becomes active (debouncedSearch non-empty), and gets toggled
+  // back to true when the user taps the pill body to edit.
+  const [isSearchInputMode, setIsSearchInputMode] = useState(true);
+
+  // Auto-switch to pill-mode when search becomes active. Effectively: as
+  // soon as the debounced search settles to a non-empty value, hide the
+  // input and reveal the pill. Conversely, when search clears (empty
+  // debouncedSearch) and we're in pill-mode, switch back to input-mode so
+  // the user can type again. Keeps the two states coordinated without the
+  // pill component having to know about debounce timing.
+  useEffect(() => {
+    if (debouncedSearch && isSearchInputMode) {
+      setIsSearchInputMode(false);
+    } else if (!debouncedSearch && !isSearchInputMode) {
+      setIsSearchInputMode(true);
+    }
+  }, [debouncedSearch, isSearchInputMode]);
 
   // Debounce the search input to avoid hitting the API on every keystroke.
   useEffect(() => {
@@ -365,48 +396,57 @@ export default function BrowseAllFilingsScreen({
         />
 
         {/* ── Search input ────────────────────────────────────────────────── */}
-        {/* Single text input. Type ticker in ALL CAPS for ticker search,
-            otherwise treated as politicus name substring. */}
-        <div
-          style={{
-            position: 'relative',
-            marginBottom: 12,
-          }}
-        >
-          <span
+        {/* 1AM-153: search-pill swap UX. Input renders when isSearchInputMode
+            is true (default + after pill-tap-to-edit). When user submits a
+            search, the auto-switch effect flips to pill-mode and hides this
+            input — same content, different control-affordance. Tap pill
+            body → input returns with value+focus+cursor-at-end. Tap pill
+            × → searchInput clears, mode flips back to input, input is empty.
+            The two states share `searchInput` state directly, so debounce +
+            backend-search behaviour is unaffected. */}
+        {isSearchInputMode && (
+          <div
             style={{
-              position: 'absolute',
-              left: 10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              fontSize: 13,
-              color: '#9CA3AF',
-              fontFamily: "'DM Sans', sans-serif",
-              pointerEvents: 'none',
+              position: 'relative',
+              marginBottom: 12,
             }}
           >
-            🔍
-          </span>
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by politician or stock…"
-            aria-label="Search filings by politician name or stock ticker"
-            style={{
-              width: '100%',
-              padding: '10px 12px 10px 32px',
-              background: '#FFFFFF',
-              border: '1px solid #E5E7EB',
-              borderRadius: 10,
-              fontSize: 13,
-              color: '#0D1B2A',
-              fontFamily: "'DM Sans', sans-serif",
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
+            <span
+              style={{
+                position: 'absolute',
+                left: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 13,
+                color: '#9CA3AF',
+                fontFamily: "'DM Sans', sans-serif",
+                pointerEvents: 'none',
+              }}
+            >
+              🔍
+            </span>
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by politician or stock…"
+              aria-label="Search filings by politician name or stock ticker"
+              style={{
+                width: '100%',
+                padding: '10px 12px 10px 32px',
+                background: '#FFFFFF',
+                border: '1px solid #E5E7EB',
+                borderRadius: 10,
+                fontSize: 13,
+                color: '#0D1B2A',
+                fontFamily: "'DM Sans', sans-serif",
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
 
         {/* ── Filter row (1AM-124 fase 8) ──────────────────────────────── */}
         {/* Direction chips on the left (replaces the old "Action" row),
@@ -503,10 +543,88 @@ export default function BrowseAllFilingsScreen({
           </button>
         </div>
 
+        {/* ── Active filter pills (1AM-153) ──────────────────────────────── */}
+        {/* Pills row above the count strip. Each pill represents one
+            currently-applied filter dimension. Pills appear/disappear based
+            on whether their underlying state is at the default value.
+
+            Search-pill UX (per design Q&A 2026-05-09):
+              - × removes search → input returns empty
+              - body tap returns the input pre-filled with the current value
+                + focused + cursor-at-end so the user can edit instead of
+                retyping. Without focus + cursor positioning, the affordance
+                is dead and clearing+retyping would be faster.
+
+            Implementation: `isSearchInputMode` local flag decouples input
+            visibility from `debouncedSearch` value, avoiding a data-flicker
+            where setSearchInput('') would trigger a 250ms debounce window
+            during which the trade list re-fetches with no search filter.
+            With the flag, search-input value stays intact while toggling
+            between input-mode and pill-mode purely for display.
+
+            Action-pill: only renders when actionFilter !== 'all'. No edit-
+            affordance — actions are binary (Buy/Sell), pill × is sufficient.
+
+            Amount-pill (1AM-154 dependency): not yet present — will plug
+            into this same row via the same FilterPill component when
+            1AM-154 ships.
+
+            Chamber + time-period are NOT pillified — chamber stays as
+            tabs (handled in FilterSheet), time-period has its own chip
+            treatment (1AM-152). Sort isn't a filter, no pill. */}
+        {(debouncedSearch || actionFilter !== 'all') && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 6,
+              marginBottom: 12,
+            }}
+          >
+            {debouncedSearch && !isSearchInputMode && (
+              <FilterPill
+                label={debouncedSearch}
+                onRemove={() => {
+                  // × clears search → input returns empty (per design
+                  // contract). searchInput cleared first, then mode swap
+                  // so the rebuilt input renders with empty value.
+                  setSearchInput('');
+                  setIsSearchInputMode(true);
+                }}
+                onClick={() => {
+                  // Body tap → return to input mode with current value
+                  // intact + focus + cursor at end. searchInput already
+                  // holds the value; we just toggle visibility.
+                  setIsSearchInputMode(true);
+                  // Focus + cursor positioning happens in a microtask
+                  // after React mounts the input element.
+                  setTimeout(() => {
+                    if (searchInputRef.current) {
+                      searchInputRef.current.focus();
+                      const len = searchInput.length;
+                      searchInputRef.current.setSelectionRange(len, len);
+                    }
+                  }, 0);
+                }}
+              />
+            )}
+            {actionFilter !== 'all' && (
+              <FilterPill
+                label={actionFilter === 'buy' ? 'Buy only' : 'Sell only'}
+                onRemove={() => setActionFilter('all')}
+              />
+            )}
+          </div>
+        )}
+
         {/* ── Result count + freshness ────────────────────────────────────── */}
         {/* 1AM-151: Recent Trades h2 header removed (redundant — entire
-            screen is filings). Result-count line stays as the live stats-
-            strip. */}
+            screen is filings).
+            1AM-153: count strip refactored to use FilterSummaryLine — same
+            visual treatment as Feed FilterBar. contextParts stays empty for
+            Browse v1 (filter-context labels like "NVDA · Senate" are an
+            optional v2 polish; the active-filter pills above already
+            communicate which filters are on). */}
         {!loading && !error && (
           <div
             style={{
@@ -518,10 +636,10 @@ export default function BrowseAllFilingsScreen({
               flexWrap: 'wrap',
             }}
           >
-            <span style={{ fontSize: 12, color: '#0D1B2A' }}>
-              {visibleTrades.length}{' '}
-              {visibleTrades.length === 1 ? 'filing' : 'filings'} shown
-            </span>
+            <FilterSummaryLine
+              count={visibleTrades.length}
+              noun="filing"
+            />
             {newTradeCount > 0 && (
               <span
                 style={{
