@@ -39,6 +39,13 @@ Browse v3 redesign in progress (1AM-150 umbrella). Sub-tickets shipping incremen
   - Show-all mode now reads `124 trades · from all politicians` instead of the bare `SHOWING ALL RECENT TRADES`. Communicates magnitude relative to followed-only mode without requiring an explicit population total. Folded from 1AM-151 phase 4 smoke-test feedback.
   - Refresh + Show all/followed buttons unchanged.
 
+- **Browse-tab time-range chips (1AM-152)**:
+  - New chip-row above the "More filters →" link: `Past 7d` / `Past 30d` / `Past 90d`. Default `Past 30d`. Reuses `SingleChipGroup` for visual consistency with the Action chip row above it.
+  - **"This week" pill removed** (1AM-124 fase 8 quick-toggle). Replaced by the canonical 3-chip row — single source of truth for time-period state, no toggle ambiguity.
+  - **`All time` and `Past year` options dropped from the codebase entirely**. `TIME_PERIOD_OPTIONS` slimmed from 5 to 3 entries; `TIME_PERIOD_DAYS` lookup slimmed; `computeSince('all')` early-return removed (unreachable path). If "All time" is needed later, an explicit chip should be added — no hidden enum values restored.
+  - **`Time period` section removed from FilterSheet**. The bottom-sheet now contains only Chamber + Sort. `timePeriod` + `onTimePeriodChange` props dropped from FilterSheet. Time-range is canonical state on Browse-tab now, not a sheet-secondary filter.
+  - Filter-zone layout: three rows with consistent 8px row-gap inside the chunk (Action chips → Time-range chips → More filters link), 12px section-break to the active-filter pills row below.
+
 ### Out of scope (deferred)
 
 - **Politician headshots in Most Active rows** — depends on 1AM-146.
