@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Browse v3 redesign in progress (1AM-150 umbrella). Sub-tickets shipping incrementally to dev; v0.21.0 cuts when all 5 sub-tickets are merged.
+
+### Changed
+
+- **Browse-tab layout reset (1AM-151)**:
+  - Header: `Browse` → `Recent Filings · last 30 days`. New `subtitle` prop on `HeaderBar` for the time-window communication.
+  - Trending Tickers section removed from Browse render-tree. Component file (`src/components/TrendingTickers.jsx`) and `aggregateTopTickers` helper parked — no consumers, may resurface in a future Tickers/Watchlist surface.
+  - Most Active Politicians section removed from Browse render-tree. Component file (`src/components/MostActivePoliticians.jsx`) stays — Feed-tab is now its sole consumer.
+  - "Recent Trades" h2 header removed (redundant when the entire screen is filings).
+  - 3-cascade `useTrades` calls (7d/30d/all-time) for Trending+MostActive sources removed. Single `useTrades(searchFilters)` is now the only fetch on this screen — fewer API calls per Browse-tab visit.
+  - `BrowseAllFilingsScreen` props slimmed: dropped `followedPoliticians` + `onTogglePolitician` (only consumer was the removed Most Active row).
+
+- **Feed-tab Most Active for active users (1AM-151)**:
+  - Most Active section now renders below the feed for users with 1+ follows, in addition to the existing empty-state embed (1AM-145). Uses the same `useTrades()` data (unfiltered set), no separate fetch.
+  - **Discovery-value check**: section is hidden when every politician in the top-N is already followed by the user — would otherwise be a redundant list adding noise instead of signal. Empty-state behaviour unchanged (always renders even if all top-N are unknown to the user).
+  - `aggregateMostActivePoliticians` (already extracted to `src/lib/politicianAggregation.js` in 1AM-145) now drives both render contexts — empty-state embed and active-user footer.
+
+### Out of scope (deferred)
+
+- **`Show all` toggle count hint** (e.g. "Showing 24 of 124 trades from everyone") — surfaced during 1AM-151 phase 4 smoke test as UX clarification opportunity. Folded into 1AM-153 active-filter pills work; will be implemented as part of the unified filter-summary line treatment.
+- **Politician headshots in Most Active rows** — depends on 1AM-146.
+
 ---
 
 ## [0.20.1] — 2026-05-09
