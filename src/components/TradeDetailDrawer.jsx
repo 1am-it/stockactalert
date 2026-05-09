@@ -14,9 +14,18 @@
 //     ("Filed via FMP · Original disclosure not yet linked") — honest gap
 //     marker until 1AM-157 wires the disclosureUrl through the data layer.
 //
-// Phase 3 will add Follow + View all trades action row.
-// Phase 4 will make the sector text tap-to-filter (wires sectorFilter
-// state in BrowseAllFilingsScreen).
+// Phase 3 (action row, 2026-05-09): Follow [FirstName] / ✓ Following
+// primary CTA + outlined "View all trades" secondary navigation to
+// PoliticianDetailScreen. Drawer dismisses inside onViewProfile so the
+// transition feels clean.
+//
+// Phase 4 (sector tap-to-filter, 2026-05-09): sector text in the Bought-
+// block becomes tappable when onSectorClick is provided. Tap dismisses
+// drawer + activates Browse sectorFilter with the sector value. "Tap
+// sector to filter" muted hint serves as discoverability cue. The pill
+// in the active-filter row is the only entry-point to clear the filter
+// (per design Q&A — no hidden state).
+//
 // Phase 5 will add the Related filings section.
 // Phase 6 will add the swipe-down gesture.
 //
@@ -74,6 +83,7 @@ export default function TradeDetailDrawer({
   isFollowing = false,
   onToggleFollow,
   onViewProfile,
+  onSectorClick,
 }) {
   // Ref to the scrollable content area. Phase 6 will read scrollTop to gate
   // the swipe-down gesture; phase 1+ wires the ref so structure is in place.
@@ -317,25 +327,64 @@ export default function TradeDetailDrawer({
               {trade.ticker}
             </div>
 
-            {/* Company name · sector. Sector is rendered non-interactive in
-                phase 2; phase 4 will make it tappable to activate the Browse
-                sector filter. Hide the line entirely when both are missing
-                (unknown ticker like BRK.B from the 1AM-37 sectors miss). */}
+            {/* Company name · sector. Phase 4: sector becomes tap-to-filter
+                when sectorName + onSectorClick are both available, with a
+                "Tap sector to filter" muted hint below as discoverability
+                cue. The sector renders as a button with underline-on-hover
+                styling so the affordance reads as link-like (similar to
+                "More filters →" in Browse). When sectorName is empty
+                (unknown ticker), the entire sector segment is hidden — no
+                tappable affordance for missing data.
+                Hide the hint when no sectorName OR no onSectorClick handler
+                so there's no false promise. */}
             {(companyName || sectorName) && (
-              <div
-                style={{
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: 14,
-                  color: '#0D1B2A',
-                  marginBottom: 18,
-                }}
-              >
-                {companyName}
-                {companyName && sectorName && (
-                  <span style={{ color: '#9CA3AF' }}> · </span>
-                )}
-                {sectorName && (
-                  <span style={{ color: '#6B7280' }}>{sectorName}</span>
+              <div style={{ marginBottom: 18 }}>
+                <div
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 14,
+                    color: '#0D1B2A',
+                  }}
+                >
+                  {companyName}
+                  {companyName && sectorName && (
+                    <span style={{ color: '#9CA3AF' }}> · </span>
+                  )}
+                  {sectorName && (
+                    typeof onSectorClick === 'function' ? (
+                      <button
+                        type="button"
+                        onClick={() => onSectorClick(sectorName)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: 0,
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 14,
+                          color: '#6B7280',
+                          textDecoration: 'underline',
+                          textDecorationColor: '#D1D5DB',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {sectorName}
+                      </button>
+                    ) : (
+                      <span style={{ color: '#6B7280' }}>{sectorName}</span>
+                    )
+                  )}
+                </div>
+                {sectorName && typeof onSectorClick === 'function' && (
+                  <div
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 11,
+                      color: '#9CA3AF',
+                      marginTop: 4,
+                    }}
+                  >
+                    Tap sector to filter
+                  </div>
                 )}
               </div>
             )}
@@ -469,7 +518,7 @@ export default function TradeDetailDrawer({
             </button>
           </div>
 
-          {/* Phase 4-5 placeholder: sector tap-to-filter + Related filings */}
+          {/* Phase 5 placeholder: Related filings section */}
           <div
             style={{
               fontFamily: "'DM Sans', sans-serif",
@@ -479,7 +528,7 @@ export default function TradeDetailDrawer({
               padding: '12px 0',
             }}
           >
-            Sector tap-to-filter + Related filings land in phases 4–5.
+            Related filings section lands in phase 5.
           </div>
         </div>
       </div>
