@@ -34,6 +34,7 @@ import { findByName } from '../lib/congress';
 import { fullStateName } from '../lib/states';
 import { ACTIONS } from '../data/schema';
 import { useTradesByPolitician } from '../hooks/useTradesByPolitician';
+import { lookupSector } from '../lib/sectors';
 
 // Range-string → numeric midpoint estimate. Best effort; FMP amounts come
 // in formats like "$50K - $100K" or "$1M - $5M" or sometimes "$1,001 - $15,000".
@@ -408,24 +409,67 @@ export default function PoliticianDetailScreen({
               marginBottom: 8,
             }}
           >
-            {netPositions.map(({ ticker, netMidpoint }, idx) => (
-              <div
-                key={ticker}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  borderBottom:
-                    idx < netPositions.length - 1 ? '1px solid #F3F4F6' : 'none',
-                  fontSize: 13,
-                }}
-              >
-                <span style={{ fontWeight: 700, color: '#0D1B2A' }}>{ticker}</span>
-                <span style={{ color: '#374151', fontFamily: 'monospace', fontSize: 12 }}>
-                  {formatMidpointLabel(netMidpoint)}
-                </span>
-              </div>
-            ))}
+            {netPositions.map(({ ticker, netMidpoint }, idx) => {
+              // 1AM-159: enrich row with companyName + sector when sectors.json
+              // has data for this ticker. Graceful fallback to ticker-only when
+              // lookupSector returns undefined (~14% of production tickers per
+              // 2026-05-09 coverage audit). Layout matches drawer Bought-block
+              // typography (1AM-70 phase 2): DM Sans, muted-gray secondary line.
+              const sectorInfo = lookupSector(ticker);
+              const companyName = sectorInfo?.companyName || '';
+              const sectorName = sectorInfo?.sector || '';
+              const hasSecondary = companyName || sectorName;
+              return (
+                <div
+                  key={ticker}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    padding: '10px 14px',
+                    borderBottom:
+                      idx < netPositions.length - 1 ? '1px solid #F3F4F6' : 'none',
+                    fontSize: 13,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                    <span style={{ fontWeight: 700, color: '#0D1B2A' }}>{ticker}</span>
+                    {hasSecondary && (
+                      <span
+                        style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 12,
+                          color: '#6B7280',
+                          marginTop: 2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {companyName}
+                        {companyName && sectorName && (
+                          <span style={{ color: '#D1D5DB' }}> · </span>
+                        )}
+                        {sectorName && (
+                          <span style={{ color: '#9CA3AF' }}>{sectorName}</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    style={{
+                      color: '#374151',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      flexShrink: 0,
+                      marginLeft: 12,
+                    }}
+                  >
+                    {formatMidpointLabel(netMidpoint)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
         <p
