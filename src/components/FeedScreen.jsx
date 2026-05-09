@@ -119,15 +119,32 @@ export default function FeedScreen({
     emptyVariant = followingCount < FOLLOW_VOLUME_HIGH ? 'empty-low' : 'empty-high';
   }
 
-  // 1AM-145: Most Active aggregation for the "While you wait" embed.
-  // Aggregates from already-loaded trades — no separate cascade fetch like
-  // BrowseAllFilingsScreen does. Acceptable simplification for v1: we use
-  // whatever data useTrades has on hand. Window label communicates this
-  // honestly ("recent" rather than a precise "this week").
+  // 1AM-145 / 1AM-151: Most Active aggregation drives two surfaces:
+  //   - Empty-state takeover (1AM-145): "While you wait — Most Active" embed
+  //     for users with 0 follows. Discovery affordance.
+  //   - Active-user feed footer (1AM-151): same component below the filings
+  //     list as secondary discovery. Only renders when there's discovery
+  //     value — i.e. when at least one of the top-N most active politicians
+  //     is NOT yet followed by the user. Otherwise it's a redundant list of
+  //     people they already follow, which adds noise instead of signal.
+  //
+  // Aggregates from `trades` (the unfiltered set returned by useTrades —
+  // followed-filter is applied client-side via `visibleTrades` only). No
+  // separate cascade fetch — uses whatever data useTrades has on hand.
+  // Window label "recent" reflects this honestly.
   const mostActiveTopPoliticians = useMemo(() => {
-    if (!emptyVariant) return []; // skip aggregation when not rendering empty-state
     return aggregateMostActivePoliticians(trades);
-  }, [trades, emptyVariant]);
+  }, [trades]);
+
+  // 1AM-151: discovery-value check for active-user rendering. If every
+  // politician in the top-N is already followed, the section adds no
+  // discovery value — hide it. Empty-state always renders the section
+  // (showing already-followed names is fine when the user has nothing).
+  const hasUnfollowedInTopN = useMemo(() => {
+    if (mostActiveTopPoliticians.length === 0) return false;
+    const followedSet = new Set(followedPoliticians);
+    return mostActiveTopPoliticians.some((p) => !followedSet.has(p.name));
+  }, [mostActiveTopPoliticians, followedPoliticians]);
 
   // ── Compute active vs inactive split (1AM-26) ──────────────────────────────
   // For each followed politician: active if they have ≥1 trade in `trades`,
@@ -318,6 +335,26 @@ export default function FeedScreen({
          Only shown when filter is active AND there's at least 1 active match. */}
       {filterHasMatches && inactivePoliticians.length > 0 && (
         <NoRecentActivitySection inactivePoliticians={inactivePoliticians} />
+      )}
+
+      {/* 1AM-151: Most Active politicians as discovery affordance for active
+          users. Renders below the feed (and below the inactive section if
+          present) so it doesn't push the personal feed down. Hidden when:
+          - The aggregation produced 0 politicians (degenerate empty case)
+          - Every top-N politician is already followed (no discovery value;
+            see `hasUnfollowedInTopN` for the check)
+          The component itself reuses the same shape as the empty-state
+          embed — same row layout, same Follow toggle wiring. */}
+      {hasUnfollowedInTopN && (
+        <div style={{ marginTop: 24 }}>
+          <MostActivePoliticians
+            politicians={mostActiveTopPoliticians}
+            loading={loading}
+            windowLabel="recent"
+            followedNames={followedPoliticians}
+            onToggleFollow={onUnfollow}
+          />
+        </div>
       )}
     </div>
   );
