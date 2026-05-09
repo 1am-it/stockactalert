@@ -29,6 +29,7 @@
 
 import { useMemo } from 'react';
 import TradeCard from './TradeCard';
+import Avatar from './Avatar';
 import { findByName } from '../lib/congress';
 import { fullStateName } from '../lib/states';
 import { ACTIONS } from '../data/schema';
@@ -218,6 +219,15 @@ export default function PoliticianDetailScreen({
     ? `${member.chamber} · ${member.party} · ${stateLabel}`
     : 'Member metadata unavailable';
 
+  // 1AM-146 / 1AM-74: header avatar — photo via bioguideId when resolved,
+  // initials fallback otherwise (handles unmatched names + 404s gracefully).
+  const headerInitials = politicianName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div
       style={{
@@ -249,6 +259,21 @@ export default function PoliticianDetailScreen({
         >
           ← Back
         </button>
+
+        {/* ── Header avatar (1AM-146 / 1AM-74) ──────────────────────────
+            Politicus photo via Avatar component. Falls back to initials
+            block when bioguideId is unresolvable or upstream portrait
+            unavailable. Sits above the Playfair title so long names
+            ("Marjorie Taylor Greene") don't compete for horizontal space
+            with the avatar on narrow viewports. */}
+        <div style={{ marginBottom: 14 }}>
+          <Avatar
+            bioguideId={member?.bioguideId}
+            initials={headerInitials}
+            party={member?.party}
+            size="xl"
+          />
+        </div>
 
         {/* ── Header ────────────────────────────────────────────────── */}
         <h1

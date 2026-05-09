@@ -57,6 +57,7 @@ function Sparkline({ data = [], snp = [], color = '#059669', width = 72, height 
 export default function PoliticianCard({ politician, onClick }) {
   const {
     name,
+    bioguideId,
     initials,
     party,
     chamber,
@@ -102,7 +103,7 @@ export default function PoliticianCard({ politician, onClick }) {
         }}
       >
         {/* Avatar */}
-        <Avatar initials={initials} party={party} size="md" />
+        <Avatar bioguideId={bioguideId} initials={initials} party={party} size="md" />
 
         {/* Name + party + committees */}
         <div style={{ flex: 1, minWidth: 0 }}>

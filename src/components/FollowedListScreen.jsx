@@ -627,7 +627,12 @@ function PoliticianRow({
         }}
       >
         <div style={{ opacity: row.isMuted ? 0.45 : 1, transition: 'opacity 0.15s' }}>
-          <Avatar initials={row.initials} party={row.party} size="md" />
+          <Avatar
+            bioguideId={row.bioguideId}
+            initials={row.initials}
+            party={row.party}
+            size="md"
+          />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div

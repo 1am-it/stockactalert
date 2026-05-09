@@ -55,10 +55,16 @@ export default function MemberListRow({ member, isSelected, onToggle, onClickRow
     transition: 'background 120ms ease, border-color 120ms ease',
   };
 
+  const photoUrl =
+    member.bioguideId && /^[A-Za-z]\d{6}$/.test(member.bioguideId)
+      ? `https://unitedstates.github.io/images/congress/225x275/${member.bioguideId}.jpg`
+      : null;
+
   const bodyContent = (
     <>
       <div
         style={{
+          position: 'relative',
           flexShrink: 0,
           width: 36,
           height: 36,
@@ -70,9 +76,32 @@ export default function MemberListRow({ member, isSelected, onToggle, onClickRow
           justifyContent: 'center',
           fontSize: 12,
           fontWeight: 700,
+          overflow: 'hidden',
+          // Selected state: keep the photo visible, add a dark ring outside.
+          // Unselected: party-color bg shows through (and behind photo).
+          boxShadow: isSelected ? '0 0 0 2px #1F2937' : 'none',
         }}
       >
         {member.initials}
+        {photoUrl && (
+          <img
+            src={photoUrl}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center 20%',
+            }}
+          />
+        )}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
