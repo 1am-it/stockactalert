@@ -11,6 +11,33 @@ _No unreleased changes yet._
 
 ---
 
+## [0.21.1] — 2026-05-09
+
+Politician headshots from the public-domain `unitedstates/images` dataset (1AM-146). Photos render across every Avatar surface — TradeCards, Most Active section, drawer header + related filings rows, FollowedListScreen, OnboardingPickPoliticians, PoliticianCard, and the PoliticianDetailScreen header (1AM-74). Joint trades show the politicus photo (mede-actor); spouse/dependent stay initials-only (privacy of non-public figures). Newly-appointed members may display initials until upstream publishes their portrait — photos auto-populate as upstream data updates, no app update required. PATCH bump because no schema changes, no new API surfaces, purely visual enrichment of an existing primitive.
+
+### Added
+
+- **Politician headshots via `Avatar` component upgrade (1AM-146)** — `Avatar.jsx` now accepts an optional `bioguideId` prop. When provided, renders a `<img>` from `https://unitedstates.github.io/images/congress/225x275/{bioguideId}.jpg` over the existing initials block. On `onError` (404, network failure, missing portrait) the image is hidden and the initials fallback remains visible — graceful degradation without layout shift. Lazy-loaded via `loading="lazy"`. Defensive bioguideId regex guard (`/^[A-Za-z]\d{6}$/`) rejects malformed input before constructing a URL.
+- **`bioguideId` plumbed through every Avatar consumer** — `TradeCard`, `TradeDetailDrawer` (header + related filings rows), `PoliticianCard`, `MostActivePoliticians`, `FollowedListScreen`, `MemberListRow`. `TradeCard` and `TradeDetailDrawer` resolve the bioguideId via the existing `findByName` cascade (trades come raw from FMP without a bioguide field, so name-resolution is the bridge); the other consumers already had `bioguideId` in their local data and now pass it through.
+- **PoliticianDetailScreen header avatar (1AM-74)** — closes the visual inconsistency where heavy traders showed photos in feed/drawer surfaces but reverted to initials-only on their detail page. Photo sits above the Playfair title at `xl` size (64px) so long names ("Marjorie Taylor Greene") retain horizontal space on narrow viewports.
+- **Photo credits card under Settings** — new "Credits" section acknowledges the public-domain `unitedstates/images` dataset under CC0 1.0, with links to the upstream repo and the CC0 deed. Sits below the existing "Settings — coming soon" placeholder.
+
+### Changed
+
+- **`MemberListRow` selected-state visual treatment** — previously the selected state replaced the party-color avatar background with `#1F2937` (dark). With photos now rendering inside the same circle, replacing the background would have hidden the politicus's face. New treatment: photo stays visible, dark ring (`box-shadow: 0 0 0 2px #1F2937`) appears outside the circle to communicate selection. Initials-only fallback unchanged.
+
+### Owner-type photo asymmetry
+
+- `self` and `joint` trades show the politicus photo — politicus is actor (or mede-actor) of the transaction. Joint trades are **not** family-only; the politicus signed the disclosure as participant.
+- `spouse` and `dependent` trades show initials only — these are private individuals (non-public figures) per the GDPR / privacy rationale documented in 1AM-146. Owner-pill on the trade card disambiguates visually.
+
+### Operational notes
+
+- **Coverage trigger for Stage B** — if photo coverage among the top-50 most-traded politici drops below 90% over a sustained period, revisit Stage B (`photo-overrides.json` with manual Wikipedia/Senate-portrait URLs for newly-appointed members). Not ticketed — measurable trigger for future re-evaluation.
+- **No schema changes, no new API surfaces, no new external dependencies** at runtime — photos are hotlinked directly from `unitedstates.github.io`. Self-hosting via Supabase storage remains a Stage B option if upstream uptime degrades below 95%.
+
+---
+
 ## [0.21.0] — 2026-05-09
 
 Browse v3 redesign — six sub-tickets ship together (1AM-150 umbrella). Layout reset (1AM-151), time-range chips (1AM-152), active-filter pills (1AM-153), amount filter (1AM-154), and trade detail drawer (1AM-70). The sector data layer (1AM-37) already landed in v0.20.1 as silent foundation; v0.21.0 turns Browse-tab from a static list into a discovery surface — tap any trade for the full drawer (header, action row, sector tap-to-filter, related filings), with mobile swipe-down dismiss. MINOR bump because the user-visible surface is meaningfully expanded.
@@ -814,7 +841,9 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/1am-it/stockactalert/compare/v0.21.0...v0.21.1
+[0.21.0]: https://github.com/1am-it/stockactalert/compare/v0.20.1...v0.21.0
 [0.12.1]: https://github.com/1am-it/stockactalert/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/1am-it/stockactalert/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/1am-it/stockactalert/compare/v0.11.0...v0.11.1
