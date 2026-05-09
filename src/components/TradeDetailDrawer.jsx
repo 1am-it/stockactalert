@@ -455,11 +455,13 @@ export default function TradeDetailDrawer({
             flexGrow: 1,
           }}
         >
-          {/* ── Header (1AM-70 phase 2) ─────────────────────────────────── */}
+          {/* ── Header (1AM-70 phase 2, photos via 1AM-146) ──────────────── */}
           {/* Avatar + politicus name (Playfair) + secondary chamber line.
-              Avatar uses initials fallback; when 1AM-146 ships (politician
-              headshots), the existing Avatar component auto-upgrades to
-              photo via its existing prop interface. */}
+              Photo from unitedstates/images via Avatar's bioguideId prop —
+              graceful initials fallback if bioguideId missing or photo 404s.
+              Family-trade asymmetry: spouse/dependent trades show initials
+              only (politicus is not the actor). Joint trades DO show photo
+              (politicus is mede-actor of the transaction). */}
           <div
             style={{
               display: 'flex',
@@ -469,7 +471,16 @@ export default function TradeDetailDrawer({
               marginTop: 8,
             }}
           >
-            <Avatar initials={initials} party={trade.party} size="lg" />
+            <Avatar
+              bioguideId={
+                ['self', 'joint'].includes(trade.owner || 'self')
+                  ? member?.bioguideId
+                  : null
+              }
+              initials={initials}
+              party={trade.party}
+              size="lg"
+            />
             <div style={{ minWidth: 0, flexGrow: 1 }}>
               <div
                 style={{
@@ -776,6 +787,15 @@ export default function TradeDetailDrawer({
                   const isBuy = rt.action === 'buy';
                   const actionColor = isBuy ? '#059669' : '#DC2626';
                   const actionLabel = isBuy ? '▲ BUY' : '▼ SELL';
+                  // 1AM-146: resolve photo per related-row. Spouse/dependent
+                  // rows skip the photo (initials only); self/joint rows show
+                  // the politicus photo (mede-actor of the joint transaction).
+                  const rtOwner = rt.owner || 'self';
+                  const rtMatches = ['self', 'joint'].includes(rtOwner)
+                    ? findByName(rt.politician)
+                    : [];
+                  const rtBioguideId =
+                    rtMatches.length > 0 ? rtMatches[0].bioguideId : null;
                   return (
                     <button
                       key={rt.id}
@@ -799,9 +819,10 @@ export default function TradeDetailDrawer({
                       }}
                     >
                       <Avatar
-                        name={rt.politician}
+                        bioguideId={rtBioguideId}
                         size="sm"
                         initials={getInitials(rt.politician)}
+                        party={rt.party}
                       />
                       <span
                         style={{

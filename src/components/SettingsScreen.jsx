@@ -81,6 +81,7 @@ export default function SettingsScreen({ onBack }) {
             borderRadius: '16px',
             border: '1px solid #E5E7EB',
             textAlign: 'center',
+            marginBottom: 16,
           }}
         >
           <div
@@ -118,6 +119,61 @@ export default function SettingsScreen({ onBack }) {
             }}
           >
             This screen is built in a later ticket
+          </div>
+        </div>
+
+        {/* 1AM-146: Photo credits / data acknowledgements card.
+            Subtle "About" section that documents the public-domain source of
+            politician photos. Card style matches the placeholder above. */}
+        <div
+          style={{
+            padding: '16px 20px',
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            border: '1px solid #E5E7EB',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#6B7280',
+              marginBottom: 10,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Credits
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: '#374151',
+              lineHeight: 1.5,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Politician photos are sourced from the{' '}
+            <a
+              href="https://github.com/unitedstates/images"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#0D1B2A', textDecoration: 'underline' }}
+            >
+              unitedstates/images
+            </a>{' '}
+            project, dedicated to the public domain under{' '}
+            <a
+              href="https://creativecommons.org/publicdomain/zero/1.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#0D1B2A', textDecoration: 'underline' }}
+            >
+              CC0 1.0
+            </a>
+            . Trade data via Financial Modeling Prep, derived from STOCK Act
+            disclosures filed with the U.S. Senate and House of Representatives.
           </div>
         </div>
       </div>

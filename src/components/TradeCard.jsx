@@ -19,6 +19,7 @@ import { useState } from 'react';
 import Avatar from './Avatar';
 import { PartyBadge, ChamberBadge, SourceBadge } from './Badge';
 import { formatShortDate, formatFiledRelative, isLateFiling } from '../lib/dates';
+import { findByName } from '../lib/congress';
 
 // 1AM-65: shared style for the inline name-row pills (Following + owner).
 // Same shape, different colours — kept inline so the pills are self-contained.
@@ -87,11 +88,27 @@ export default function TradeCard({
     .slice(0, 2)
     .toUpperCase();
 
+  // 1AM-146: resolve bioguideId via the existing findByName cascade so the
+  // Avatar can render a real photo when available. Trades come raw from FMP
+  // without a bioguide field, so name-resolution is the bridge. Falls back
+  // gracefully — if findByName returns no match (or owner is family), the
+  // bioguideId is null and Avatar shows initials only.
   // 1AM-65: owner is 'self' by default → no owner pill rendered.
   // Trade-level `owner` prop overrides trade.owner if the parent supplies one,
   // letting screens like an unfollowed-Discovery feed override behaviour later.
   const effectiveOwner = owner || trade.owner || 'self';
   const showOwnerPill = effectiveOwner !== 'self';
+
+  // Family-member trades (spouse/dependent) deliberately do NOT receive
+  // a politician photo — those are public figures' private family, not the
+  // public-figure themselves (per 1AM-146 family-trade fallback rule).
+  // Joint trades DO receive a photo: the politicus is mede-actor of the
+  // transaction, so showing their photo is consistent with treating them
+  // as the public-figure participant.
+  const isPublicFigureActor =
+    effectiveOwner === 'self' || effectiveOwner === 'joint';
+  const matches = isPublicFigureActor ? findByName(trade.politician) : [];
+  const bioguideId = matches.length > 0 ? matches[0].bioguideId : null;
 
   return (
     <div
@@ -139,7 +156,7 @@ export default function TradeCard({
         >
           {/* Left: avatar + name + badges */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <Avatar initials={initials} party={trade.party} size="sm" />
+            <Avatar bioguideId={bioguideId} initials={initials} party={trade.party} size="sm" />
             <div>
               <div
                 style={{

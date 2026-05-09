@@ -152,7 +152,12 @@ export default function MostActivePoliticians({
                     gap: 12,
                   }}
                 >
-                  <Avatar initials={p.initials} party={p.party} size="md" />
+                  <Avatar
+                    bioguideId={p.bioguideId}
+                    initials={p.initials}
+                    party={p.party}
+                    size="md"
+                  />
 
                   {/* Name + chamber/state + trade count.
                       Layout: name on top line, "Chamber · State · N trades"
