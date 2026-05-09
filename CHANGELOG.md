@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Browse v3 redesign in progress (1AM-150 umbrella). Sub-tickets shipping incrementally to dev; v0.21.0 cuts when all 5 sub-tickets are merged.
 
+### Added
+
+- **`src/components/FilterPill.jsx` (1AM-153)** — generic active-filter pill component. One pill = one active filter dimension. Click × to clear, click body (when `onClick` provided) for edit-affordance. Used by Browse for search-pill swap UX; designed to be filter-type-agnostic so 1AM-152 (time-range chips) and 1AM-154 (amount filter) can plug into the same primitive without per-type styling drift.
+- **`src/components/FilterSummaryLine.jsx` (1AM-153)** — generic count + context summary line. Single source of truth for the small meta-strip that tells users what they're looking at. Replaces both Browse's inline count strip and Feed's bespoke monospace label. Muted gray sentence-case typography reflects secondary-meta status (filter-summary is not primary content).
+
 ### Changed
 
 - **Browse-tab layout reset (1AM-151)**:
@@ -24,9 +29,18 @@ Browse v3 redesign in progress (1AM-150 umbrella). Sub-tickets shipping incremen
   - **Discovery-value check**: section is hidden when every politician in the top-N is already followed by the user — would otherwise be a redundant list adding noise instead of signal. Empty-state behaviour unchanged (always renders even if all top-N are unknown to the user).
   - `aggregateMostActivePoliticians` (already extracted to `src/lib/politicianAggregation.js` in 1AM-145) now drives both render contexts — empty-state embed and active-user footer.
 
+- **Browse-tab active-filter pills (1AM-153)**:
+  - Pills row above the count strip when search or action filters are active. Search-pill renders as `NVDA ×`; action-pill as `Buy only ×` / `Sell only ×`. Pill × clears that filter; search-pill body tap returns input pre-filled with current value, focused, cursor at end (edit-affordance).
+  - Search-pill swap UX implemented via `isSearchInputMode` flag — input visible until user blurs (Enter / tab / click-elsewhere), at which point it collapses to a pill. Decouples mode-switch from debounce timing so users typing slower than 250ms/char don't get interrupted mid-word (initial implementation triggered the swap on every debounce settle, hotfixed to blur-trigger 2026-05-09).
+  - Inline count strip replaced with `<FilterSummaryLine>` — same typography contract as Feed FilterBar.
+
+- **Feed-tab FilterBar typography (1AM-153)**:
+  - Replaced bespoke monospace-uppercase label (`24 TRADES FROM THE 4 POLITICIANS YOU FOLLOW`, originally 1AM-66) with `<FilterSummaryLine>` (`24 trades · from the 4 politicians you follow`). Muted gray sentence-case, consistent with Browse-tab.
+  - Show-all mode now reads `124 trades · from all politicians` instead of the bare `SHOWING ALL RECENT TRADES`. Communicates magnitude relative to followed-only mode without requiring an explicit population total. Folded from 1AM-151 phase 4 smoke-test feedback.
+  - Refresh + Show all/followed buttons unchanged.
+
 ### Out of scope (deferred)
 
-- **`Show all` toggle count hint** (e.g. "Showing 24 of 124 trades from everyone") — surfaced during 1AM-151 phase 4 smoke test as UX clarification opportunity. Folded into 1AM-153 active-filter pills work; will be implemented as part of the unified filter-summary line treatment.
 - **Politician headshots in Most Active rows** — depends on 1AM-146.
 
 ---
