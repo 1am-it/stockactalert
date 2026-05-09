@@ -147,8 +147,15 @@ export default function TradeDetailDrawer({ trade, onClose }) {
 
   // "Filed Xd after trade" copy. Reuses the existing formatFiledRelative
   // helper so the phrasing matches TradeCard ("filed 7 days later"). The
-  // helper handles same-day, late-filing, and missing-date cases.
-  const filedRelative = formatFiledRelative(trade.filedDate, trade.tradeDate);
+  // helper returns lowercase (designed for inline use after a date prefix
+  // in TradeCard); drawer renders standalone, so we capitalise the first
+  // character manually for a complete-sentence read.
+  // text-transform: capitalize CSS would title-case every word ("Filed 7
+  // Days Later") which reads as a label, not a sentence — phase 2 hotfix2.
+  const filedRelativeRaw = formatFiledRelative(trade.filedDate, trade.tradeDate);
+  const filedDisplay = filedRelativeRaw
+    ? filedRelativeRaw.charAt(0).toUpperCase() + filedRelativeRaw.slice(1)
+    : 'Filing date unknown';
 
   return (
     <>
@@ -348,21 +355,19 @@ export default function TradeDetailDrawer({ trade, onClose }) {
               {trade.amount || '—'}
             </div>
 
-            {/* Filed-relative line. Reuses existing formatFiledRelative so
-                the phrasing matches TradeCard ("filed 7 days later"). The
-                helper returns the full phrase including the word "filed",
-                so we don't prepend our own "Filed " — that would render as
-                "Filed filed 7 days later" (1AM-70 phase 2 hotfix). */}
+            {/* Filed-relative line. Capitalised once at the start (manual,
+                not via text-transform: capitalize which would title-case
+                every word — phase 2 hotfix2). Phrasing matches TradeCard's
+                "filed 7 days later" with just the first letter promoted. */}
             <div
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: 13,
                 color: '#6B7280',
                 marginBottom: 12,
-                textTransform: 'capitalize',
               }}
             >
-              {filedRelative || 'Filing date unknown'}
+              {filedDisplay}
             </div>
 
             {/* Source attribution + honest disclosure-link gap (1AM-157).
