@@ -13,8 +13,16 @@
 // Refresh cycle: re-run `npm run query:top-tickers` + `npm run fetch:sectors`
 // every few months (or after major archive growth). Static data — no live
 // runtime fetch from FMP.
+//
+// Note on JSON import: we use the bare `import x from './x.json'` form
+// (without `with { type: 'json' }`). Vite handles this natively, and
+// Vercel's esbuild-based Edge Function bundler also accepts it. Avoid the
+// `with`-syntax here because it's transitively imported by api/trades.js
+// (Edge Function), and esbuild's bundler version on Vercel rejects the
+// import attribute despite Node 22 supporting it natively. The bare form
+// works on both targets — established pattern across the JS ecosystem.
 
-import sectorsData from '../data/sectors.json' with { type: 'json' };
+import sectorsData from '../data/sectors.json';
 
 // Pre-build a Map from the JSON for O(1) lookup. Frozen to prevent accidental
 // mutation. Keys are ticker symbols as stored in sectors.json (uppercase).
