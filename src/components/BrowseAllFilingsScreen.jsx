@@ -243,6 +243,43 @@ export default function BrowseAllFilingsScreen({
   // Cleared via the active-filter pill × — only entry-point to clear, per
   // design Q&A 2026-05-09 (no hidden state, pill must be the affordance).
   const [sectorFilter, setSectorFilter] = useState(null);
+
+  // 1AM-70 phase 5: related filings for the drawer's "Related filings in
+  // [Sector]" section. Computed when selectedTrade has a known sector;
+  // returns up to 3 OTHER trades in the same sector, sorted by tradeDate
+  // descending (most-recent first).
+  //
+  // Source: allFetchedTrades — the complete fetched set, NOT visibleTrades.
+  // This is intentional: related filings are a discovery affordance and
+  // should surface trades regardless of the user's current filters
+  // (chamber, action, amount, etc.). If we used visibleTrades a chamber
+  // filter on Senate would hide House trades in the same sector — wrong
+  // mental model. The drawer's section headline ("Related filings in
+  // Financials") promises sector-scoped, not filter-scoped.
+  //
+  // Empty array when:
+  //   - no selectedTrade
+  //   - selectedTrade has unknown sector (lookupSector miss)
+  //   - no other trades in that sector
+  // Drawer hides the entire section (header + body) when empty per design.
+  const relatedTrades = useMemo(() => {
+    if (!selectedTrade) return [];
+    const currentSector = lookupSector(selectedTrade.ticker)?.sector;
+    if (!currentSector) return [];
+    return allFetchedTrades
+      .filter((t) => {
+        if (t.id === selectedTrade.id) return false;
+        return lookupSector(t.ticker)?.sector === currentSector;
+      })
+      .sort((a, b) => {
+        // tradeDate is YYYY-MM-DD; lexicographic sort = chronological sort.
+        // Descending = most recent first.
+        if (b.tradeDate < a.tradeDate) return -1;
+        if (b.tradeDate > a.tradeDate) return 1;
+        return 0;
+      })
+      .slice(0, 3);
+  }, [selectedTrade, allFetchedTrades]);
   // 1AM-124 fase 8: filter sheet open/close state. The secondary filters
   // (Chamber, Time period, Sort) live behind a "More filters →" link to keep
   // the main view clean. Direction chips (Action) and the This week pill stay
@@ -1011,6 +1048,19 @@ export default function BrowseAllFilingsScreen({
           // filter is its × — no hidden state per design Q&A.
           setSectorFilter(sectorName);
           setSelectedTrade(null);
+        }}
+        relatedTrades={relatedTrades}
+        onRelatedTradeClick={(trade) => {
+          // 1AM-70 phase 5: drawer content swap. Setting selectedTrade to
+          // a different trade triggers the drawer to re-render with the
+          // new trade's data — header, Bought-block, related filings all
+          // update. No dismiss-and-reopen animation; the drawer stays
+          // mounted, content hot-swaps. relatedTrades useMemo recomputes
+          // for the new trade, so the section now shows OTHER trades in
+          // the new trade's sector (which is the same sector since they
+          // were grouped that way to begin with — but the current trade
+          // exclusion shifts).
+          setSelectedTrade(trade);
         }}
       />
     </div>

@@ -26,7 +26,14 @@
 // in the active-filter row is the only entry-point to clear the filter
 // (per design Q&A — no hidden state).
 //
-// Phase 5 will add the Related filings section.
+// Phase 5 (Related filings, 2026-05-09): "Related filings in [Sector]"
+// section below the action row. Up to 3 other trades from the same
+// sector, sorted by tradeDate DESC, current trade excluded. Row layout
+// is single-line on 375px: avatar (initials in circle, no name text) +
+// ticker + action label + abbreviated amount range + tradeDate. Tap
+// row → onRelatedTradeClick hot-swaps drawer content (no dismiss/re-
+// open). Section returns null entirely when relatedTrades is empty.
+//
 // Phase 6 will add the swipe-down gesture.
 //
 // Animation: pure CSS keyframes for the open animation (250ms slideUp +
@@ -44,7 +51,7 @@ import Avatar from './Avatar';
 import { findByName } from '../lib/congress';
 import { formatChamberLine } from '../lib/formatChamberLine';
 import { lookupSector } from '../lib/sectors';
-import { formatFiledRelative } from '../lib/dates';
+import { formatFiledRelative, formatShortDate } from '../lib/dates';
 
 // Source-name display map. trade.source is the raw key ('fmp', 'finnhub',
 // etc.); the source attribution line in the Bought-block reads better with
@@ -77,6 +84,58 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+// Compact amount range for the Related filings rows (1AM-70 phase 5).
+// Inputs come straight from the FMP feed normalised in schema.js, e.g.
+// "$1,001 - $15,000" → "$1K–$15K", "$1,000,001 - $5,000,000" → "$1M–$5M".
+//
+// Why abbreviate: drawer related-rows are single-line on 375px viewport
+// with avatar + ticker + action + amount + date. Full ranges like
+// "$1,001 - $15,000" eat the budget; abbreviated forms keep all five
+// elements on one line at minor accuracy cost (we lose the exact
+// thousands, but magnitude is what matters for "is this a big or small
+// position" scanning).
+//
+// Falls back to the original string on parse failure (no regex match,
+// non-numeric input) so unknown formats degrade gracefully rather than
+// crash. En-dash (–) used as separator to match the rest of the app's
+// range typography (1AM-37 sectors policy).
+function abbreviateAmount(amountStr) {
+  if (!amountStr) return '—';
+  const cleaned = String(amountStr).replace(/[$,]/g, '').replace(/–|—/g, '-');
+  const parts = cleaned.split('-').map((s) => s.trim()).filter(Boolean);
+
+  const formatNum = (raw) => {
+    const num = parseFloat(raw);
+    if (!Number.isFinite(num)) return null;
+    if (num >= 1_000_000) {
+      const millions = num / 1_000_000;
+      // Whole-millions render without decimal (e.g. $5M, not $5.0M);
+      // sub-10M with a real fractional part renders with one decimal
+      // (e.g. $1.5M). The .0 strip catches values like 1.000001 that
+      // round-to-1.0 — gives "$1M" not "$1.0M".
+      if (millions >= 10 || Number.isInteger(millions)) {
+        return `$${Math.round(millions)}M`;
+      }
+      return `$${millions.toFixed(1).replace(/\.0$/, '')}M`;
+    }
+    if (num >= 1_000) {
+      return `$${Math.round(num / 1_000)}K`;
+    }
+    return `$${num}`;
+  };
+
+  if (parts.length === 2) {
+    const lo = formatNum(parts[0]);
+    const hi = formatNum(parts[1]);
+    if (lo && hi) return `${lo}–${hi}`;
+  }
+  if (parts.length === 1) {
+    const single = formatNum(parts[0]);
+    if (single) return single;
+  }
+  return amountStr; // graceful fallback
+}
+
 export default function TradeDetailDrawer({
   trade,
   onClose,
@@ -84,6 +143,8 @@ export default function TradeDetailDrawer({
   onToggleFollow,
   onViewProfile,
   onSectorClick,
+  relatedTrades = [],
+  onRelatedTradeClick,
 }) {
   // Ref to the scrollable content area. Phase 6 will read scrollTop to gate
   // the swipe-down gesture; phase 1+ wires the ref so structure is in place.
@@ -518,18 +579,122 @@ export default function TradeDetailDrawer({
             </button>
           </div>
 
-          {/* Phase 5 placeholder: Related filings section */}
-          <div
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              color: '#9CA3AF',
-              fontSize: 12,
-              textAlign: 'center',
-              padding: '12px 0',
-            }}
-          >
-            Related filings section lands in phase 5.
-          </div>
+          {/* ── Related filings section (1AM-70 phase 5) ─────────────────── */}
+          {/* Renders only when there are related trades to show. Empty array
+              (no selectedTrade sector / no other trades in same sector) →
+              entire block (header + body) returns null per design Q&A
+              2026-05-09: no header-with-empty-body rendering, drawer's
+              bottom-padding stays consistent with-or-without this section.
+
+              Source = parent's relatedTrades useMemo, computed against
+              allFetchedTrades (NOT visibleTrades) so the sector-scoped
+              promise of "Related filings in [Sector]" isn't undermined by
+              the user's active filters.
+
+              Row tap → onRelatedTradeClick(trade) hot-swaps drawer content
+              without dismiss/re-open animation. Drawer stays mounted, the
+              useMemos recompute for the new trade.
+
+              Politicus identity = avatar with initials in the circle, no
+              accompanying name string per design Q&A 2026-05-09. The full
+              name surfaces on PoliticianDetailScreen via "View all trades"
+              navigation; row-density on 375px viewport doesn't survive an
+              extra name string per row × 3 rows.
+
+              Redundancy is accepted by design — if the same politicus
+              appears in all 3 rows that's a discovery signal ("active in
+              this sector"), not noise to dedupe. */}
+          {relatedTrades.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: '#6B7280',
+                  marginBottom: 12,
+                }}
+              >
+                Related filings{sectorName ? ` in ${sectorName}` : ''}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {relatedTrades.map((rt) => {
+                  const isBuy = rt.action === 'buy';
+                  const actionColor = isBuy ? '#059669' : '#DC2626';
+                  const actionLabel = isBuy ? '▲ BUY' : '▼ SELL';
+                  return (
+                    <button
+                      key={rt.id}
+                      type="button"
+                      onClick={() =>
+                        typeof onRelatedTradeClick === 'function' &&
+                        onRelatedTradeClick(rt)
+                      }
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 12px',
+                        background: '#FFFFFF',
+                        border: '1px solid #F3F4F6',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        fontFamily: "'DM Sans', sans-serif",
+                        textAlign: 'left',
+                        transition: 'background 0.15s ease, border-color 0.15s ease',
+                      }}
+                    >
+                      <Avatar
+                        name={rt.politician}
+                        size="sm"
+                        initials={getInitials(rt.politician)}
+                      />
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 14,
+                          color: '#0D1B2A',
+                          minWidth: 0,
+                        }}
+                      >
+                        {rt.ticker}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: actionColor,
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {actionLabel}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: '#6B7280',
+                        }}
+                      >
+                        {abbreviateAmount(rt.amount)}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: '#9CA3AF',
+                          marginLeft: 'auto',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {formatShortDate(rt.tradeDate)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
