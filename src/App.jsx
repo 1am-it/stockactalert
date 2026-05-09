@@ -52,6 +52,7 @@ import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
 // followed politicians, reachable from the "Manage who you follow" CTA in
 // FeedScreen empty-state. Renders as a feed sub-screen (not a separate tab).
 import FollowedListScreen from './components/FollowedListScreen';
+import BrowsePoliticiansScreen from './components/BrowsePoliticiansScreen';
 import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
 import { useTrades } from './hooks/useTrades';
 
@@ -294,13 +295,13 @@ function App() {
           onBack={() => setFeedSubScreen(null)}
           onSettingsClick={() => setIsShowingSettings(true)}
           onAddMore={() => {
-            setActiveTab('browse');
-            setFeedSubScreen(null);
-            setTimeout(() => {
-              document
-                .getElementById('most-active-section')
-                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 50);
+            // 1AM-161: re-route from Browse-tab trades-list (misleading
+            // affordance — "Add more" promised politici but delivered
+            // trades) to the new BrowsePoliticiansScreen sub-screen.
+            // Drops the stale most-active-section scroll-anchor (1AM-151
+            // moved Most Active out of Browse-tab; the anchor no longer
+            // exists in the DOM).
+            setFeedSubScreen('browsePoliticians');
           }}
           onSearchByName={() => {
             setActiveTab('browse');
@@ -311,6 +312,29 @@ function App() {
           activeTab={activeTab}
           onTabChange={(tab) => {
             // Tab-tap closes the sub-screen AND switches tabs
+            setFeedSubScreen(null);
+            setActiveTab(tab);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // 1AM-160: BrowsePoliticiansScreen sub-screen route. Reachable via the
+  // FollowedListScreen "Add more" CTA once 1AM-161 re-routes that callback;
+  // currently routable via direct state set for testing. Tab-tap clears
+  // sub-screen state and switches tabs (same pattern as followedList route).
+  if (activeTab === 'feed' && feedSubScreen === 'browsePoliticians') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
+        <BrowsePoliticiansScreen
+          followedPoliticians={followedPoliticians}
+          onTogglePolitician={togglePolitician}
+          onBack={() => setFeedSubScreen('followedList')}
+        />
+        <TabBar
+          activeTab={activeTab}
+          onTabChange={(tab) => {
             setFeedSubScreen(null);
             setActiveTab(tab);
           }}
@@ -371,10 +395,19 @@ function App() {
       >
         {/* 1AM-125 fase 1: HeaderBar replaces the previous inline h1+p block.
             Same component as Browse-tab uses internally — title in Playfair
-            32px navy + gear icon top-right that opens SettingsScreen. */}
+            32px navy + gear icon top-right that opens SettingsScreen.
+            1AM-160: people-icon entry-point to FollowedListScreen passed in
+            for the Feed-tab only. Browse + Alerts continue to render
+            gear-only header. */}
         <HeaderBar
           title={currentTitle}
           onSettingsClick={() => setIsShowingSettings(true)}
+          {...(activeTab === 'feed'
+            ? {
+                followingCount: followedPoliticians.length,
+                onManageFollowingClick: () => setFeedSubScreen('followedList'),
+              }
+            : {})}
         />
 
         {/* ── Active tab content ── */}

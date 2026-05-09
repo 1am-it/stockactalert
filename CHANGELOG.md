@@ -11,6 +11,28 @@ _No unreleased changes yet._
 
 ---
 
+## [0.22.0] — 2026-05-09
+
+New surface: **BrowsePoliticiansScreen** (1AM-160) — full ~536-member Congress directory accessible from the Feed-tab via a new people-icon entry-point in the header. Closes the discovery gap that opened when 1AM-123 (3-tab IA redesign) dropped the dedicated Politicians-tab. Use cases restored: "follow my Arizona senators without waiting for them to appear in the feed", "browse who I'm not yet following", "filter by chamber/party deliberately outside one-time onboarding". MINOR bump because of the new user-facing surface + new shared component + HeaderBar API extension.
+
+### Added
+
+- **`src/components/BrowsePoliticiansScreen.jsx` (1AM-160)** — directory-browse screen reached as a sub-screen of FollowedListScreen. Header shows "Browse Politicians" + "Following N of 536" count. Search + Chamber + Party filters via the shared picker. Followed-state visible per-row (filled star/checkmark via MemberListRow). Tap row → toggle follow directly (no confirm dialog). `Done` and `← Back` both return to FollowedListScreen.
+- **`src/components/PoliticianPickerList.jsx` (1AM-160)** — presentational component extracted from `OnboardingPickPoliticians` so two surfaces consume the same search + filter + member-list behaviour without drift. Search debounce, Chamber + Party chip filters, optional "Suggested for you" section (gated by `showSuggested` prop, default true for onboarding, false for directory mode), filtered member list with `content-visibility: auto` perf hint, empty state. Auto-clears active filters on add (next pick happens against broader directory).
+- **`HeaderBar` people-icon entry-point (1AM-160)** — optional `followingCount` + `onManageFollowingClick` props render a people-icon button with count-badge to the left of the gear-icon. Active Feed-tab now has a permanent path to FollowedListScreen → BrowsePoliticiansScreen, not only via empty-state Hero. Pattern-match with Twitter/X, Bluesky etc. — "manage who I follow" sits in chrome (header), not in content controls. Browse + Alerts callers continue to render gear-only header (props omitted).
+
+### Changed
+
+- **`OnboardingPickPoliticians.jsx` refactored to thin wrapper (1AM-160)** — search + filter + member-list behaviour moved into `PoliticianPickerList`. Wrapper now only owns the page title, intro copy, and sticky footer with `Continue (N selected)` button. Onboarding flow behaviour identical to v0.21.2 (regression-tested in smoke test).
+- **`FollowedListScreen` "Add more" CTA re-routed (1AM-161)** — previously the CTA navigated to Browse-tab trades-list with a now-stale `most-active-section` scroll-anchor (1AM-151 moved Most Active out of Browse-tab in v0.21.0). Now opens BrowsePoliticiansScreen directly. Fixes the misleading affordance — the button promised "more politici" but delivered "more trades, possibly from politici you don't follow".
+
+### Out of scope (future tickets)
+
+- "Done" button visibility behind TabBar in BrowsePoliticiansScreen — minor cosmetic on tall directory; `← Back` and tab-tap both work as alternative exits. Polish for follow-up if reported.
+- People-icon entry-point on Browse + Alerts headers — currently Feed-only. Probably not needed (FollowedListScreen access is more relevant when scanning your own activity), but easy to add via the same HeaderBar props if asked.
+
+---
+
 ## [0.21.2] — 2026-05-09
 
 Patch release fixing a 502 error on the `/api/trades/by-politician` Edge Function (1AM-158). FMP moved `senate-trades-by-name` and `house-trades-by-name` behind a paid tier (402 Payment Required), causing both chamber calls to fail and surface as 502 to clients. Same pattern as 1AM-37 (sp500-constituent paywall). Migrated the endpoint to query the Supabase archive (1AM-114) instead — same external contract, no FMP calls, no paywall risk for this surface going forward.
@@ -861,7 +883,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.21.2...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/1am-it/stockactalert/compare/v0.21.2...v0.22.0
 [0.21.2]: https://github.com/1am-it/stockactalert/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/1am-it/stockactalert/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/1am-it/stockactalert/compare/v0.20.1...v0.21.0

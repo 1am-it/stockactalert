@@ -1,0 +1,149 @@
+// 1AM-160: BrowsePoliticiansScreen — full-directory politicus browse for
+// in-app follow management.
+//
+// Surfaced as a sub-screen of FollowedListScreen via the "Add more" CTA
+// (re-routing to this screen lives in 1AM-161 — the existing CTA still
+// points at Browse-tab trades-list until that ticket lands, so this screen
+// is reachable only via the App.jsx feedSubScreen route added in 1AM-160).
+//
+// Closes the discovery gap that opened when 1AM-123 (3-tab IA redesign)
+// dropped the Politicians-tab from the v6 vision in favour of Browse-tab.
+// Use cases this restores:
+//   - "I want to follow my Arizona senators" — browse + filter to find
+//     them without waiting for them to appear in the feed
+//   - "Who am I not yet following?" — browse to find new politici outside
+//     the Most Active section
+//   - "Filter by chamber/party to expand my follow-set deliberately" —
+//     previously only available during one-time onboarding
+//
+// Layout:
+//   - Header: ← Back + "Browse Politicians" + count "Following N of M"
+//   - Body: <PoliticianPickerList showSuggested={false} ...>
+//     (suggestions hidden — user is here BECAUSE they already follow ≥1)
+//   - Sticky footer: Done button → returns to FollowedListScreen
+//   - TabBar via App.jsx wrapper (sub-screen consistency with FollowedList)
+//
+// Selection semantics:
+//   - Filled star/checkmark in MemberListRow indicates currently followed
+//   - Tap row to toggle follow/unfollow directly (no confirm dialog)
+//   - No section split for "Already following" — sort stays consistent
+//     with onboarding (alphabetic / activity-based via applyFilters)
+
+import PoliticianPickerList from './PoliticianPickerList';
+import { MEMBERS } from '../lib/congress';
+
+export default function BrowsePoliticiansScreen({
+  followedPoliticians,
+  onTogglePolitician,
+  onBack,
+}) {
+  const totalMembers = MEMBERS.length;
+  const followingCount = followedPoliticians.length;
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#FAFAF7',
+        fontFamily: "'DM Sans', sans-serif",
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          maxWidth: 720,
+          width: '100%',
+          margin: '0 auto',
+          padding: '24px 24px 120px',
+        }}
+      >
+        {/* Back link — consistent with FollowedListScreen / detail screen
+            chevron-and-text styling. */}
+        <button
+          onClick={onBack}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            padding: '4px 0',
+            fontSize: 13,
+            color: '#6B7280',
+            cursor: 'pointer',
+            fontFamily: "'DM Sans', sans-serif",
+            marginBottom: 14,
+          }}
+        >
+          ← Back
+        </button>
+
+        {/* Title + count meta-line. Count uses monospace + muted gray
+            (consistent with existing meta-line typography). */}
+        <h1
+          style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: 28,
+            fontWeight: 700,
+            color: '#0D1B2A',
+            lineHeight: 1.1,
+            margin: 0,
+            marginBottom: 6,
+          }}
+        >
+          Browse Politicians
+        </h1>
+        <div
+          style={{
+            fontSize: 12,
+            fontFamily: 'monospace',
+            color: '#6B7280',
+            letterSpacing: '0.04em',
+            marginBottom: 24,
+          }}
+        >
+          Following {followingCount} of {totalMembers}
+        </div>
+
+        <PoliticianPickerList
+          selected={followedPoliticians}
+          onToggle={onTogglePolitician}
+          showSuggested={false}
+        />
+      </div>
+
+      {/* Sticky footer — Done returns to FollowedListScreen. Symmetric with
+          onboarding's Continue but semantically different: directory-mode
+          allows leaving with zero selections (you can unfollow everyone). */}
+      <div
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          background: 'rgba(250, 250, 247, 0.95)',
+          backdropFilter: 'blur(8px)',
+          borderTop: '1px solid #E5E7EB',
+          padding: '16px 24px',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 12,
+        }}
+      >
+        <button
+          onClick={onBack}
+          style={{
+            padding: '12px 28px',
+            background: '#0D1B2A',
+            color: '#FAFAF7',
+            border: 'none',
+            borderRadius: 10,
+            fontSize: 14,
+            fontWeight: 700,
+            fontFamily: "'DM Sans', sans-serif",
+            cursor: 'pointer',
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
