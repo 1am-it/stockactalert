@@ -104,23 +104,31 @@ const ACTION_OPTIONS = [
   { value: 'sell', label: 'Sell' },
 ];
 
+// 1AM-152 (2026-05-09): time-period chips on Browse-tab now drive these
+// options directly. Slimmed from 5 entries (added 'all' + 'pastYear') to 3
+// for the chip-row contract: 7d / 30d / 90d. The 'all' and 'pastYear'
+// options were dropped per Browse v3 design Q&A — anything beyond 90d in a
+// recency-driven discovery view is rarely useful (STOCK Act 45-day filing
+// window means archive trades cluster within the chip range), and keeping
+// dead options in the constant invites drift. If "All time" is needed
+// later, add an explicit chip — don't reintroduce a hidden enum.
 const TIME_PERIOD_OPTIONS = [
-  { value: 'all', label: 'All time' },
   { value: 'past7d', label: 'Past 7d' },
   { value: 'past30d', label: 'Past 30d' },
   { value: 'past90d', label: 'Past 90d' },
-  { value: 'pastYear', label: 'Past year' },
 ];
 
 const TIME_PERIOD_DAYS = {
   past7d: 7,
   past30d: 30,
   past90d: 90,
-  pastYear: 365,
 };
 
 function computeSince(timePeriod) {
-  if (timePeriod === 'all') return null;
+  // 1AM-152: 'all' early-return removed alongside the dropped option.
+  // Defensive: if an unknown timePeriod string ever reaches here (legacy
+  // cached state, future code-path), fall back to no `since` filter rather
+  // than throwing. Server returns the 50 most recent — acceptable degradation.
   const days = TIME_PERIOD_DAYS[timePeriod];
   if (!days) return null;
   const date = new Date();
@@ -462,80 +470,57 @@ export default function BrowseAllFilingsScreen({
           </div>
         )}
 
-        {/* ── Filter row (1AM-124 fase 8) ──────────────────────────────── */}
-        {/* Direction chips on the left (replaces the old "Action" row),
-            This week pill on the right, "More filters →" link below
-            right-aligned. Chamber, Time period, and Sort moved to the
-            FilterSheet bottom-sheet (rendered at the end of this component). */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 8,
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Direction chips: All / Buy / Sell. Reuses ACTION_OPTIONS +
-              SingleChipGroup for consistency. The chip group renders without
-              a label (label="" hides the uppercase header that other groups
-              show). */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <SingleChipGroup
-              label=""
-              options={ACTION_OPTIONS}
-              value={actionFilter}
-              onChange={setActionFilter}
-            />
-          </div>
+        {/* ── Filter zone (1AM-124 fase 8 → 1AM-152) ─────────────────────── */}
+        {/* Three-row chunk in the filter zone:
+              Row 1: Direction chips (All/Buy/Sell)
+              Row 2: Time-range chips (Past 7d/30d/90d) — replaces the
+                     "This week" pill from 1AM-124 fase 8
+              Row 3: "More filters →" text link, right-aligned
 
-          {/* This week pill — independent shortcut for past7d (1AM-124 fase 8,
-              decision B from architecture review). Tap toggles between
-              past7d and past30d (the default). The pill's "active" visual
-              state is derived from timePeriod === 'past7d', not from a
-              separate boolean — single source of truth.
+            Consistent 8px row-gap inside the chunk per design Q&A
+            (1AM-152 caveat 1) — section break to the active-filter pills
+            below kicks in at 12px (existing pills row marginBottom).
 
-              Visual contract: navy-fill pill when active, outline pill when
-              inactive. Same visual language as a SingleChipGroup chip. */}
-          <button
-            type="button"
-            onClick={() => {
-              // Last action wins. Tap pill → toggle between past7d and the
-              // default (past30d). When user picks something else via the
-              // sheet, pill goes inactive automatically because timePeriod
-              // is no longer 'past7d'.
-              setTimePeriod((prev) =>
-                prev === 'past7d' ? 'past30d' : 'past7d'
-              );
-            }}
-            aria-pressed={timePeriod === 'past7d'}
-            style={{
-              background: timePeriod === 'past7d' ? '#0D1B2A' : '#FFFFFF',
-              color: timePeriod === 'past7d' ? '#FAFAF7' : '#0D1B2A',
-              border: '1px solid #0D1B2A',
-              borderRadius: 999,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: "'DM Sans', sans-serif",
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              transition: 'background 0.15s ease, color 0.15s ease',
-            }}
-          >
-            This week
-          </button>
+            Chamber + Sort live behind the FilterSheet bottom-sheet (Time
+            period section there was removed in 1AM-152 phase 2 — chips
+            here are the canonical control). */}
+
+        {/* Row 1 — Direction chips (Action). All / Buy / Sell. Reuses
+            ACTION_OPTIONS + SingleChipGroup. Empty label hides the uppercase
+            header so the row reads as quick-toggles, not a labelled section. */}
+        <div style={{ marginBottom: 8 }}>
+          <SingleChipGroup
+            label=""
+            options={ACTION_OPTIONS}
+            value={actionFilter}
+            onChange={setActionFilter}
+          />
         </div>
 
-        {/* "More filters →" link — opens the FilterSheet with the secondary
-            filters (Chamber, Time period, Sort). Right-aligned, modest
-            text-link style. */}
+        {/* Row 2 — Time-range chips (1AM-152). Past 7d / Past 30d / Past 90d,
+            default Past 30d (matches `timePeriod` initial state). Direct
+            mapping: tapping a chip sets timePeriod to that value, useTrades
+            refetches via `since` query param. No cascade fallback, no
+            "This week" toggle ambiguity — the chip is canonical state. */}
+        <div style={{ marginBottom: 8 }}>
+          <SingleChipGroup
+            label=""
+            options={TIME_PERIOD_OPTIONS}
+            value={timePeriod}
+            onChange={setTimePeriod}
+          />
+        </div>
+
+        {/* Row 3 — "More filters →" text link. Opens the FilterSheet with
+            the remaining secondary filters (Chamber, Sort). Distinct
+            typography from the chip rows above (smaller, muted gray,
+            underlined) so it doesn't read as a fourth chip — design Q&A
+            caveat 2. */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'flex-end',
-            marginBottom: 18,
+            marginBottom: 12,
           }}
         >
           <button
@@ -847,17 +832,15 @@ export default function BrowseAllFilingsScreen({
       </div>
 
       {/* ── Filter sheet (1AM-124 fase 8) ──────────────────────────────── */}
-      {/* Bottom-sheet overlay containing Chamber, Time period, and Sort
-          filters. Reached via the "More filters →" link below the direction
-          chips. Live filtering — chip taps update the same state used by
-          the rest of the screen, so Recent Trades re-renders immediately. */}
+      {/* Bottom-sheet overlay containing Chamber + Sort filters.
+          1AM-152 (2026-05-09): Time period section moved out of the sheet
+          to a chip-row in the main filter zone. The sheet is now smaller
+          and contains only the genuinely secondary filters. */}
       <FilterSheet
         isOpen={isShowingFilters}
         onClose={() => setIsShowingFilters(false)}
         chamber={chamberFilter}
         onChamberChange={setChamberFilter}
-        timePeriod={timePeriod}
-        onTimePeriodChange={setTimePeriod}
         sortOrder={sortOrder}
         onSortOrderChange={setSortOrder}
       />

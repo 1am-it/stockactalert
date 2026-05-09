@@ -28,10 +28,11 @@
 //   onClose              — callback when backdrop tapped
 //   chamber              — current chamber filter value ('all' | 'senate' | 'house')
 //   onChamberChange      — callback(value)
-//   timePeriod           — current time period value ('all' | 'past7d' | 'past30d' | 'past90d' | 'pastyear')
-//   onTimePeriodChange   — callback(value)
 //   sortOrder            — current sort value ('newest' | 'largest')
 //   onSortOrderChange    — callback(value)
+//
+// 1AM-152: timePeriod props removed — time-range chips now live on
+// Browse-tab directly. The sheet contains only Chamber + Sort.
 
 import { useEffect } from 'react';
 import SingleChipGroup from './SingleChipGroup';
@@ -42,13 +43,9 @@ const CHAMBER_OPTIONS = [
   { value: 'house', label: 'House' },
 ];
 
-const TIME_PERIOD_OPTIONS = [
-  { value: 'past7d', label: 'Past 7d' },
-  { value: 'past30d', label: 'Past 30d' },
-  { value: 'past90d', label: 'Past 90d' },
-  { value: 'pastYear', label: 'Past year' },
-  { value: 'all', label: 'All time' },
-];
+// 1AM-152 (2026-05-09): TIME_PERIOD_OPTIONS removed from this file.
+// Time-range chips now live on Browse-tab directly as a chip-row above
+// the "More filters →" link. The sheet retains only Chamber + Sort.
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
@@ -60,8 +57,6 @@ export default function FilterSheet({
   onClose,
   chamber,
   onChamberChange,
-  timePeriod,
-  onTimePeriodChange,
   sortOrder,
   onSortOrderChange,
 }) {
@@ -209,18 +204,6 @@ export default function FilterSheet({
             options={CHAMBER_OPTIONS}
             value={chamber}
             onChange={onChamberChange}
-          />
-        </div>
-
-        {/* ── Time period section ─────────────────────────────────────── */}
-        {/* 5 chips, may wrap to two rows on narrow viewports — SingleChipGroup
-            handles that natively. */}
-        <div style={{ marginBottom: 18 }}>
-          <SingleChipGroup
-            label="Time period"
-            options={TIME_PERIOD_OPTIONS}
-            value={timePeriod}
-            onChange={onTimePeriodChange}
           />
         </div>
 
