@@ -68,7 +68,13 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-export default function TradeDetailDrawer({ trade, onClose }) {
+export default function TradeDetailDrawer({
+  trade,
+  onClose,
+  isFollowing = false,
+  onToggleFollow,
+  onViewProfile,
+}) {
   // Ref to the scrollable content area. Phase 6 will read scrollTop to gate
   // the swipe-down gesture; phase 1+ wires the ref so structure is in place.
   const contentRef = useRef(null);
@@ -119,6 +125,13 @@ export default function TradeDetailDrawer({ trade, onClose }) {
   const actionGlyph = isBuy ? '▲' : '▼';
 
   const initials = getInitials(trade.politician);
+
+  // First name for the Follow CTA label, e.g. "April Delaney" → "April".
+  // Used in "Follow April" — sentence-case invitation. Edge cases:
+  //   - "April McClain Delaney" → "April" (still right; first token)
+  //   - "Dr. Phil" → "Dr." (acceptable; vanishingly rare in congress data)
+  //   - empty/missing → "" → label collapses to "Follow" gracefully
+  const firstName = (trade.politician || '').split(' ')[0] || '';
 
   // Chamber · state · district line via the canonical formatter (1AM-37)
   // when the politicus is in congress.json. Cascading fallback when not:
@@ -389,7 +402,74 @@ export default function TradeDetailDrawer({ trade, onClose }) {
             </div>
           </div>
 
-          {/* Phase 3 placeholder: action row (Follow + View all trades) */}
+          {/* ── Action row (1AM-70 phase 3) ─────────────────────────────── */}
+          {/* Side-by-side primary + secondary action buttons.
+                - Primary: filled-navy "Follow [FirstName]" → toggles follow
+                  state. Switches to outlined "✓ Following" when already
+                  following, matching the discovery-context invitation copy
+                  pattern (vs. PoliticianDetailScreen's profile-context
+                  "Follow"/"Unfollow" pair).
+                - Secondary: outlined "View all trades" → navigates to the
+                  PoliticianDetailScreen via the parent's onViewProfile
+                  callback. Drawer auto-dismisses inside that callback so
+                  the navigation transition feels clean.
+              Gender-neutral copy: "View all trades" (not "her/his trades")
+              avoids needing gender data we don't have on the Trade
+              typedef; the drawer header above already establishes whose
+              trades they are. */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              marginBottom: 24,
+              marginTop: 4,
+            }}
+          >
+            <button
+              type="button"
+              onClick={onToggleFollow}
+              aria-pressed={isFollowing}
+              style={{
+                flex: 1,
+                padding: '12px 14px',
+                fontSize: 14,
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                borderRadius: 12,
+                cursor: 'pointer',
+                transition: 'background 0.15s ease, color 0.15s ease',
+                // Filled-navy when not following (call-to-action), outlined
+                // navy when following (acknowledges current state without
+                // shouting). Tapping outlined-navy un-follows.
+                background: isFollowing ? '#FFFFFF' : '#0D1B2A',
+                color: isFollowing ? '#0D1B2A' : '#FAFAF7',
+                border: '1px solid #0D1B2A',
+              }}
+            >
+              {isFollowing ? '✓ Following' : `Follow ${firstName}`}
+            </button>
+            <button
+              type="button"
+              onClick={onViewProfile}
+              style={{
+                flex: 1,
+                padding: '12px 14px',
+                fontSize: 14,
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                borderRadius: 12,
+                background: '#FFFFFF',
+                color: '#0D1B2A',
+                border: '1px solid #E5E7EB',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease',
+              }}
+            >
+              View all trades
+            </button>
+          </div>
+
+          {/* Phase 4-5 placeholder: sector tap-to-filter + Related filings */}
           <div
             style={{
               fontFamily: "'DM Sans', sans-serif",
@@ -399,7 +479,7 @@ export default function TradeDetailDrawer({ trade, onClose }) {
               padding: '12px 0',
             }}
           >
-            Action row + Related filings land in phases 3–5.
+            Sector tap-to-filter + Related filings land in phases 4–5.
           </div>
         </div>
       </div>

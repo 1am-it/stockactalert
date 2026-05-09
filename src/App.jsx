@@ -340,11 +340,19 @@ function App() {
           // 1AM-124: onBack kept for backwards compat (no UI link anymore
           // after fase 4 header redesign — see BrowseAllFilingsScreen header
           // comment). Switches to feed-tab if anything calls it programmatically.
-          // 1AM-151: followedPoliticians + onTogglePolitician dropped — Browse
-          // no longer renders the Most Active section that consumed them.
-          // FeedScreen still receives both props for its own MostActive embed.
+          //
+          // 1AM-70 phase 3: followedPoliticians + onTogglePolitician are
+          // back (1AM-151 had dropped them when the Most Active section was
+          // removed from Browse). The trade detail drawer now consumes both:
+          // Follow CTA reads followed state and toggles via the same callback
+          // that drives Feed-tab's follow state. onPoliticianClick is new —
+          // drawer's "View all trades" navigates to PoliticianDetailScreen
+          // by setting detailPolitician, which our existing route renders.
           onBack={() => setActiveTab('feed')}
           onSettingsClick={() => setIsShowingSettings(true)}
+          followedPoliticians={followedPoliticians}
+          onTogglePolitician={togglePolitician}
+          onPoliticianClick={setDetailPolitician}
         />
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>

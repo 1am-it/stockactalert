@@ -200,6 +200,16 @@ export default function BrowseAllFilingsScreen({
   // eslint-disable-next-line no-unused-vars
   onBack,
   onSettingsClick,
+  // 1AM-70 phase 3: drawer plumbing. followedPoliticians + onTogglePolitician
+  // came back after 1AM-151 dropped them — the drawer's Follow CTA needs to
+  // both read current follow state and toggle it. onPoliticianClick is new
+  // for this ticket; the drawer's "View all trades" button calls it with
+  // the politicus name to navigate to PoliticianDetailScreen via App.jsx's
+  // detailPolitician route. Defaults to no-ops so the screen still renders
+  // when invoked without these (legacy call-sites, tests).
+  followedPoliticians = [],
+  onTogglePolitician = () => {},
+  onPoliticianClick = () => {},
 }) {
   // Local UI state — not persisted across sessions per ticket scope ("Browse
   // is a stateless utility for v1").
@@ -927,18 +937,38 @@ export default function BrowseAllFilingsScreen({
       />
 
       {/* ── Trade detail drawer (1AM-70) ────────────────────────────────── */}
-      {/* Phase 1 = skeleton: opens on TradeCard tap, dismisses via Esc /
-          scrim-tap. Phase 6 will add swipe-down gesture. Phases 2-5 fill in
-          the visual content (header, Bought-block, action row, sector
-          filter affordance, Related filings).
+      {/* Phase 1 = skeleton. Phase 2 = header + Bought-block. Phase 3 = action
+          row (Follow + View all trades) — drawer now consumes followed state,
+          toggle callback, and profile-navigate callback from App.jsx. Phase 6
+          will add swipe-down gesture; phases 4-5 fill in sector filter
+          tap-to-activate + Related filings.
 
-          The drawer is conditionally-rendered — when selectedTrade is null,
-          TradeDetailDrawer returns null internally. No portal needed; the
-          fixed-position scrim + sheet break out of any parent stacking
-          context via z-index 40/50. */}
+          isFollowing derived from the followed list each render — kept stale-
+          free without a separate state. onToggleFollow + onViewProfile are
+          stable callbacks via App.jsx; profile-navigate also dismisses the
+          drawer so the navigation transition feels clean. */}
       <TradeDetailDrawer
         trade={selectedTrade}
         onClose={() => setSelectedTrade(null)}
+        isFollowing={
+          selectedTrade
+            ? followedPoliticians.includes(selectedTrade.politician)
+            : false
+        }
+        onToggleFollow={() => {
+          if (selectedTrade) {
+            onTogglePolitician(selectedTrade.politician);
+          }
+        }}
+        onViewProfile={() => {
+          if (selectedTrade) {
+            const name = selectedTrade.politician;
+            // Dismiss drawer before navigation so the user doesn't see the
+            // sheet animate out on top of the new screen.
+            setSelectedTrade(null);
+            onPoliticianClick(name);
+          }
+        }}
       />
     </div>
   );
