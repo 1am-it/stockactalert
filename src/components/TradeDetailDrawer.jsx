@@ -120,17 +120,27 @@ export default function TradeDetailDrawer({ trade, onClose }) {
 
   const initials = getInitials(trade.politician);
 
-  // Chamber · state · district line via the canonical formatter (1AM-37).
-  // Falls back to a muted "Member metadata unavailable" when findByName
-  // returned nothing — same wording as PoliticianDetailScreen for
-  // consistency.
-  const chamberLine = member
-    ? formatChamberLine({
-        chamber: member.chamber,
-        state: member.state,
-        district: member.district,
-      })
-    : null;
+  // Chamber · state · district line via the canonical formatter (1AM-37)
+  // when the politicus is in congress.json. Cascading fallback when not:
+  //   - member found → "House · CA-11" / "Senate · CA"
+  //   - member missing but trade.chamber present → just "House" / "Senate"
+  //     (graceful for politicians like "April Delaney" whose canonical name
+  //     in congress.json is "April McClain Delaney" — name-matching desync
+  //     tracked separately as 1AM-148; until that ships, we don't punish
+  //     the user with a hard "metadata unavailable" line)
+  //   - both missing → "Member metadata unavailable" (hard fallback)
+  let chamberLine;
+  if (member) {
+    chamberLine = formatChamberLine({
+      chamber: member.chamber,
+      state: member.state,
+      district: member.district,
+    });
+  } else if (trade.chamber) {
+    chamberLine = trade.chamber;
+  } else {
+    chamberLine = 'Member metadata unavailable';
+  }
 
   const companyName = sectorInfo?.companyName || trade.companyName || '';
   const sectorName = sectorInfo?.sector || trade.sector || '';
@@ -240,7 +250,7 @@ export default function TradeDetailDrawer({ trade, onClose }) {
                   marginTop: 2,
                 }}
               >
-                {chamberLine || 'Member metadata unavailable'}
+                {chamberLine}
               </div>
             </div>
           </div>
@@ -339,16 +349,20 @@ export default function TradeDetailDrawer({ trade, onClose }) {
             </div>
 
             {/* Filed-relative line. Reuses existing formatFiledRelative so
-                the phrasing matches TradeCard ("filed 7 days later"). */}
+                the phrasing matches TradeCard ("filed 7 days later"). The
+                helper returns the full phrase including the word "filed",
+                so we don't prepend our own "Filed " — that would render as
+                "Filed filed 7 days later" (1AM-70 phase 2 hotfix). */}
             <div
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: 13,
                 color: '#6B7280',
                 marginBottom: 12,
+                textTransform: 'capitalize',
               }}
             >
-              {filedRelative ? `Filed ${filedRelative}` : 'Filing date unknown'}
+              {filedRelative || 'Filing date unknown'}
             </div>
 
             {/* Source attribution + honest disclosure-link gap (1AM-157).
