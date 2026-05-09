@@ -202,24 +202,22 @@ export default function BrowseAllFilingsScreen({
   // 1AM-153: search-pill swap state. Decouples input visibility from
   // debouncedSearch, so toggling between pill-mode and input-mode doesn't
   // disturb the search query itself (no flicker, no premature backend
-  // refetch). Default true (input visible) — auto-switches to false when
-  // a search becomes active (debouncedSearch non-empty), and gets toggled
-  // back to true when the user taps the pill body to edit.
+  // refetch). Default true (input visible).
+  //
+  // Mode-switch trigger (1AM-153 hotfix 2026-05-09): on input BLUR, not on
+  // debounce. The first implementation auto-switched as soon as the
+  // debounced search settled to non-empty — which fired mid-word for any
+  // user typing slower than 250ms/char, killing the input before they
+  // finished typing the search. The user observation was: typing "NVDA"
+  // would auto-collapse to a `N ×` pill after the first character because
+  // 250ms had elapsed before the second keystroke.
+  //
+  // Blur-trigger: input stays open while the user is interacting with it.
+  // When they tab away, click elsewhere, or hit Enter (which blurs in most
+  // browsers), the input collapses to a pill. Pill × clears the search and
+  // returns to input-mode empty. Pill body tap returns to input-mode with
+  // value + focus + cursor-at-end for editing.
   const [isSearchInputMode, setIsSearchInputMode] = useState(true);
-
-  // Auto-switch to pill-mode when search becomes active. Effectively: as
-  // soon as the debounced search settles to a non-empty value, hide the
-  // input and reveal the pill. Conversely, when search clears (empty
-  // debouncedSearch) and we're in pill-mode, switch back to input-mode so
-  // the user can type again. Keeps the two states coordinated without the
-  // pill component having to know about debounce timing.
-  useEffect(() => {
-    if (debouncedSearch && isSearchInputMode) {
-      setIsSearchInputMode(false);
-    } else if (!debouncedSearch && !isSearchInputMode) {
-      setIsSearchInputMode(true);
-    }
-  }, [debouncedSearch, isSearchInputMode]);
 
   // Debounce the search input to avoid hitting the API on every keystroke.
   useEffect(() => {
@@ -430,6 +428,22 @@ export default function BrowseAllFilingsScreen({
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
+              onBlur={() => {
+                // 1AM-153: blur-triggered switch to pill-mode. Only switch
+                // when there's something to pill-ify — empty input on blur
+                // stays as input (matches default state).
+                if (searchInput.trim()) {
+                  setIsSearchInputMode(false);
+                }
+              }}
+              onKeyDown={(e) => {
+                // Enter blurs the input which triggers the onBlur handler
+                // above. Explicitly blur on Enter to avoid relying on
+                // browser-native form-submit behaviour (we're not in a form).
+                if (e.key === 'Enter') {
+                  e.target.blur();
+                }
+              }}
               placeholder="Search by politician or stock…"
               aria-label="Search filings by politician name or stock ticker"
               style={{
