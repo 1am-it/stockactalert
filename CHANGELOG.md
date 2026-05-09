@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Browse v3 redesign in progress (1AM-150 umbrella). Sub-tickets shipping incrementally to dev; v0.21.0 cuts when all 5 sub-tickets are merged.
+_No unreleased changes yet._
+
+---
+
+## [0.21.0] — 2026-05-09
+
+Browse v3 redesign — six sub-tickets ship together (1AM-150 umbrella). Layout reset (1AM-151), time-range chips (1AM-152), active-filter pills (1AM-153), amount filter (1AM-154), and trade detail drawer (1AM-70). The sector data layer (1AM-37) already landed in v0.20.1 as silent foundation; v0.21.0 turns Browse-tab from a static list into a discovery surface — tap any trade for the full drawer (header, action row, sector tap-to-filter, related filings), with mobile swipe-down dismiss. MINOR bump because the user-visible surface is meaningfully expanded.
 
 ### Added
 
@@ -53,6 +59,16 @@ Browse v3 redesign in progress (1AM-150 umbrella). Sub-tickets shipping incremen
   - Active-filter pill (1AM-153 consumer): renders `≥$50K ×` etc. when not `any`. Pill × clears back to `any`. No edit-affordance — × is sufficient (six discrete options, picker via FilterSheet).
   - `resetFilters` + `hasActiveFilter` extended to include amountFilter alongside the other dimensions.
   - **FilterSheet label "Amount"** (not "Minimum amount") for label-column alignment. The 56px `SingleChipGroup` minWidth column fits CHAMBER + AMOUNT + SORT cleanly; "Minimum amount" overflowed and broke the vertical alignment of chip-rows. Chip values ("Any amount", "≥$15K") communicate the minimum-threshold semantics — the column-label being shorter doesn't lose meaning.
+
+- **Browse-tab trade detail drawer (1AM-70)**:
+  - Tap any trade card on Browse-tab → bottom-sheet drawer opens with the full trade context. Replaces the inline-expand pattern for the Browse surface only; Feed-tab and PoliticianDetailScreen TradeCards keep their existing expand behaviour (backwards-compatible via optional `onTradeClick` prop on `TradeCard`).
+  - **Header**: avatar + politicus name (Playfair) + chamber-line via `formatChamberLine` (e.g. `Senate · AR`, `House · TX-7`). Cascade fallback when member metadata is missing — `member` lookup → `trade.chamber` → `Member metadata unavailable`. Handles April Delaney / April McClain Delaney name-mismatch (1AM-148) gracefully without crashing.
+  - **Bought / Sold block**: action label color-matched (▲ green / ▼ red), oversized ticker in the action color, company name + sector via `lookupSector` (1AM-37 data), amount range, filed-relative line ("Filed 7 days later" — manual first-char capitalisation, not CSS `text-transform: capitalize` which title-cased every word), source attribution `Filed via [Source] · Original disclosure not yet linked` (honest gap-marker until disclosureUrl is wired in 1AM-157).
+  - **Action row**: filled-navy `Follow [FirstName]` ↔ outlined `✓ Following` primary CTA + outlined `View all trades` secondary CTA navigating to `PoliticianDetailScreen`. Drawer dismisses automatically before the navigation transition.
+  - **Sector tap-to-filter**: when sector data is available, the sector text in the Bought-block becomes a tappable link with a `Tap sector to filter` muted hint below. Tap dismisses the drawer and activates a new sector filter on Browse, surfaced via the active-filter pill row (`Financials ×`). The pill × is the only entry-point to clear the sector filter — no hidden state.
+  - **Related filings in [Sector]**: up to 3 other recent trades from the same sector below the action row. Sorted by trade date descending, current trade excluded. Each row shows avatar (initials only) + ticker + action label + abbreviated amount range (`$1K–$15K`, `$250K–$500K`) + trade date. Tap any row to hot-swap drawer content with the new trade — no dismiss-and-reopen animation. Section is hidden entirely (header + body) when no related trades exist or the trade's sector is unknown; drawer bottom-padding stays consistent either way.
+  - **Mobile swipe-down dismiss**: drag the grab handle down to dismiss. Combined threshold — drag past 40% of sheet height OR flick past 0.5 px/ms in the last 100ms triggers dismiss; otherwise the sheet snaps back. Both signals reflect intent: distance catches slow long swipes, velocity catches fast flicks; the `OR` avoids false-positives on iOS scroll-bounce and false-negatives on careful slow drags. Desktop unaffected — Esc + scrim-tap remain the dismiss paths.
+  - **Drawer scope**: Browse-tab only. PoliticianDetailScreen and FeedScreen TradeCards keep their inline-expand behaviour. If drawer-everywhere is desired, follow-up ticket.
 
 ### Out of scope (deferred)
 
