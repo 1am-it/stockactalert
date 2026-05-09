@@ -1,4 +1,4 @@
-// 1AM-69: Politician detail page (drilldown)
+// 1AM-69 / 1AM-30: Politician detail page (drilldown)
 //
 // Full-screen overlay reached from any clickable politician name (TradeCard
 // in feed, MemberListRow in Politicians-tab). Renders header + action buttons +
@@ -7,12 +7,21 @@
 // Routing: not a route. Rendered conditionally by App.jsx when
 // `detailPolitician` state is non-null. "← Back" cleans the state.
 //
-// Out of scope (per ticket):
+// 1AM-30: Data depth comes from a per-politician backend fetch
+// (useTradesByPolitician) that pulls up to 200 historical trades from FMP,
+// not just the latest-50 slice in the main feed. When the deep fetch fails
+// or is in flight, we fall back to the feed-level trades passed in via the
+// `trades` prop — page never goes empty.
+//
+// Sparkline auto-scales window to data depth:
+//   - Few trades (<20): keep 90d / 13 weekly bars
+//   - More trades (≥20): switch to 365d / 12 monthly bars (richer view)
+//
+// Out of scope (per ticket 1AM-69):
 //   - Spouse-only toggle (1AM-73)
 //   - Active-sectors text (1AM-37 dependency, shows "No sector data yet")
 //   - Photos (1AM-74)
 //   - Sharing button (deferred)
-//   - Pagination (max ~50 trades feed-total, single politician rarely >5-10)
 //
 // "Net positions" naming chosen over "Estimated holdings" — STOCK Act data
 // is range-based, so calling it "holdings" overclaims. "Net positions" is
@@ -20,8 +29,12 @@
 
 import { useMemo } from 'react';
 import TradeCard from './TradeCard';
+import Avatar from './Avatar';
 import { findByName } from '../lib/congress';
+import { fullStateName } from '../lib/states';
 import { ACTIONS } from '../data/schema';
+import { useTradesByPolitician } from '../hooks/useTradesByPolitician';
+import { lookupSector } from '../lib/sectors';
 
 // Range-string → numeric midpoint estimate. Best effort; FMP amounts come
 // in formats like "$50K - $100K" or "$1M - $5M" or sometimes "$1,001 - $15,000".
@@ -80,7 +93,7 @@ function computeNetPositions(trades) {
     .map(([ticker, net]) => ({ ticker, netMidpoint: net }));
 }
 
-// ── Compute weekly trade counts for sparkline ───────────────────────────────
+// ── Compute weekly trade counts for sparkline (90d view) ────────────────────
 // 13 weeks × count of trades filed that week. Rightmost bar = most recent week.
 function computeWeeklyActivity(trades) {
   const now = new Date();
@@ -97,6 +110,27 @@ function computeWeeklyActivity(trades) {
   return buckets;
 }
 
+// ── Compute monthly trade counts for sparkline (365d view) ──────────────────
+// 12 months × count of trades filed that month. Rightmost bar = current month.
+// Used when data depth is enough to justify the wider window — see
+// the SPARKLINE_MONTHLY_THRESHOLD constant on the component.
+function computeMonthlyActivity(trades) {
+  const now = new Date();
+  const buckets = new Array(12).fill(0);
+  for (const t of trades) {
+    if (!t.tradeDate) continue;
+    const d = new Date(t.tradeDate);
+    if (isNaN(d.getTime())) continue;
+    const monthsAgo =
+      (now.getFullYear() - d.getFullYear()) * 12 +
+      (now.getMonth() - d.getMonth());
+    if (monthsAgo < 0 || monthsAgo > 11) continue;
+    const monthIdx = 11 - monthsAgo;
+    buckets[monthIdx]++;
+  }
+  return buckets;
+}
+
 // ── 90-day filter ───────────────────────────────────────────────────────────
 function isWithin90Days(dateStr) {
   if (!dateStr) return false;
@@ -107,15 +141,47 @@ function isWithin90Days(dateStr) {
 
 // ════════════════════════════════════════════════════════════════════════════
 
+// Threshold beyond which we switch from 90d/weekly bars to 365d/monthly bars.
+// Picked at 20 trades — below this the monthly view would be mostly empty
+// bars; above this the weekly view starts losing temporal context.
+const SPARKLINE_MONTHLY_THRESHOLD = 20;
+
 export default function PoliticianDetailScreen({
   politicianName,
-  trades,
+  trades: feedTrades,
   isFollowing,
   isMuted,
   onToggleFollow,
   onToggleMute,
   onBack,
 }) {
+  // 1AM-30: deep historical fetch via dedicated endpoint. Returns up to 200
+  // trades for this politician — far more than the latest-50 feed slice.
+  const {
+    trades: deepTrades,
+    loading: deepLoading,
+    error: deepError,
+  } = useTradesByPolitician(politicianName);
+
+  // Three-state fallback so the page never goes empty:
+  //   1. Deep fetch succeeded with results → use those (richest data)
+  //   2. Deep fetch failed or empty → fall back to feedTrades filtered locally
+  //   3. Both empty → render empty-state cards (no crash)
+  const politicianTrades = useMemo(() => {
+    const lower = politicianName.toLowerCase();
+
+    if (deepTrades && deepTrades.length > 0) {
+      return [...deepTrades].sort(
+        (a, b) => new Date(b.filedDate) - new Date(a.filedDate)
+      );
+    }
+
+    // Fallback to feed-level trades
+    return (feedTrades || [])
+      .filter((t) => (t.politician || '').toLowerCase() === lower)
+      .sort((a, b) => new Date(b.filedDate) - new Date(a.filedDate));
+  }, [deepTrades, feedTrades, politicianName]);
+
   // Resolve member metadata from the directory.
   // findByName returns ranked array; first result is the best match.
   const member = useMemo(() => {
@@ -123,22 +189,22 @@ export default function PoliticianDetailScreen({
     return matches.length > 0 ? matches[0] : null;
   }, [politicianName]);
 
-  // Filter trades to this politician (case-insensitive defensive match)
-  const politicianTrades = useMemo(() => {
-    const lower = politicianName.toLowerCase();
-    return trades
-      .filter((t) => (t.politician || '').toLowerCase() === lower)
-      .sort((a, b) => new Date(b.filedDate) - new Date(a.filedDate));
-  }, [trades, politicianName]);
-
   const trades90d = useMemo(
     () => politicianTrades.filter((t) => isWithin90Days(t.tradeDate)),
     [politicianTrades]
   );
 
-  const weeklyActivity = useMemo(
-    () => computeWeeklyActivity(politicianTrades),
-    [politicianTrades]
+  // Pick sparkline window based on data depth. Once we have ≥ threshold trades,
+  // monthly bars over 365d give a more meaningful picture than packed weekly
+  // bars over 90d.
+  const useMonthlyView = politicianTrades.length >= SPARKLINE_MONTHLY_THRESHOLD;
+
+  const sparklineBuckets = useMemo(
+    () =>
+      useMonthlyView
+        ? computeMonthlyActivity(politicianTrades)
+        : computeWeeklyActivity(politicianTrades),
+    [politicianTrades, useMonthlyView]
   );
 
   const netPositions = useMemo(
@@ -146,14 +212,22 @@ export default function PoliticianDetailScreen({
     [politicianTrades]
   );
 
-  const districtSuffix =
-    member && member.chamber === 'House' && member.district !== undefined
-      ? `-${member.district}`
-      : '';
+  // 1AM-102: state shown as full name, district dropped from header meta-line
+  // (consistent with MemberListRow).
+  const stateLabel = member ? fullStateName(member.state) : '';
 
   const metaLine = member
-    ? `${member.chamber} · ${member.party} · ${member.state}${districtSuffix}`
+    ? `${member.chamber} · ${member.party} · ${stateLabel}`
     : 'Member metadata unavailable';
+
+  // 1AM-146 / 1AM-74: header avatar — photo via bioguideId when resolved,
+  // initials fallback otherwise (handles unmatched names + 404s gracefully).
+  const headerInitials = politicianName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div
@@ -186,6 +260,21 @@ export default function PoliticianDetailScreen({
         >
           ← Back
         </button>
+
+        {/* ── Header avatar (1AM-146 / 1AM-74) ──────────────────────────
+            Politicus photo via Avatar component. Falls back to initials
+            block when bioguideId is unresolvable or upstream portrait
+            unavailable. Sits above the Playfair title so long names
+            ("Marjorie Taylor Greene") don't compete for horizontal space
+            with the avatar on narrow viewports. */}
+        <div style={{ marginBottom: 14 }}>
+          <Avatar
+            bioguideId={member?.bioguideId}
+            initials={headerInitials}
+            party={member?.party}
+            size="xl"
+          />
+        </div>
 
         {/* ── Header ────────────────────────────────────────────────── */}
         <h1
@@ -263,6 +352,8 @@ export default function PoliticianDetailScreen({
             borderRadius: 14,
             padding: '14px 16px',
             marginBottom: 22,
+            opacity: deepLoading && politicianTrades.length === 0 ? 0.6 : 1,
+            transition: 'opacity 200ms ease',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
@@ -274,10 +365,17 @@ export default function PoliticianDetailScreen({
                 color: '#0D1B2A',
               }}
             >
-              {trades90d.length}
+              {deepLoading && politicianTrades.length === 0
+                ? '…'
+                : politicianTrades.length}
             </span>
             <span style={{ fontSize: 11, color: '#6B7280' }}>
-              {trades90d.length === 1 ? 'trade · 90d' : 'trades · 90d'}
+              {politicianTrades.length === 1 ? 'trade' : 'trades'}
+              {' · '}
+              {useMonthlyView ? '12mo' : '90d'}
+              {!useMonthlyView && trades90d.length !== politicianTrades.length
+                ? ` (${trades90d.length} in 90d)`
+                : ''}
             </span>
           </div>
           <div
@@ -288,9 +386,11 @@ export default function PoliticianDetailScreen({
               marginBottom: 10,
             }}
           >
-            No sector data yet
+            {deepError
+              ? 'Showing recent feed trades only — full history unavailable'
+              : 'No sector data yet'}
           </div>
-          <ActivitySparkline weeks={weeklyActivity} />
+          <ActivitySparkline buckets={sparklineBuckets} />
         </div>
 
         {/* ── Net positions ─────────────────────────────────────────── */}
@@ -309,24 +409,67 @@ export default function PoliticianDetailScreen({
               marginBottom: 8,
             }}
           >
-            {netPositions.map(({ ticker, netMidpoint }, idx) => (
-              <div
-                key={ticker}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  borderBottom:
-                    idx < netPositions.length - 1 ? '1px solid #F3F4F6' : 'none',
-                  fontSize: 13,
-                }}
-              >
-                <span style={{ fontWeight: 700, color: '#0D1B2A' }}>{ticker}</span>
-                <span style={{ color: '#374151', fontFamily: 'monospace', fontSize: 12 }}>
-                  {formatMidpointLabel(netMidpoint)}
-                </span>
-              </div>
-            ))}
+            {netPositions.map(({ ticker, netMidpoint }, idx) => {
+              // 1AM-159: enrich row with companyName + sector when sectors.json
+              // has data for this ticker. Graceful fallback to ticker-only when
+              // lookupSector returns undefined (~14% of production tickers per
+              // 2026-05-09 coverage audit). Layout matches drawer Bought-block
+              // typography (1AM-70 phase 2): DM Sans, muted-gray secondary line.
+              const sectorInfo = lookupSector(ticker);
+              const companyName = sectorInfo?.companyName || '';
+              const sectorName = sectorInfo?.sector || '';
+              const hasSecondary = companyName || sectorName;
+              return (
+                <div
+                  key={ticker}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    padding: '10px 14px',
+                    borderBottom:
+                      idx < netPositions.length - 1 ? '1px solid #F3F4F6' : 'none',
+                    fontSize: 13,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                    <span style={{ fontWeight: 700, color: '#0D1B2A' }}>{ticker}</span>
+                    {hasSecondary && (
+                      <span
+                        style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 12,
+                          color: '#6B7280',
+                          marginTop: 2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {companyName}
+                        {companyName && sectorName && (
+                          <span style={{ color: '#D1D5DB' }}> · </span>
+                        )}
+                        {sectorName && (
+                          <span style={{ color: '#9CA3AF' }}>{sectorName}</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    style={{
+                      color: '#374151',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      flexShrink: 0,
+                      marginLeft: 12,
+                    }}
+                  >
+                    {formatMidpointLabel(netMidpoint)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
         <p
@@ -403,11 +546,11 @@ function EmptyCard({ children }) {
 }
 
 // ── Activity sparkline ─────────────────────────────────────────────────────
-// 13-bar inline visualisation of weekly trade-frequency. Bar height scales to
-// the max value so a quiet politician's pattern is still readable. Gray when
-// the week has zero trades.
-function ActivitySparkline({ weeks }) {
-  const max = Math.max(1, ...weeks);
+// Inline visualisation of trade-frequency. Bar height scales to the max value
+// so a quiet politician's pattern is still readable. Gray when a bucket has
+// zero trades. Bucket size (week vs month) is decided by caller.
+function ActivitySparkline({ buckets }) {
+  const max = Math.max(1, ...buckets);
   return (
     <div
       style={{
@@ -416,9 +559,9 @@ function ActivitySparkline({ weeks }) {
         gap: 2,
         height: 30,
       }}
-      aria-label={`Trade activity over the last ${weeks.length} weeks`}
+      aria-label={`Trade activity over the last ${buckets.length} buckets`}
     >
-      {weeks.map((count, i) => {
+      {buckets.map((count, i) => {
         const heightPct = count === 0 ? 6 : (count / max) * 100;
         return (
           <div
