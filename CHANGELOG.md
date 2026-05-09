@@ -9,6 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.20.1] — 2026-05-09
+
+Data-layer foundation for the upcoming Browse v3 trade-detail drawer (1AM-150). Sector + company name + district enrichment data is now populated on every trade and politician — silent enrichment, no UI changes yet. Consumers in 1AM-70 (drawer) and 1AM-153 (filter pills) will activate this data when they ship.
+
+PATCH bump because nothing renders differently for users today. The drawer that turns this data into visible UI is the MINOR bump (v0.21.0).
+
+### Added
+
+- **`src/data/sectors.json`** — static lookup table of ~150 ticker-to-sector + companyName mappings, generated from FMP's `/stable/profile` endpoint. Covers ~95% of trades observed in production: top-100 alphabetical S&P 500 constituents (via Wikipedia scrape) merged with all unique tickers from the past 12 months of Congressional filings (via Supabase query).
+- **`src/lib/sectors.js`** — pre-built `Map` lookup helper around sectors.json. Exposes `lookupSector(ticker)` returning `{ sector, companyName }` or `undefined` for unknown tickers. Case-insensitive, defensive against non-string inputs.
+- **`src/lib/formatChamberLine.js`** — canonical formatter for the chamber-state-district line shown in upcoming drawer headers. Single source of truth for four real-world cases: Senate (`Senate · NY`), standard House district (`House · CA-11`), at-large state (`House · AK-AL`), non-voting delegate (`House · DC` without suffix). Handles all six at-large states (AK, DE, ND, SD, VT, WY) and all six delegate territories (DC, PR, GU, VI, AS, MP).
+- **23 Vitest unit tests** for `formatChamberLine` covering all four cases plus defensive inputs (missing fields, lowercase normalisation, unknown chambers). First test suite in the codebase — Vitest now installed as a dev dependency, `npm test` script added.
+- **`companyName` field on the Trade typedef** in `src/data/schema.js` — optional string, populated by `normaliseFMPTrade` via sectors.js lookup. Trades for tickers outside the sectors database get an empty string, downstream consumers fall back to ticker-symbol-only display.
+- **`scripts/query-top-tickers.mjs`** — Supabase query script that ranks the most-traded tickers in a 12-month window. Strips option-chain suffixes (e.g. `NVDA250117C00150000` → `NVDA`). Runs via `npm run query:top-tickers`. Output committed as `scripts/top-tickers.json` for reproducibility.
+- **`scripts/build-sp500-baseline.mjs`** — Wikipedia-scraping script that fetches the S&P 500 constituent list (#constituents table on the article page) and writes the first 100 alphabetical tickers to `scripts/sp500-top-100.json`. Free, no API key required, refreshable.
+- **`scripts/fetch-sectors.mjs`** — main enrichment script. Merges archive-tickers ∪ S&P 500 baseline (with overlap deduplication), hits FMP `/stable/profile` per unique ticker, normalises sector strings via a 10-entry GICS-alias map, writes `src/data/sectors.json`. Idempotent + resumable: re-runs skip already-fetched tickers unless `--force` is passed. Tier-aware rate-limiting (350ms between calls on FMP free tier, no sleep on paid).
+- **Three new npm scripts**: `query:top-tickers`, `build:sp500-baseline`, `fetch:sectors`, `test`, `test:watch`.
+
+### Changed
+
+- **`normaliseFMPTrade` in `src/data/schema.js`** — now calls `lookupSector(symbol)` to populate `sector` + `companyName` fields. Previously both were always empty strings.
+- **`EMPTY_TRADE` template** updated to include `companyName: ''` so consumers reading the empty-state default get a complete shape.
+- **Trade typedef** documents `sector` and `companyName` as optional with explicit provenance ("populated by sectors.js lookup when ticker is in our database, empty string otherwise").
+
+### Out of scope (deferred)
+
+- **TradeCard companyName display** — sector + companyName are populated in the data layer but TradeCard renders identically to v0.20.0. Visible consumption ships in 1AM-70 (drawer header) and 1AM-153 (sector filter pills).
+- **District field on Politician/Member rendering** — `congress.json` already exposes district per member (1AM-67 / 1AM-98 work), and `formatChamberLine` is ready to consume it. First UI consumer is the drawer (1AM-70).
+- **Live FMP enrichment per trade** — sectors.json is static, refreshable manually. Live per-trade FMP profile fetch (Strategy 2 in the original 1AM-37 spec) was deferred — top-150 coverage hits ~95% of real trades, the long-tail can wait.
+- **Sector filter UI** — filtering Browse by sector (e.g. "show me all Healthcare trades") is part of 1AM-153 active-filter pills, not this release.
+- **Refresh automation for sectors.json** — manual periodic refresh via the npm scripts is fine for v3. CI/CD-driven refresh is a future concern.
+
+### Known limitations
+
+- **3 tickers had no FMP profile data** during the initial fetch: `BF.B`, `BRK.B`, `NFS`. Class-B share symbols use a `.B` suffix that FMP's profile endpoint doesn't accept; the dash form (`BRK-B`) usually works but isn't auto-translated. These trades fall back to ticker-only display until a follow-up adds a symbol-translation step.
+- **Top-100 S&P 500 baseline is alphabetical, not market-cap-ranked**. FMP's market-cap-sorted constituent endpoint is paid-tier. Wikipedia returns rows alphabetically. As a result, popular high-cap tickers in the back-half of the alphabet (e.g. TSLA at position ~470, UBER at ~503) are not in the baseline and only get sector-data once they appear in the Congressional archive.
+- **Sector aliases hardcoded in `fetch-sectors.mjs`** — 10-entry GICS-to-shortform map. If FMP introduces a new sector label, it passes through unchanged (forward-compatible) but the chip-rendering UI may show an unexpected label until the alias map is updated. Static maintenance, not breaking.
+
+### Related
+
+- 1AM-37 — this ticket
+- 1AM-150 — Browse v3 umbrella (this release is sub-ticket #1)
+- 1AM-70 — drawer that consumes sectors + district (next sub-ticket)
+- 1AM-153 — filter pills that consume sector data (sibling sub-ticket)
+- 1AM-67 / 1AM-98 — congress directory + district data (already in production, now fully consumed)
+- Lovable mockups: stockactalert-browse-1am28-v1 (drawer-detail header references `House · CA-11` format)
+
+---
+
 ## [0.20.0] — 2026-05-08
 
 FollowedList management screen (1AM-28). Replaces the Pad B scroll-anchor placeholder from v0.19.0 — the "Manage who you follow" CTA in the Feed empty-state now lands on a dedicated full-page management surface instead of scrolling to Most Active in Browse-tab. Three variant-states based on follow count (0 / 1-9 / 10+), reusing the threshold convention from v0.19.0's empty-state hero so the two surfaces stay consistent.
