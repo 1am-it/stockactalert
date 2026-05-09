@@ -70,6 +70,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TradeCard from './TradeCard';
 import TradeDetailDrawer from './TradeDetailDrawer';
+import { lookupSector } from '../lib/sectors';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
 import FilterSheet from './FilterSheet';
@@ -234,6 +235,14 @@ export default function BrowseAllFilingsScreen({
   // drawer open. Set by TradeCard onTradeClick, cleared by drawer's onClose.
   // Phase 1 = skeleton; phases 2-5 fill in drawer content.
   const [selectedTrade, setSelectedTrade] = useState(null);
+
+  // 1AM-70 phase 4: sector filter activated by tapping a sector in the
+  // drawer's Bought-block. null = no filter (default). Filter logic in
+  // visibleTrades useMemo uses lookupSector(t.ticker)?.sector to compare
+  // against this value (case-sensitive match against sectors.json values).
+  // Cleared via the active-filter pill × — only entry-point to clear, per
+  // design Q&A 2026-05-09 (no hidden state, pill must be the affordance).
+  const [sectorFilter, setSectorFilter] = useState(null);
   // 1AM-124 fase 8: filter sheet open/close state. The secondary filters
   // (Chamber, Time period, Sort) live behind a "More filters →" link to keep
   // the main view clean. Direction chips (Action) and the This week pill stay
@@ -386,6 +395,15 @@ export default function BrowseAllFilingsScreen({
         const midpoint = parseAmountMidpoint(t.amount);
         if (midpoint < amountThreshold) return false;
       }
+      // 1AM-70 phase 4: sector filter via lookupSector enrichment. Skip
+      // entirely when sectorFilter is null (default) — saves the lookup
+      // call. When set, compare against the sectors.json value for this
+      // trade's ticker; trades whose ticker isn't in sectors.json fail
+      // the filter (no false positives via empty-string match).
+      if (sectorFilter) {
+        const tradeSector = lookupSector(t.ticker)?.sector;
+        if (!tradeSector || tradeSector !== sectorFilter) return false;
+      }
       return true;
     });
 
@@ -398,7 +416,7 @@ export default function BrowseAllFilingsScreen({
       );
     }
     return filtered;
-  }, [allFetchedTrades, chamberFilter, actionFilter, amountFilter, sortOrder]);
+  }, [allFetchedTrades, chamberFilter, actionFilter, amountFilter, sectorFilter, sortOrder]);
 
   // 1AM-114: fetch the next page of trades and append them to extraTrades.
   // Offset is the count of already-fetched backend rows (NOT the visible
@@ -438,6 +456,7 @@ export default function BrowseAllFilingsScreen({
     actionFilter !== 'all' ||
     timePeriod !== 'past30d' ||
     amountFilter !== 'any' ||
+    sectorFilter !== null ||
     debouncedSearch !== '';
 
   const resetFilters = () => {
@@ -449,6 +468,8 @@ export default function BrowseAllFilingsScreen({
     setSortOrder('newest');
     // 1AM-154: reset amount filter back to 'any' (no threshold).
     setAmountFilter('any');
+    // 1AM-70 phase 4: reset sector filter back to null (no filter).
+    setSectorFilter(null);
   };
 
   return (
@@ -640,12 +661,19 @@ export default function BrowseAllFilingsScreen({
             affordance — × clears back to 'any', user picks a new threshold
             via the FilterSheet chip-group.
 
+            Sector-pill (1AM-70 phase 4): renders when sectorFilter is non-
+            null. Activated via the drawer's tap-to-filter affordance —
+            no chip-group entry-point in FilterSheet (sector is discovery-
+            via-context, not upfront filter). × is the only way to clear
+            (per design Q&A — no hidden state).
+
             Chamber + time-period are NOT pillified — chamber stays as
             tabs (handled in FilterSheet), time-period has its own chip
             treatment (1AM-152). Sort isn't a filter, no pill. */}
         {(debouncedSearch ||
           actionFilter !== 'all' ||
-          amountFilter !== 'any') && (
+          amountFilter !== 'any' ||
+          sectorFilter !== null) && (
           <div
             style={{
               display: 'flex',
@@ -694,6 +722,12 @@ export default function BrowseAllFilingsScreen({
                   amountFilter
                 }
                 onRemove={() => setAmountFilter('any')}
+              />
+            )}
+            {sectorFilter !== null && (
+              <FilterPill
+                label={sectorFilter}
+                onRemove={() => setSectorFilter(null)}
               />
             )}
           </div>
@@ -968,6 +1002,15 @@ export default function BrowseAllFilingsScreen({
             setSelectedTrade(null);
             onPoliticianClick(name);
           }
+        }}
+        onSectorClick={(sectorName) => {
+          // 1AM-70 phase 4: sector tap-to-filter. Activate the sector
+          // filter with the tapped sector value, then dismiss the drawer
+          // so the user sees the freshly-filtered list. The active-filter
+          // pill (1AM-153) will appear in the pills row, and clearing the
+          // filter is its × — no hidden state per design Q&A.
+          setSectorFilter(sectorName);
+          setSelectedTrade(null);
         }}
       />
     </div>
