@@ -46,6 +46,14 @@ Browse v3 redesign in progress (1AM-150 umbrella). Sub-tickets shipping incremen
   - **`Time period` section removed from FilterSheet**. The bottom-sheet now contains only Chamber + Sort. `timePeriod` + `onTimePeriodChange` props dropped from FilterSheet. Time-range is canonical state on Browse-tab now, not a sheet-secondary filter.
   - Filter-zone layout: three rows with consistent 8px row-gap inside the chunk (Action chips → Time-range chips → More filters link), 12px section-break to the active-filter pills row below.
 
+- **Browse-tab amount filter (1AM-154)**:
+  - New filter dimension: `Any amount` (default) / `≥$15K` / `≥$50K` / `≥$100K` / `≥$500K` / `≥$1M`. Thresholds anchored on STOCK Act PTR reporting trigger ($15K = noise floor) and the institutional-conviction buckets used by Capitol Trades + Quiver.
+  - `AMOUNT_OPTIONS` lives in `BrowseAllFilingsScreen.jsx` as a named export with `[{ value, label, threshold }]` shape — single source of truth for FilterSheet chip-group, active-filter pill label, and `visibleTrades` filter logic. FilterSheet imports it directly instead of duplicating constants (avoids value/label/threshold drift across files).
+  - Filter applies client-side via `parseAmountMidpoint(t.amount) >= threshold` after chamber + action filters in `visibleTrades` useMemo. Skipped entirely when filter is `any` — no per-trade midpoint parse in default state.
+  - Active-filter pill (1AM-153 consumer): renders `≥$50K ×` etc. when not `any`. Pill × clears back to `any`. No edit-affordance — × is sufficient (six discrete options, picker via FilterSheet).
+  - `resetFilters` + `hasActiveFilter` extended to include amountFilter alongside the other dimensions.
+  - **FilterSheet label "Amount"** (not "Minimum amount") for label-column alignment. The 56px `SingleChipGroup` minWidth column fits CHAMBER + AMOUNT + SORT cleanly; "Minimum amount" overflowed and broke the vertical alignment of chip-rows. Chip values ("Any amount", "≥$15K") communicate the minimum-threshold semantics — the column-label being shorter doesn't lose meaning.
+
 ### Out of scope (deferred)
 
 - **Politician headshots in Most Active rows** — depends on 1AM-146.
