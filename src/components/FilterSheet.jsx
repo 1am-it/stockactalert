@@ -28,14 +28,21 @@
 //   onClose              — callback when backdrop tapped
 //   chamber              — current chamber filter value ('all' | 'senate' | 'house')
 //   onChamberChange      — callback(value)
+//   amountFilter         — current amount filter value ('any' | 'gte15k' | 'gte50k' | 'gte100k' | 'gte500k' | 'gte1m')
+//   onAmountChange       — callback(value)
 //   sortOrder            — current sort value ('newest' | 'largest')
 //   onSortOrderChange    — callback(value)
 //
 // 1AM-152: timePeriod props removed — time-range chips now live on
 // Browse-tab directly. The sheet contains only Chamber + Sort.
+// 1AM-154: Minimum amount section added between Chamber and Sort.
+// AMOUNT_OPTIONS imported from BrowseAllFilingsScreen (named export)
+// rather than redefined here — single source of truth for the option
+// list, avoids the value/label/threshold drift across files.
 
 import { useEffect } from 'react';
 import SingleChipGroup from './SingleChipGroup';
+import { AMOUNT_OPTIONS } from './BrowseAllFilingsScreen';
 
 const CHAMBER_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -57,6 +64,8 @@ export default function FilterSheet({
   onClose,
   chamber,
   onChamberChange,
+  amountFilter,
+  onAmountChange,
   sortOrder,
   onSortOrderChange,
 }) {
@@ -204,6 +213,21 @@ export default function FilterSheet({
             options={CHAMBER_OPTIONS}
             value={chamber}
             onChange={onChamberChange}
+          />
+        </div>
+
+        {/* ── Minimum amount section (1AM-154) ────────────────────────── */}
+        {/* 6 chips: Any amount / ≥$15K / ≥$50K / ≥$100K / ≥$500K / ≥$1M.
+            Wraps to two rows on narrow viewports — SingleChipGroup handles
+            that natively. AMOUNT_OPTIONS sourced from BrowseAllFilingsScreen
+            (named export); SingleChipGroup uses the value + label fields
+            and ignores the threshold field. */}
+        <div style={{ marginBottom: 18 }}>
+          <SingleChipGroup
+            label="Minimum amount"
+            options={AMOUNT_OPTIONS}
+            value={amountFilter}
+            onChange={onAmountChange}
           />
         </div>
 

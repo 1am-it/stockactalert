@@ -136,6 +136,38 @@ function computeSince(timePeriod) {
   return date.toISOString().slice(0, 10);
 }
 
+// 1AM-154: amount filter options. Single-array shape with value + label +
+// threshold so consumers (FilterSheet chip-group, active-filter pill,
+// visibleTrades filter logic) all read from one source. Threshold is the
+// numeric floor in dollars; matching trade if `parseAmountMidpoint(amount)
+// >= threshold`. The 'any' option uses threshold 0, which the filter logic
+// short-circuits before midpoint comparison.
+//
+// Thresholds rationale:
+//   - $15K = STOCK Act PTR reporting trigger (smallest disclosed range).
+//     "≥$15K" effectively means "anything visible above the noise floor".
+//   - $50K = common "noteworthy" threshold used by Capitol Trades, Quiver.
+//   - $100K / $500K / $1M = institutional-conviction buckets.
+//
+// Pill label format ≥$Xk per design Q&A 2026-05-09: U+2265 ≥ symbol is
+// mathematically unambiguous (no "+" interpretation drift between strict-gt
+// and gte). Sits in standard system-font stack, no fallback issues. Used
+// as-is by FilterSheet SingleChipGroup (which doesn't apply text-transform
+// to chip text — only to the group label) and by FilterPill (no transform).
+//
+// Exported named so FilterSheet can import without duplicating the array.
+// Co-located with parseAmountMidpoint + filter logic per design Q&A — a
+// future lib/ extraction is justified only when a third consumer appears
+// (e.g. server-side amount filtering).
+export const AMOUNT_OPTIONS = [
+  { value: 'any', label: 'Any amount', threshold: 0 },
+  { value: 'gte15k', label: '≥$15K', threshold: 15_000 },
+  { value: 'gte50k', label: '≥$50K', threshold: 50_000 },
+  { value: 'gte100k', label: '≥$100K', threshold: 100_000 },
+  { value: 'gte500k', label: '≥$500K', threshold: 500_000 },
+  { value: 'gte1m', label: '≥$1M', threshold: 1_000_000 },
+];
+
 // 1AM-112: sort options. "Newest" matches the default API order; "Largest"
 // uses the amount range midpoint estimate for ordering.
 const SORT_OPTIONS = [
@@ -181,6 +213,11 @@ export default function BrowseAllFilingsScreen({
   const [timePeriod, setTimePeriod] = useState('past30d');
   // 1AM-112: sort order. Default 'newest' matches API order.
   const [sortOrder, setSortOrder] = useState('newest');
+
+  // 1AM-154: minimum-amount filter. Default 'any' = no threshold applied.
+  // Filter logic in `visibleTrades` useMemo. Pill renders in active-filter
+  // row when not 'any'. Resets to 'any' via `resetFilters`.
+  const [amountFilter, setAmountFilter] = useState('any');
   // 1AM-124 fase 8: filter sheet open/close state. The secondary filters
   // (Chamber, Time period, Sort) live behind a "More filters →" link to keep
   // the main view clean. Direction chips (Action) and the This week pill stay
@@ -303,9 +340,16 @@ export default function BrowseAllFilingsScreen({
     });
   }, [trades, extraTrades]);
 
-  // Client-side chamber + action filters layered on top of the fetched set,
-  // then sorted per sortOrder.
+  // Client-side chamber + action + amount filters layered on top of the
+  // fetched set, then sorted per sortOrder.
   const visibleTrades = useMemo(() => {
+    // 1AM-154: resolve amount threshold once outside the per-trade loop.
+    // For 'any' the option's threshold is 0; we still skip the comparison
+    // entirely via the early-continue below to avoid parsing midpoints when
+    // no filter is active.
+    const amountOption = AMOUNT_OPTIONS.find((o) => o.value === amountFilter);
+    const amountThreshold = amountOption ? amountOption.threshold : 0;
+
     const filtered = allFetchedTrades.filter((t) => {
       if (chamberFilter !== 'all') {
         // trade.chamber is "Senate" or "House" (titlecased upstream). Compare
@@ -319,6 +363,13 @@ export default function BrowseAllFilingsScreen({
         if (actionFilter === 'buy' && !isBuy) return false;
         if (actionFilter === 'sell' && isBuy) return false;
       }
+      // 1AM-154: minimum-amount threshold. Skip entirely when filter is
+      // 'any' (threshold 0) — saves the parseAmountMidpoint call on every
+      // trade in the default case.
+      if (amountFilter !== 'any') {
+        const midpoint = parseAmountMidpoint(t.amount);
+        if (midpoint < amountThreshold) return false;
+      }
       return true;
     });
 
@@ -331,7 +382,7 @@ export default function BrowseAllFilingsScreen({
       );
     }
     return filtered;
-  }, [allFetchedTrades, chamberFilter, actionFilter, sortOrder]);
+  }, [allFetchedTrades, chamberFilter, actionFilter, amountFilter, sortOrder]);
 
   // 1AM-114: fetch the next page of trades and append them to extraTrades.
   // Offset is the count of already-fetched backend rows (NOT the visible
@@ -370,6 +421,7 @@ export default function BrowseAllFilingsScreen({
     chamberFilter !== 'all' ||
     actionFilter !== 'all' ||
     timePeriod !== 'past30d' ||
+    amountFilter !== 'any' ||
     debouncedSearch !== '';
 
   const resetFilters = () => {
@@ -379,6 +431,8 @@ export default function BrowseAllFilingsScreen({
     // 1AM-124 fase 8: reset matches new default, not 'all'.
     setTimePeriod('past30d');
     setSortOrder('newest');
+    // 1AM-154: reset amount filter back to 'any' (no threshold).
+    setAmountFilter('any');
   };
 
   return (
@@ -564,14 +618,18 @@ export default function BrowseAllFilingsScreen({
             Action-pill: only renders when actionFilter !== 'all'. No edit-
             affordance — actions are binary (Buy/Sell), pill × is sufficient.
 
-            Amount-pill (1AM-154 dependency): not yet present — will plug
-            into this same row via the same FilterPill component when
-            1AM-154 ships.
+            Amount-pill (1AM-154): renders when amountFilter !== 'any'.
+            Label sourced from AMOUNT_OPTIONS so the pill text stays in
+            lockstep with the FilterSheet chip-group label. No edit-
+            affordance — × clears back to 'any', user picks a new threshold
+            via the FilterSheet chip-group.
 
             Chamber + time-period are NOT pillified — chamber stays as
             tabs (handled in FilterSheet), time-period has its own chip
             treatment (1AM-152). Sort isn't a filter, no pill. */}
-        {(debouncedSearch || actionFilter !== 'all') && (
+        {(debouncedSearch ||
+          actionFilter !== 'all' ||
+          amountFilter !== 'any') && (
           <div
             style={{
               display: 'flex',
@@ -611,6 +669,15 @@ export default function BrowseAllFilingsScreen({
               <FilterPill
                 label={actionFilter === 'buy' ? 'Buy only' : 'Sell only'}
                 onRemove={() => setActionFilter('all')}
+              />
+            )}
+            {amountFilter !== 'any' && (
+              <FilterPill
+                label={
+                  AMOUNT_OPTIONS.find((o) => o.value === amountFilter)?.label ||
+                  amountFilter
+                }
+                onRemove={() => setAmountFilter('any')}
               />
             )}
           </div>
@@ -832,15 +899,18 @@ export default function BrowseAllFilingsScreen({
       </div>
 
       {/* ── Filter sheet (1AM-124 fase 8) ──────────────────────────────── */}
-      {/* Bottom-sheet overlay containing Chamber + Sort filters.
-          1AM-152 (2026-05-09): Time period section moved out of the sheet
-          to a chip-row in the main filter zone. The sheet is now smaller
-          and contains only the genuinely secondary filters. */}
+      {/* Bottom-sheet overlay containing Chamber, Minimum amount, and Sort
+          filters.
+          1AM-152: Time period section moved to a chip-row in the main filter
+          zone — sheet only retains the genuinely secondary filters now.
+          1AM-154: Minimum amount section added between Chamber and Sort. */}
       <FilterSheet
         isOpen={isShowingFilters}
         onClose={() => setIsShowingFilters(false)}
         chamber={chamberFilter}
         onChamberChange={setChamberFilter}
+        amountFilter={amountFilter}
+        onAmountChange={setAmountFilter}
         sortOrder={sortOrder}
         onSortOrderChange={setSortOrder}
       />
