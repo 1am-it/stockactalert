@@ -8,11 +8,26 @@
 // switches to feed-tab on tap if anything calls it programmatically), but
 // the link itself is gone from the UI.
 //
-// Originally reached from two entry points:
-//   1. FilterBar `Show all` button on Personal feed (deprecates the old toggle)
-//   2. `View all recent filings` CTA in FilterEmptyState (1AM-111)
-// 1AM-124 makes the bottom-nav Browse-tab a third entry point, and the
-// primary one going forward.
+// 1AM-151 (Browse v3 layout reset, 2026-05-09):
+//   - Header title "Browse" → "Recent Filings", subtitle "last 30 days"
+//     added via the new HeaderBar `subtitle` prop.
+//   - Trending Tickers section REMOVED from this screen (component file
+//     parked for future reuse — see TODO note below).
+//   - Most Active Politicians section REMOVED from this screen — relocates
+//     to FeedScreen as discovery affordance for both empty + active users.
+//   - "Recent Trades" h2 header REMOVED — redundant now that the entire
+//     screen is filings.
+//   - `followedPoliticians` + `onTogglePolitician` props dropped (the
+//     Most Active row was the only consumer).
+//   - 3-cascade `useTrades` calls (7d/30d/all) for Trending+MostActive
+//     dropped — main filings-list `useTrades(searchFilters)` is the only
+//     remaining fetch on this screen.
+//
+// TODO (post-1AM-151 cleanup): `src/components/TrendingTickers.jsx` and
+// `aggregateTopTickers` (was inline in this file) are now unused. Keep
+// parked until 1AM-150 umbrella ships — they may resurface in a Tickers/
+// Watchlist surface later. After v0.21.0 if no consumer reappears, run a
+// dead-code sweep.
 //
 // Architecture: page-style header (matching Your Feed / Politicians visual
 // language) + search input + chamber/action chips + trade list. No TabBar
@@ -56,16 +71,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import TradeCard from './TradeCard';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
-import TrendingTickers from './TrendingTickers';
-import MostActivePoliticians from './MostActivePoliticians';
 import FilterSheet from './FilterSheet';
 import { useTrades } from '../hooks/useTrades';
-import { findByName } from '../lib/congress';
-import {
-  MOST_ACTIVE_TOP_N,
-  deriveInitials,
-  aggregateMostActivePoliticians,
-} from '../lib/politicianAggregation';
 import { formatRelativeTime } from '../lib/relativeTime';
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -126,66 +133,6 @@ const SORT_OPTIONS = [
   { value: 'largest', label: 'Largest amount' },
 ];
 
-// 1AM-124 fase 5: Trending Tickers — adaptive window strategy.
-// The archive is fresh (started 2026-05-01) and STOCK Act filings have weeks
-// of latency between trade_date and filed_date. Past 7 days will be empty for
-// months. Rather than hide Trending or show a permanent empty state, we cascade
-// through tiers: try 7d, fall back to 30d, fall back to all-time. The window
-// label updates to match. As the archive matures, the 7d tier will naturally
-// take over.
-//
-// MIN_TICKERS_THRESHOLD = 3: a Trending list with 1-2 tickers feels thin —
-// "trending" implies a pattern, not a one-off. So we wait until at least 3
-// distinct tickers exist in a window before declaring it the live one.
-const TRENDING_FETCH_LIMIT = 500;
-const TRENDING_TOP_N = 5;
-const TRENDING_MIN_TICKERS = 3;
-const TRENDING_TIERS = [
-  { days: 7, label: '7 days' },
-  { days: 30, label: '30 days' },
-  { days: null, label: 'all time' }, // null = no `since` filter
-];
-
-// 1AM-124 fase 5: Compute YYYY-MM-DD date string `n` days ago.
-// Used by Trending Tickers tier-cascade. null `n` returns null (all-time).
-function computeSinceDaysAgo(n) {
-  if (n === null) return null;
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
-// 1AM-124 fase 5: Aggregate trades by ticker, return top N most-traded.
-// Empty/null tickers are skipped so we don't surface "" as a "top ticker".
-// Stable order: ties broken by ticker symbol alphabetically (deterministic
-// across renders and useful for any future snapshot tests).
-function aggregateTopTickers(trades, topN = TRENDING_TOP_N) {
-  if (!Array.isArray(trades) || trades.length === 0) return [];
-  const counts = new Map();
-  for (const t of trades) {
-    const ticker = (t.ticker || '').trim();
-    if (!ticker) continue;
-    counts.set(ticker, (counts.get(ticker) || 0) + 1);
-  }
-  return Array.from(counts.entries())
-    .map(([ticker, count]) => ({ ticker, count }))
-    .sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return a.ticker.localeCompare(b.ticker);
-    })
-    .slice(0, topN);
-}
-
-// 1AM-124 fase 6: Most Active Politicians cascade configuration.
-// MOST_ACTIVE_TOP_N + aggregateMostActivePoliticians + deriveInitials are
-// imported from `lib/politicianAggregation` (extracted 1AM-145 so Feed-tab
-// can render its own Most Active embed using the same logic).
-//
-// MOST_ACTIVE_MIN_POLITICIANS stays here — it's the cascade threshold
-// specific to Browse-tab's adaptive window pattern (7d → 30d → all-time).
-// Feed doesn't cascade; it aggregates from already-loaded trades.
-const MOST_ACTIVE_MIN_POLITICIANS = 3;
-
 // Inline copy of the amount-midpoint parser used in PoliticianDetailScreen.
 // Duplicated here to keep this delivery scope-tight; should be DRY-ed into
 // src/lib/amountParse.js when next touched.
@@ -207,12 +154,9 @@ function parseAmountMidpoint(amountStr) {
 }
 
 export default function BrowseAllFilingsScreen({
+  // eslint-disable-next-line no-unused-vars
   onBack,
   onSettingsClick,
-  // 1AM-124 fase 6: follow-state passed in from App so Most Active rows can
-  // toggle politicians via the same `selected` follows state used by Feed.
-  followedPoliticians = [],
-  onTogglePolitician,
 }) {
   // Local UI state — not persisted across sessions per ticket scope ("Browse
   // is a stateless utility for v1").
@@ -220,10 +164,10 @@ export default function BrowseAllFilingsScreen({
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [chamberFilter, setChamberFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
-  // 1AM-124 fase 8: default changed from 'all' to 'past30d'. Browse-tab is
-  // a recency-driven discovery view (consistent with Trending Tickers and
-  // Most Active sections which also surface ~30-day windows via cascade).
-  // Users can still pick "All time" via the filter sheet.
+  // 1AM-124 fase 8: default 'past30d'. Browse-tab is a recency-driven
+  // discovery view. Users can still pick "All time" via the filter sheet.
+  // 1AM-151: subtitle "last 30 days" in HeaderBar communicates this default
+  // explicitly; chip changes update the listing-count below, not the header.
   const [timePeriod, setTimePeriod] = useState('past30d');
   // 1AM-112: sort order. Default 'newest' matches API order.
   const [sortOrder, setSortOrder] = useState('newest');
@@ -297,105 +241,6 @@ export default function BrowseAllFilingsScreen({
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } =
     useTrades(searchFilters);
 
-  // 1AM-124 fase 5: Trending Tickers — adaptive window cascade.
-  // Three useTrades calls (7d / 30d / all-time), each cached separately by
-  // /api/trades CDN headers. We pick the first tier that yields >= MIN_TICKERS
-  // distinct tickers, and surface the matching label so the UI is honest about
-  // which window is showing. As the archive matures (more recent filings), the
-  // 7d tier will start meeting the threshold and the cascade becomes a no-op.
-  //
-  // Memoised separately so each filter object has stable identity — otherwise
-  // useTrades' deps would re-stringify on every render.
-  const trendingFilters7d = useMemo(
-    () => ({ since: computeSinceDaysAgo(7), limit: TRENDING_FETCH_LIMIT }),
-    []
-  );
-  const trendingFilters30d = useMemo(
-    () => ({ since: computeSinceDaysAgo(30), limit: TRENDING_FETCH_LIMIT }),
-    []
-  );
-  const trendingFiltersAllTime = useMemo(
-    () => ({ limit: TRENDING_FETCH_LIMIT }),
-    []
-  );
-
-  const { trades: trending7dTrades, loading: trending7dLoading } =
-    useTrades(trendingFilters7d);
-  const { trades: trending30dTrades, loading: trending30dLoading } =
-    useTrades(trendingFilters30d);
-  const { trades: trendingAllTrades, loading: trendingAllLoading } =
-    useTrades(trendingFiltersAllTime);
-
-  // Pick the first tier with enough distinct tickers. Cascade: 7d → 30d →
-  // all-time. If even all-time is below threshold, fall back to all-time
-  // anyway (rare; only when archive is genuinely tiny) — better to show what
-  // we have than to hide.
-  //
-  // 1AM-124 fase 6: Most Active Politicians uses the SAME fetched trade sets
-  // (re-aggregated by politician instead of ticker). Each section evaluates
-  // its own threshold against its own aggregation, so the selected tier may
-  // differ between Trending and MostActive — e.g. 30d has 5 distinct tickers
-  // but only 2 distinct politicians, so Trending shows 30d while MostActive
-  // falls through to all-time. Independent labels reflect that.
-  const {
-    trendingTopTickers,
-    trendingWindowLabel,
-    trendingLoading,
-    mostActivePoliticians,
-    mostActiveWindowLabel,
-    mostActiveLoading,
-  } = useMemo(() => {
-    // Trending tiers
-    const trendingTier7d = aggregateTopTickers(trending7dTrades, TRENDING_TOP_N);
-    const trendingTier30d = aggregateTopTickers(trending30dTrades, TRENDING_TOP_N);
-    const trendingTierAll = aggregateTopTickers(trendingAllTrades, TRENDING_TOP_N);
-
-    // Most Active tiers (same trades, different aggregator)
-    const activeTier7d = aggregateMostActivePoliticians(trending7dTrades, MOST_ACTIVE_TOP_N);
-    const activeTier30d = aggregateMostActivePoliticians(trending30dTrades, MOST_ACTIVE_TOP_N);
-    const activeTierAll = aggregateMostActivePoliticians(trendingAllTrades, MOST_ACTIVE_TOP_N);
-
-    // Show loading if all three fetches are still in flight on first paint.
-    const stillLoading =
-      trending7dLoading && trending30dLoading && trendingAllLoading;
-
-    // Trending cascade
-    let trendingPick;
-    if (trendingTier7d.length >= TRENDING_MIN_TICKERS) {
-      trendingPick = { tickers: trendingTier7d, label: TRENDING_TIERS[0].label };
-    } else if (trendingTier30d.length >= TRENDING_MIN_TICKERS) {
-      trendingPick = { tickers: trendingTier30d, label: TRENDING_TIERS[1].label };
-    } else {
-      trendingPick = { tickers: trendingTierAll, label: TRENDING_TIERS[2].label };
-    }
-
-    // Most Active cascade (independent of Trending pick)
-    let activePick;
-    if (activeTier7d.length >= MOST_ACTIVE_MIN_POLITICIANS) {
-      activePick = { politicians: activeTier7d, label: TRENDING_TIERS[0].label };
-    } else if (activeTier30d.length >= MOST_ACTIVE_MIN_POLITICIANS) {
-      activePick = { politicians: activeTier30d, label: TRENDING_TIERS[1].label };
-    } else {
-      activePick = { politicians: activeTierAll, label: TRENDING_TIERS[2].label };
-    }
-
-    return {
-      trendingTopTickers: trendingPick.tickers,
-      trendingWindowLabel: trendingPick.label,
-      trendingLoading: stillLoading,
-      mostActivePoliticians: activePick.politicians,
-      mostActiveWindowLabel: activePick.label,
-      mostActiveLoading: stillLoading,
-    };
-  }, [
-    trending7dTrades,
-    trending30dTrades,
-    trendingAllTrades,
-    trending7dLoading,
-    trending30dLoading,
-    trendingAllLoading,
-  ]);
-
   // 1AM-114: reset pagination state whenever backend filters change. useTrades
   // refetches the first page on filter change; we drop any appended extra
   // pages so they don't blend pages from different filter sets.
@@ -408,14 +253,11 @@ export default function BrowseAllFilingsScreen({
   // 1AM-114: combine first-page trades (from useTrades) with appended extra
   // pages. Order preserved — useTrades' first page first, then extras in
   // load order. Client-side filter/sort runs over the combined array below.
-  //
-  // 1AM-114 dedup: backend sort by trade_date desc has no tiebreaker, so on a
-  // page boundary the same row can appear in two consecutive pages when
-  // multiple trades share the trade_date. Frontend dedup by trade.id is a
-  // defensive cap; root-cause fix (backend secondary sort) is tracked
-  // separately.
   const allFetchedTrades = useMemo(() => {
     const combined = [...(trades || []), ...extraTrades];
+    // Defensive dedup by id — should be redundant given /api/trades returns
+    // distinct rows per page, but a stale extras array during a fast filter
+    // change could overlap with the new first page. Cheap to keep.
     const seen = new Set();
     return combined.filter((t) => {
       if (seen.has(t.id)) return false;
@@ -502,25 +344,6 @@ export default function BrowseAllFilingsScreen({
     setSortOrder('newest');
   };
 
-  // 1AM-134: tap a Trending Tickers row → populate search input and scroll
-  // smoothly to the Recent Trades section. Last-action-wins: if user already
-  // had something in the search bar, the ticker symbol overwrites it. The
-  // user can clear by tapping the X-button in the search input (existing
-  // affordance) or by tapping a different ticker row.
-  //
-  // The 50ms timeout gives React one paint cycle to update the search input
-  // before scrollIntoView fires — avoids a race where the scroll happens
-  // before the result-count strip reflects the new filter (visually jumpy).
-  const handleTickerSelect = useCallback((ticker) => {
-    setSearchInput(ticker);
-    setTimeout(() => {
-      const target = document.getElementById('recent-trades-section');
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 50);
-  }, []);
-
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
       <div
@@ -531,47 +354,15 @@ export default function BrowseAllFilingsScreen({
         }}
       >
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        {/* 1AM-124: HeaderBar replaces the old `← Back to feed` link + h1 +
-            description. Browse is now a top-level tab, so there's nothing to
-            navigate "back" to from a UI perspective. The gear icon top-right
-            opens SettingsScreen overlay. */}
+        {/* 1AM-151: title "Recent Filings" + subtitle "last 30 days". The
+            subtitle communicates the default time-window honestly without
+            taking up filter-row real estate. Chip changes update the count
+            below the filter row, not the header. */}
         <HeaderBar
-          title="Browse"
+          title="Recent Filings"
+          subtitle="last 30 days"
           onSettingsClick={onSettingsClick}
         />
-
-        {/* ── Trending Tickers (1AM-124 fase 5) ─────────────────────────── */}
-        {/* Top 5 most-traded tickers via adaptive window cascade
-            (7d → 30d → all-time). windowLabel reflects the actual tier that
-            met the minimum-tickers threshold so the UI is honest about which
-            slice of the archive is displayed. Independent of the search/filter
-            state below — Trending is a discovery signal, not a filtered view. */}
-        <TrendingTickers
-          tickers={trendingTopTickers}
-          loading={trendingLoading}
-          windowLabel={trendingWindowLabel}
-          onTickerSelect={handleTickerSelect}
-        />
-
-        {/* ── Most Active Politicians (1AM-124 fase 6) ──────────────────── */}
-        {/* Top 3 most-active politicians via the same adaptive window cascade
-            as Trending (re-aggregated by politician). Each row has a Follow
-            toggle wired to the App-level `selected` follows state. windowLabel
-            may differ from Trending's because the threshold is checked against
-            distinct politicians, not distinct tickers.
-            1AM-145: id="most-active-section" is the scroll-anchor used by the
-            Feed empty-state "Manage who you follow" CTA — Pad B routes that
-            CTA to Browse-tab + scroll here as a placeholder until 1AM-28
-            (FollowedList screen) ships. */}
-        <div id="most-active-section">
-          <MostActivePoliticians
-            politicians={mostActivePoliticians}
-            loading={mostActiveLoading}
-            windowLabel={mostActiveWindowLabel}
-            followedNames={followedPoliticians}
-            onToggleFollow={onTogglePolitician}
-          />
-        </div>
 
         {/* ── Search input ────────────────────────────────────────────────── */}
         {/* Single text input. Type ticker in ALL CAPS for ticker search,
@@ -579,22 +370,22 @@ export default function BrowseAllFilingsScreen({
         <div
           style={{
             position: 'relative',
-            marginBottom: 14,
+            marginBottom: 12,
           }}
         >
           <span
-            aria-hidden="true"
             style={{
               position: 'absolute',
-              left: 12,
+              left: 10,
               top: '50%',
               transform: 'translateY(-50%)',
+              fontSize: 13,
               color: '#9CA3AF',
-              fontSize: 14,
+              fontFamily: "'DM Sans', sans-serif",
               pointerEvents: 'none',
             }}
           >
-            ⌕
+            🔍
           </span>
           <input
             type="search"
@@ -712,42 +503,17 @@ export default function BrowseAllFilingsScreen({
           </button>
         </div>
 
-        {/* ── Recent Trades section header (1AM-124 fase 7) ─────────────── */}
-        {/* Cosmetic header that frames the filings-list as its own section,
-            parallel to Trending Tickers and Most Active above. No right-side
-            label like the other two sections — Recent Trades is filtered by
-            the user's chips, not by a fixed window, so a window-label would
-            be misleading. The result-count + freshness pill below stays as
-            the live stats-strip for this section.
-            1AM-134: id="recent-trades-section" is the scroll-anchor used by
-            the Trending Tickers tap-to-filter handler — tapping a ticker row
-            populates the search input and scrolls smoothly to this header. */}
-        <h2
-          id="recent-trades-section"
-          style={{
-            fontFamily: "'Playfair Display', 'Lora', serif",
-            fontSize: 18,
-            fontWeight: 500,
-            color: '#0D1B2A',
-            margin: '0 0 10px',
-            letterSpacing: '-0.2px',
-          }}
-        >
-          Recent Trades
-        </h2>
-
         {/* ── Result count + freshness ────────────────────────────────────── */}
-        {/* Reuses 1AM-38 FreshnessIndicator for the "Updated X ago" pill.
-            The count label inside the indicator is custom — we override the
-            "Latest publicly available filings" text by rendering an inline
-            count instead. */}
+        {/* 1AM-151: Recent Trades h2 header removed (redundant — entire
+            screen is filings). Result-count line stays as the live stats-
+            strip. */}
         {!loading && !error && (
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              marginBottom: 6,
+              marginBottom: 14,
               fontFamily: "'DM Sans', sans-serif",
               flexWrap: 'wrap',
             }}
@@ -773,19 +539,6 @@ export default function BrowseAllFilingsScreen({
             <FreshnessIndicatorPill lastUpdatedAt={lastUpdatedAt} />
           </div>
         )}
-
-        <div
-          style={{
-            fontSize: 11,
-            color: '#9CA3AF',
-            fontFamily: 'monospace',
-            fontStyle: 'italic',
-            padding: '0 2px',
-            marginBottom: 14,
-          }}
-        >
-          From Senate and House
-        </div>
 
         {/* ── Loading / error / empty / list ──────────────────────────────── */}
         {loading && (
@@ -823,9 +576,9 @@ export default function BrowseAllFilingsScreen({
             <button
               onClick={refetch}
               style={{
-                padding: '8px 20px',
+                padding: '8px 16px',
                 background: '#0D1B2A',
-                color: '#fff',
+                color: '#FAFAF7',
                 border: 'none',
                 borderRadius: 10,
                 fontSize: 12,
@@ -869,8 +622,8 @@ export default function BrowseAllFilingsScreen({
                   fontWeight: 500,
                   fontFamily: "'DM Sans', sans-serif",
                   cursor: loadingMore ? 'wait' : 'pointer',
-                  opacity: loadingMore ? 0.6 : 1,
                   marginTop: 16,
+                  opacity: loadingMore ? 0.6 : 1,
                 }}
               >
                 {loadingMore ? 'Loading…' : 'Load more'}
@@ -1010,3 +763,12 @@ function FreshnessIndicatorPill({ lastUpdatedAt }) {
     </span>
   );
 }
+
+// Used by FILTER_OPTIONS exported in case other surfaces want to reuse them
+// (none today, but kept for forward-compat).
+export const _BROWSE_FILTER_OPTIONS = {
+  CHAMBER: CHAMBER_OPTIONS,
+  ACTION: ACTION_OPTIONS,
+  TIME_PERIOD: TIME_PERIOD_OPTIONS,
+  SORT: SORT_OPTIONS,
+};

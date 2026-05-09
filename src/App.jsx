@@ -340,10 +340,11 @@ function App() {
           // 1AM-124: onBack kept for backwards compat (no UI link anymore
           // after fase 4 header redesign — see BrowseAllFilingsScreen header
           // comment). Switches to feed-tab if anything calls it programmatically.
+          // 1AM-151: followedPoliticians + onTogglePolitician dropped — Browse
+          // no longer renders the Most Active section that consumed them.
+          // FeedScreen still receives both props for its own MostActive embed.
           onBack={() => setActiveTab('feed')}
           onSettingsClick={() => setIsShowingSettings(true)}
-          followedPoliticians={followedPoliticians}
-          onTogglePolitician={togglePolitician}
         />
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
