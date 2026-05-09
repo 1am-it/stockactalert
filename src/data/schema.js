@@ -1,9 +1,16 @@
 // SAA-10: Internal Trade Data Schema
 // 1AM-67: Internal Member (Congress) Data Schema added below
+// 1AM-37 phase 3: companyName field + sectors lookup integration in
+//                 normaliseFMPTrade. Sector + companyName are optional
+//                 enrichment — Trade objects with unknown tickers fall back
+//                 to empty strings, downstream consumers (TradeCard, future
+//                 drawer) handle that gracefully.
 //
 // Single source of truth for trade and member data shape across the entire app.
 // Independent of any external API — normalises data from any source.
 // Changing data source later won't require frontend changes.
+
+import { lookupSector } from '../lib/sectors.js';
 
 // ─── Trade Schema ─────────────────────────────────────────────────────────────
 // This is the shape of every trade object used in the app
@@ -22,7 +29,8 @@
  * @property {string} tradeDate - YYYY-MM-DD
  * @property {string} filedDate - YYYY-MM-DD
  * @property {string[]} committees - e.g. ["Armed Services", "Intelligence"]
- * @property {string} sector - e.g. "Technology" (optional, enriched later)
+ * @property {string} [sector] - e.g. "Technology" — optional; populated by sectors.js lookup when ticker is in our database, empty string otherwise
+ * @property {string} [companyName] - e.g. "NVIDIA Corporation" — optional; same provenance as sector
  * @property {'self'|'spouse'|'joint'|'dependent'} owner - Account owner relative to the politician (1AM-65)
  */
 
@@ -40,6 +48,7 @@ export const EMPTY_TRADE = {
   filedDate: '',
   committees: [],
   sector: '',
+  companyName: '',
   owner: 'self',
 };
 
@@ -112,7 +121,12 @@ export const AMOUNT_RANGES = {
 
 // ─── Normalise Finnhub trade ──────────────────────────────────────────────────
 // Converts a raw Finnhub congressional trading API response
-// to our internal Trade schema
+// to our internal Trade schema.
+//
+// 1AM-37 phase 3: Finnhub is dormant (deprecated since 1AM-XX 403-paid-tier).
+// sector + companyName left empty here — if Finnhub is ever revived, the
+// lookupSector enrichment can be added in mirror to FMP. Left untouched to
+// keep change-surface minimal.
 export function normaliseFinnhubTrade(raw) {
   return {
     // 1AM-118: amount included in id-key for the same reason as FMP (see
@@ -131,6 +145,7 @@ export function normaliseFinnhubTrade(raw) {
     filedDate: raw.filingDate || '',
     committees: [],
     sector: '',
+    companyName: '',
     owner: normaliseOwner(raw.ownerType || raw.owner),
   };
 }
@@ -140,6 +155,9 @@ export function normaliseFinnhubTrade(raw) {
 // to our internal Trade schema
 // NOTE: FMP endpoints are chamber-specific so the caller must pass the chamber
 // NOTE: FMP does not consistently return party info — enrich later
+// 1AM-37 phase 3: sector + companyName populated from sectors.json lookup.
+//                 Unknown tickers (~20% of trades, those outside our top-150
+//                 dataset) get empty strings — UI fallback to ticker-only.
 export function normaliseFMPTrade(raw, chamber) {
   // FMP field names can vary between endpoints — try common variants
   const firstName = raw.firstName || '';
@@ -157,6 +175,13 @@ export function normaliseFMPTrade(raw, chamber) {
     raw.filingDate ||
     '';
 
+  // 1AM-37 phase 3: enrichment via sectors.json lookup. Returns undefined when
+  // the ticker isn't in our dataset — destructured to safe defaults so the
+  // Trade object always has the fields populated (even if empty).
+  const enrichment = lookupSector(symbol) || {};
+  const sector = enrichment.sector || '';
+  const companyName = enrichment.companyName || '';
+
   return {
     // 1AM-114: amount included in id-key so two trades with same politician
     // + ticker + date but different amounts (e.g. spouse account separate
@@ -172,13 +197,17 @@ export function normaliseFMPTrade(raw, chamber) {
     tradeDate: transactionDate,
     filedDate: filingDate,
     committees: [],
-    sector: '',
+    sector,
+    companyName,
     // 1AM-65: FMP field name varies — try common variants in order
     owner: normaliseOwner(raw.owner || raw.ownerType || raw.owner_type),
   };
 }
 
 // ─── Normalise Unusual Whales trade ──────────────────────────────────────────
+// 1AM-37 phase 3: Unusual Whales is dormant. Sector comes from upstream raw.sector
+// when present; companyName left empty (UW doesn't expose it). If UW is ever
+// promoted to production, mirror the lookupSector pattern from FMP here.
 export function normaliseUnusualWhalesTrade(raw) {
   return {
     // 1AM-118: range included in id-key for the same reason as FMP (see
@@ -196,6 +225,7 @@ export function normaliseUnusualWhalesTrade(raw) {
     filedDate: raw.filed || '',
     committees: [],
     sector: raw.sector || '',
+    companyName: '',
     owner: normaliseOwner(raw.owner),
   };
 }
@@ -346,4 +376,3 @@ export function deriveMemberInitials(firstName, lastName) {
 export function deriveMemberName(firstName, lastName) {
   return `${(firstName || '').trim()} ${(lastName || '').trim()}`.trim();
 }
-
