@@ -459,8 +459,9 @@ export default function TradeDetailDrawer({
           {/* Avatar + politicus name (Playfair) + secondary chamber line.
               Photo from unitedstates/images via Avatar's bioguideId prop —
               graceful initials fallback if bioguideId missing or photo 404s.
-              Family-trade asymmetry: spouse/joint/dependent trades show
-              initials only (the politicus is not the actor). */}
+              Family-trade asymmetry: spouse/dependent trades show initials
+              only (politicus is not the actor). Joint trades DO show photo
+              (politicus is mede-actor of the transaction). */}
           <div
             style={{
               display: 'flex',
@@ -471,7 +472,11 @@ export default function TradeDetailDrawer({
             }}
           >
             <Avatar
-              bioguideId={(trade.owner || 'self') === 'self' ? member?.bioguideId : null}
+              bioguideId={
+                ['self', 'joint'].includes(trade.owner || 'self')
+                  ? member?.bioguideId
+                  : null
+              }
               initials={initials}
               party={trade.party}
               size="lg"
@@ -782,11 +787,13 @@ export default function TradeDetailDrawer({
                   const isBuy = rt.action === 'buy';
                   const actionColor = isBuy ? '#059669' : '#DC2626';
                   const actionLabel = isBuy ? '▲ BUY' : '▼ SELL';
-                  // 1AM-146: resolve photo per related-row. Family-trade rows
-                  // skip the photo (initials only) — same rule as the main
-                  // header avatar above.
-                  const rtMatches =
-                    (rt.owner || 'self') === 'self' ? findByName(rt.politician) : [];
+                  // 1AM-146: resolve photo per related-row. Spouse/dependent
+                  // rows skip the photo (initials only); self/joint rows show
+                  // the politicus photo (mede-actor of the joint transaction).
+                  const rtOwner = rt.owner || 'self';
+                  const rtMatches = ['self', 'joint'].includes(rtOwner)
+                    ? findByName(rt.politician)
+                    : [];
                   const rtBioguideId =
                     rtMatches.length > 0 ? rtMatches[0].bioguideId : null;
                   return (

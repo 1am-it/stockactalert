@@ -99,10 +99,15 @@ export default function TradeCard({
   const effectiveOwner = owner || trade.owner || 'self';
   const showOwnerPill = effectiveOwner !== 'self';
 
-  // Family-member trades (spouse/joint/dependent) deliberately do NOT receive
+  // Family-member trades (spouse/dependent) deliberately do NOT receive
   // a politician photo — those are public figures' private family, not the
   // public-figure themselves (per 1AM-146 family-trade fallback rule).
-  const matches = effectiveOwner === 'self' ? findByName(trade.politician) : [];
+  // Joint trades DO receive a photo: the politicus is mede-actor of the
+  // transaction, so showing their photo is consistent with treating them
+  // as the public-figure participant.
+  const isPublicFigureActor =
+    effectiveOwner === 'self' || effectiveOwner === 'joint';
+  const matches = isPublicFigureActor ? findByName(trade.politician) : [];
   const bioguideId = matches.length > 0 ? matches[0].bioguideId : null;
 
   return (
