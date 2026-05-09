@@ -1,0 +1,714 @@
+{
+  "_meta": {
+    "generatedAt": "2026-05-09T05:52:14.602Z",
+    "source": "FMP /stable/profile",
+    "tickerCount": 176,
+    "sectorAliases": "See SECTOR_ALIAS_MAP in scripts/fetch-sectors.mjs"
+  },
+  "tickers": {
+    "A": {
+      "sector": "Healthcare",
+      "companyName": "Agilent Technologies, Inc."
+    },
+    "AAPL": {
+      "sector": "Technology",
+      "companyName": "Apple Inc."
+    },
+    "ABBV": {
+      "sector": "Healthcare",
+      "companyName": "AbbVie Inc."
+    },
+    "ABNB": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Airbnb, Inc."
+    },
+    "ABT": {
+      "sector": "Healthcare",
+      "companyName": "Abbott Laboratories"
+    },
+    "ACGL": {
+      "sector": "Financials",
+      "companyName": "Arch Capital Group Ltd."
+    },
+    "ACN": {
+      "sector": "Technology",
+      "companyName": "Accenture plc"
+    },
+    "ADBE": {
+      "sector": "Technology",
+      "companyName": "Adobe Inc."
+    },
+    "ADI": {
+      "sector": "Technology",
+      "companyName": "Analog Devices, Inc."
+    },
+    "ADM": {
+      "sector": "Consumer Staples",
+      "companyName": "Archer-Daniels-Midland Company"
+    },
+    "ADP": {
+      "sector": "Industrials",
+      "companyName": "Automatic Data Processing, Inc."
+    },
+    "ADSK": {
+      "sector": "Technology",
+      "companyName": "Autodesk, Inc."
+    },
+    "AEE": {
+      "sector": "Utilities",
+      "companyName": "Ameren Corporation"
+    },
+    "AEP": {
+      "sector": "Utilities",
+      "companyName": "American Electric Power Company, Inc."
+    },
+    "AES": {
+      "sector": "Utilities",
+      "companyName": "The AES Corporation"
+    },
+    "AFL": {
+      "sector": "Financials",
+      "companyName": "Aflac Incorporated"
+    },
+    "AIG": {
+      "sector": "Financials",
+      "companyName": "American International Group, Inc."
+    },
+    "AIZ": {
+      "sector": "Financials",
+      "companyName": "Assurant, Inc."
+    },
+    "AJG": {
+      "sector": "Financials",
+      "companyName": "Arthur J. Gallagher & Co."
+    },
+    "AKAM": {
+      "sector": "Technology",
+      "companyName": "Akamai Technologies, Inc."
+    },
+    "ALB": {
+      "sector": "Materials",
+      "companyName": "Albemarle Corporation"
+    },
+    "ALGN": {
+      "sector": "Healthcare",
+      "companyName": "Align Technology, Inc."
+    },
+    "ALL": {
+      "sector": "Financials",
+      "companyName": "The Allstate Corporation"
+    },
+    "ALLE": {
+      "sector": "Industrials",
+      "companyName": "Allegion plc"
+    },
+    "AMAT": {
+      "sector": "Technology",
+      "companyName": "Applied Materials, Inc."
+    },
+    "AMCR": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Amcor plc"
+    },
+    "AMD": {
+      "sector": "Technology",
+      "companyName": "Advanced Micro Devices, Inc."
+    },
+    "AME": {
+      "sector": "Industrials",
+      "companyName": "AMETEK, Inc."
+    },
+    "AMGN": {
+      "sector": "Healthcare",
+      "companyName": "Amgen Inc."
+    },
+    "AMP": {
+      "sector": "Financials",
+      "companyName": "Ameriprise Financial, Inc."
+    },
+    "AMT": {
+      "sector": "Real Estate",
+      "companyName": "American Tower Corporation"
+    },
+    "AMZN": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Amazon.com, Inc."
+    },
+    "ANET": {
+      "sector": "Technology",
+      "companyName": "Arista Networks, Inc."
+    },
+    "AON": {
+      "sector": "Financials",
+      "companyName": "Aon plc"
+    },
+    "AOS": {
+      "sector": "Industrials",
+      "companyName": "A. O. Smith Corporation"
+    },
+    "APA": {
+      "sector": "Energy",
+      "companyName": "APA Corporation"
+    },
+    "APD": {
+      "sector": "Materials",
+      "companyName": "Air Products and Chemicals, Inc."
+    },
+    "APH": {
+      "sector": "Technology",
+      "companyName": "Amphenol Corporation"
+    },
+    "APO": {
+      "sector": "Financials",
+      "companyName": "Apollo Global Management, Inc."
+    },
+    "APP": {
+      "sector": "Technology",
+      "companyName": "AppLovin Corporation"
+    },
+    "APTV": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Aptiv PLC"
+    },
+    "ARE": {
+      "sector": "Real Estate",
+      "companyName": "Alexandria Real Estate Equities, Inc."
+    },
+    "ARES": {
+      "sector": "Financials",
+      "companyName": "Ares Management Corporation"
+    },
+    "ASML": {
+      "sector": "Technology",
+      "companyName": "ASML Holding N.V."
+    },
+    "ATH": {
+      "sector": "Financials",
+      "companyName": "Athene Holding Ltd."
+    },
+    "ATO": {
+      "sector": "Utilities",
+      "companyName": "Atmos Energy Corporation"
+    },
+    "AVB": {
+      "sector": "Real Estate",
+      "companyName": "AvalonBay Communities, Inc."
+    },
+    "AVGO": {
+      "sector": "Technology",
+      "companyName": "Broadcom Inc."
+    },
+    "AVY": {
+      "sector": "Industrials",
+      "companyName": "Avery Dennison Corporation"
+    },
+    "AWK": {
+      "sector": "Utilities",
+      "companyName": "American Water Works Company, Inc."
+    },
+    "AXON": {
+      "sector": "Industrials",
+      "companyName": "Axon Enterprise, Inc."
+    },
+    "AXP": {
+      "sector": "Financials",
+      "companyName": "American Express Company"
+    },
+    "AZO": {
+      "sector": "Consumer Discretionary",
+      "companyName": "AutoZone, Inc."
+    },
+    "BA": {
+      "sector": "Industrials",
+      "companyName": "The Boeing Company"
+    },
+    "BAC": {
+      "sector": "Financials",
+      "companyName": "Bank of America Corporation"
+    },
+    "BALL": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Ball Corporation"
+    },
+    "BAX": {
+      "sector": "Healthcare",
+      "companyName": "Baxter International Inc."
+    },
+    "BBEU": {
+      "sector": "Financials",
+      "companyName": "JPMorgan BetaBuilders Europe ETF"
+    },
+    "BBY": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Best Buy Co., Inc."
+    },
+    "BDX": {
+      "sector": "Healthcare",
+      "companyName": "Becton, Dickinson and Company"
+    },
+    "BG": {
+      "sector": "Consumer Staples",
+      "companyName": "Bunge Global S.A."
+    },
+    "BIIB": {
+      "sector": "Healthcare",
+      "companyName": "Biogen Inc."
+    },
+    "BK": {
+      "sector": "Financials",
+      "companyName": "The Bank of New York Mellon Corporation"
+    },
+    "BKNG": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Booking Holdings Inc."
+    },
+    "BKR": {
+      "sector": "Energy",
+      "companyName": "Baker Hughes Company"
+    },
+    "BLDR": {
+      "sector": "Industrials",
+      "companyName": "Builders FirstSource, Inc."
+    },
+    "BLK": {
+      "sector": "Financials",
+      "companyName": "BlackRock, Inc."
+    },
+    "BMY": {
+      "sector": "Healthcare",
+      "companyName": "Bristol-Myers Squibb Company"
+    },
+    "BR": {
+      "sector": "Technology",
+      "companyName": "Broadridge Financial Solutions, Inc."
+    },
+    "BRO": {
+      "sector": "Financials",
+      "companyName": "Brown & Brown, Inc."
+    },
+    "BSX": {
+      "sector": "Healthcare",
+      "companyName": "Boston Scientific Corporation"
+    },
+    "BX": {
+      "sector": "Financials",
+      "companyName": "Blackstone Inc."
+    },
+    "BXP": {
+      "sector": "Real Estate",
+      "companyName": "BXP, Inc."
+    },
+    "BXSL": {
+      "sector": "Financials",
+      "companyName": "Blackstone Secured Lending Fund"
+    },
+    "CAH": {
+      "sector": "Healthcare",
+      "companyName": "Cardinal Health, Inc."
+    },
+    "CARR": {
+      "sector": "Industrials",
+      "companyName": "Carrier Global Corporation"
+    },
+    "CASY": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Casey's General Stores, Inc."
+    },
+    "CAT": {
+      "sector": "Industrials",
+      "companyName": "Caterpillar Inc."
+    },
+    "CB": {
+      "sector": "Financials",
+      "companyName": "Chubb Limited"
+    },
+    "CBOE": {
+      "sector": "Financials",
+      "companyName": "Cboe Global Markets, Inc."
+    },
+    "CBRE": {
+      "sector": "Real Estate",
+      "companyName": "CBRE Group, Inc."
+    },
+    "CCL": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Carnival Corporation & plc"
+    },
+    "CDNS": {
+      "sector": "Technology",
+      "companyName": "Cadence Design Systems, Inc."
+    },
+    "CDW": {
+      "sector": "Technology",
+      "companyName": "CDW Corporation"
+    },
+    "CEG": {
+      "sector": "Utilities",
+      "companyName": "Constellation Energy Corporation"
+    },
+    "CF": {
+      "sector": "Materials",
+      "companyName": "CF Industries Holdings, Inc."
+    },
+    "CHRW": {
+      "sector": "Industrials",
+      "companyName": "C.H. Robinson Worldwide, Inc."
+    },
+    "CI": {
+      "sector": "Healthcare",
+      "companyName": "Cigna Corporation"
+    },
+    "CLH": {
+      "sector": "Industrials",
+      "companyName": "Clean Harbors, Inc."
+    },
+    "CMI": {
+      "sector": "Industrials",
+      "companyName": "Cummins Inc."
+    },
+    "CNC": {
+      "sector": "Healthcare",
+      "companyName": "Centene Corporation"
+    },
+    "CNP": {
+      "sector": "Utilities",
+      "companyName": "CenterPoint Energy, Inc."
+    },
+    "CNXC": {
+      "sector": "Technology",
+      "companyName": "Concentrix Corporation"
+    },
+    "COF": {
+      "sector": "Financials",
+      "companyName": "Capital One Financial Corporation"
+    },
+    "COR": {
+      "sector": "Healthcare",
+      "companyName": "Cencora, Inc."
+    },
+    "CPB": {
+      "sector": "Consumer Staples",
+      "companyName": "Campbell Soup Company"
+    },
+    "CPT": {
+      "sector": "Real Estate",
+      "companyName": "Camden Property Trust"
+    },
+    "CRL": {
+      "sector": "Healthcare",
+      "companyName": "Charles River Laboratories International, Inc."
+    },
+    "CVNA": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Carvana Co."
+    },
+    "DBEU": {
+      "sector": "Financials",
+      "companyName": "Xtrackers MSCI Europe Hedged Equity ETF"
+    },
+    "ENTG": {
+      "sector": "Technology",
+      "companyName": "Entegris, Inc."
+    },
+    "ERIE": {
+      "sector": "Financials",
+      "companyName": "Erie Indemnity Company"
+    },
+    "ETN": {
+      "sector": "Industrials",
+      "companyName": "Eaton Corporation plc"
+    },
+    "FBIN": {
+      "sector": "Industrials",
+      "companyName": "Fortune Brands Innovations, Inc."
+    },
+    "FDS": {
+      "sector": "Financials",
+      "companyName": "FactSet Research Systems Inc."
+    },
+    "FITB": {
+      "sector": "Financials",
+      "companyName": "Fifth Third Bancorp"
+    },
+    "FIXD": {
+      "sector": "Financials",
+      "companyName": "First Trust Smith Opportunistic Fixed Income ETF"
+    },
+    "FPE": {
+      "sector": "Financials",
+      "companyName": "First Trust Preferred Securities and Income ETF"
+    },
+    "FTCB": {
+      "sector": "Financials",
+      "companyName": "First Trust Core Investment Grade ETF"
+    },
+    "FTGC": {
+      "sector": "Financials",
+      "companyName": "First Trust Global Tactical Commodity Strategy Fund"
+    },
+    "FTSL": {
+      "sector": "Financials",
+      "companyName": "First Trust Senior Loan Fund"
+    },
+    "FULT": {
+      "sector": "Financials",
+      "companyName": "Fulton Financial Corporation"
+    },
+    "GD": {
+      "sector": "Industrials",
+      "companyName": "General Dynamics Corporation"
+    },
+    "GE": {
+      "sector": "Industrials",
+      "companyName": "GE Aerospace"
+    },
+    "GOOG": {
+      "sector": "Communication Services",
+      "companyName": "Alphabet Inc."
+    },
+    "GOOGL": {
+      "sector": "Communication Services",
+      "companyName": "Alphabet Inc."
+    },
+    "GS": {
+      "sector": "Financials",
+      "companyName": "The Goldman Sachs Group, Inc."
+    },
+    "HD": {
+      "sector": "Consumer Discretionary",
+      "companyName": "The Home Depot, Inc."
+    },
+    "HON": {
+      "sector": "Industrials",
+      "companyName": "Honeywell International Inc."
+    },
+    "HSY": {
+      "sector": "Consumer Staples",
+      "companyName": "The Hershey Company"
+    },
+    "HYLS": {
+      "sector": "Financials",
+      "companyName": "First Trust Tactical High Yield ETF"
+    },
+    "IWD": {
+      "sector": "Financials",
+      "companyName": "iShares Russell 1000 Value ETF"
+    },
+    "IWF": {
+      "sector": "Financials",
+      "companyName": "iShares Russell 1000 Growth ETF"
+    },
+    "JNJ": {
+      "sector": "Healthcare",
+      "companyName": "Johnson & Johnson"
+    },
+    "JPM": {
+      "sector": "Financials",
+      "companyName": "JPMorgan Chase & Co."
+    },
+    "KLAC": {
+      "sector": "Technology",
+      "companyName": "KLA Corporation"
+    },
+    "KO": {
+      "sector": "Consumer Staples",
+      "companyName": "The Coca-Cola Company"
+    },
+    "LBRDA": {
+      "sector": "Communication Services",
+      "companyName": "Liberty Broadband Corporation"
+    },
+    "LGOV": {
+      "sector": "Financials",
+      "companyName": "First Trust Long Duration Opportunities ETF"
+    },
+    "LLY": {
+      "sector": "Healthcare",
+      "companyName": "Eli Lilly and Company"
+    },
+    "LNG": {
+      "sector": "Energy",
+      "companyName": "Cheniere Energy, Inc."
+    },
+    "LNT": {
+      "sector": "Utilities",
+      "companyName": "Alliant Energy Corporation"
+    },
+    "MA": {
+      "sector": "Financials",
+      "companyName": "Mastercard Incorporated"
+    },
+    "MCD": {
+      "sector": "Consumer Discretionary",
+      "companyName": "McDonald's Corporation"
+    },
+    "MCK": {
+      "sector": "Healthcare",
+      "companyName": "McKesson Corporation"
+    },
+    "MKL": {
+      "sector": "Financials",
+      "companyName": "Markel Corporation"
+    },
+    "MMM": {
+      "sector": "Industrials",
+      "companyName": "3M Company"
+    },
+    "MNST": {
+      "sector": "Consumer Staples",
+      "companyName": "Monster Beverage Corporation"
+    },
+    "MO": {
+      "sector": "Consumer Staples",
+      "companyName": "Altria Group, Inc."
+    },
+    "MORN": {
+      "sector": "Financials",
+      "companyName": "Morningstar, Inc."
+    },
+    "MSFT": {
+      "sector": "Technology",
+      "companyName": "Microsoft Corporation"
+    },
+    "MSI": {
+      "sector": "Technology",
+      "companyName": "Motorola Solutions, Inc."
+    },
+    "NDAQ": {
+      "sector": "Financials",
+      "companyName": "Nasdaq, Inc."
+    },
+    "NVDA": {
+      "sector": "Technology",
+      "companyName": "NVIDIA Corporation"
+    },
+    "ORCL": {
+      "sector": "Technology",
+      "companyName": "Oracle Corporation"
+    },
+    "PANW": {
+      "sector": "Technology",
+      "companyName": "Palo Alto Networks, Inc."
+    },
+    "PAYX": {
+      "sector": "Industrials",
+      "companyName": "Paychex, Inc."
+    },
+    "PEP": {
+      "sector": "Consumer Staples",
+      "companyName": "PepsiCo, Inc."
+    },
+    "PH": {
+      "sector": "Industrials",
+      "companyName": "Parker-Hannifin Corporation"
+    },
+    "PKG": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Packaging Corporation of America"
+    },
+    "PLTR": {
+      "sector": "Technology",
+      "companyName": "Palantir Technologies Inc."
+    },
+    "PNC": {
+      "sector": "Financials",
+      "companyName": "The PNC Financial Services Group, Inc."
+    },
+    "PWR": {
+      "sector": "Industrials",
+      "companyName": "Quanta Services, Inc."
+    },
+    "QCOM": {
+      "sector": "Technology",
+      "companyName": "QUALCOMM Incorporated"
+    },
+    "RKT": {
+      "sector": "Financials",
+      "companyName": "Rocket Companies, Inc."
+    },
+    "SBUX": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Starbucks Corporation"
+    },
+    "SCHW": {
+      "sector": "Financials",
+      "companyName": "The Charles Schwab Corporation"
+    },
+    "SCI": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Service Corporation International"
+    },
+    "SCIO": {
+      "sector": "Financials",
+      "companyName": "First Trust Structured Credit Income Opportunities ETF"
+    },
+    "SPYM": {
+      "sector": "Financials",
+      "companyName": "State Street SPDR Portfolio S&P 500 ETF"
+    },
+    "STE": {
+      "sector": "Healthcare",
+      "companyName": "STERIS plc"
+    },
+    "T": {
+      "sector": "Communication Services",
+      "companyName": "AT&T Inc."
+    },
+    "TDG": {
+      "sector": "Industrials",
+      "companyName": "TransDigm Group Incorporated"
+    },
+    "TEAM": {
+      "sector": "Technology",
+      "companyName": "Atlassian Corporation"
+    },
+    "TECH": {
+      "sector": "Healthcare",
+      "companyName": "Bio-Techne Corporation"
+    },
+    "TJX": {
+      "sector": "Consumer Discretionary",
+      "companyName": "The TJX Companies, Inc."
+    },
+    "TOST": {
+      "sector": "Technology",
+      "companyName": "Toast, Inc."
+    },
+    "TPYP": {
+      "sector": "Financials",
+      "companyName": "Tortoise North American Pipeline Fund"
+    },
+    "TSCO": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Tractor Supply Company"
+    },
+    "VEA": {
+      "sector": "Financials",
+      "companyName": "Vanguard FTSE Developed Markets ETF"
+    },
+    "VGK": {
+      "sector": "Financials",
+      "companyName": "Vanguard FTSE Europe ETF"
+    },
+    "VIK": {
+      "sector": "Consumer Discretionary",
+      "companyName": "Viking Holdings Ltd"
+    },
+    "VUG": {
+      "sector": "Financials",
+      "companyName": "Vanguard Growth ETF"
+    },
+    "VZ": {
+      "sector": "Communication Services",
+      "companyName": "Verizon Communications Inc."
+    },
+    "WFC": {
+      "sector": "Financials",
+      "companyName": "Wells Fargo & Company"
+    },
+    "XYZ": {
+      "sector": "Technology",
+      "companyName": "Block, Inc."
+    }
+  }
+}

@@ -8,9 +8,13 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "fetch:congress": "node scripts/fetch-congress.mjs",
     "audit:names": "node --env-file=.env.local scripts/audit-trade-names.mjs",
-    "query:top-tickers": "node --env-file=.env.local scripts/query-top-tickers.mjs"
+    "query:top-tickers": "node --env-file=.env.local scripts/query-top-tickers.mjs",
+    "build:sp500-baseline": "node scripts/build-sp500-baseline.mjs",
+    "fetch:sectors": "node --env-file=.env.local scripts/fetch-sectors.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.1",
@@ -23,10 +27,12 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "cheerio": "^1.0.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "vitest": "^2.1.8"
   }
 }
