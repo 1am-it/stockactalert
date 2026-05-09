@@ -244,42 +244,11 @@ export default function BrowseAllFilingsScreen({
   // design Q&A 2026-05-09 (no hidden state, pill must be the affordance).
   const [sectorFilter, setSectorFilter] = useState(null);
 
-  // 1AM-70 phase 5: related filings for the drawer's "Related filings in
-  // [Sector]" section. Computed when selectedTrade has a known sector;
-  // returns up to 3 OTHER trades in the same sector, sorted by tradeDate
-  // descending (most-recent first).
-  //
-  // Source: allFetchedTrades — the complete fetched set, NOT visibleTrades.
-  // This is intentional: related filings are a discovery affordance and
-  // should surface trades regardless of the user's current filters
-  // (chamber, action, amount, etc.). If we used visibleTrades a chamber
-  // filter on Senate would hide House trades in the same sector — wrong
-  // mental model. The drawer's section headline ("Related filings in
-  // Financials") promises sector-scoped, not filter-scoped.
-  //
-  // Empty array when:
-  //   - no selectedTrade
-  //   - selectedTrade has unknown sector (lookupSector miss)
-  //   - no other trades in that sector
-  // Drawer hides the entire section (header + body) when empty per design.
-  const relatedTrades = useMemo(() => {
-    if (!selectedTrade) return [];
-    const currentSector = lookupSector(selectedTrade.ticker)?.sector;
-    if (!currentSector) return [];
-    return allFetchedTrades
-      .filter((t) => {
-        if (t.id === selectedTrade.id) return false;
-        return lookupSector(t.ticker)?.sector === currentSector;
-      })
-      .sort((a, b) => {
-        // tradeDate is YYYY-MM-DD; lexicographic sort = chronological sort.
-        // Descending = most recent first.
-        if (b.tradeDate < a.tradeDate) return -1;
-        if (b.tradeDate > a.tradeDate) return 1;
-        return 0;
-      })
-      .slice(0, 3);
-  }, [selectedTrade, allFetchedTrades]);
+  // 1AM-70 phase 5 hotfix: relatedTrades useMemo moved BELOW allFetchedTrades
+  // declaration to avoid Temporal Dead Zone ReferenceError. The original
+  // placement (here) referenced allFetchedTrades in both the function body
+  // and the dependency array before the const was initialised, crashing
+  // every render and leaving Browse-tab as a blank page.
   // 1AM-124 fase 8: filter sheet open/close state. The secondary filters
   // (Chamber, Time period, Sort) live behind a "More filters →" link to keep
   // the main view clean. Direction chips (Action) and the This week pill stay
@@ -401,6 +370,49 @@ export default function BrowseAllFilingsScreen({
       return true;
     });
   }, [trades, extraTrades]);
+
+  // 1AM-70 phase 5 (moved here in phase 5 hotfix): related filings for the
+  // drawer's "Related filings in [Sector]" section. Computed when
+  // selectedTrade has a known sector; returns up to 3 OTHER trades in the
+  // same sector, sorted by tradeDate descending (most-recent first).
+  //
+  // Position: AFTER allFetchedTrades is declared — earlier placement caused
+  // a Temporal Dead Zone ReferenceError on every render (the dependency
+  // array `[selectedTrade, allFetchedTrades]` accessed allFetchedTrades
+  // before its `const` was initialised), which crashed BrowseAllFilingsScreen
+  // and rendered the tab as a blank page after onboarding completion.
+  //
+  // Source: allFetchedTrades — the complete fetched set, NOT visibleTrades.
+  // This is intentional: related filings are a discovery affordance and
+  // should surface trades regardless of the user's current filters
+  // (chamber, action, amount, etc.). If we used visibleTrades a chamber
+  // filter on Senate would hide House trades in the same sector — wrong
+  // mental model. The drawer's section headline ("Related filings in
+  // Financials") promises sector-scoped, not filter-scoped.
+  //
+  // Empty array when:
+  //   - no selectedTrade
+  //   - selectedTrade has unknown sector (lookupSector miss)
+  //   - no other trades in that sector
+  // Drawer hides the entire section (header + body) when empty per design.
+  const relatedTrades = useMemo(() => {
+    if (!selectedTrade) return [];
+    const currentSector = lookupSector(selectedTrade.ticker)?.sector;
+    if (!currentSector) return [];
+    return allFetchedTrades
+      .filter((t) => {
+        if (t.id === selectedTrade.id) return false;
+        return lookupSector(t.ticker)?.sector === currentSector;
+      })
+      .sort((a, b) => {
+        // tradeDate is YYYY-MM-DD; lexicographic sort = chronological sort.
+        // Descending = most recent first.
+        if (b.tradeDate < a.tradeDate) return -1;
+        if (b.tradeDate > a.tradeDate) return 1;
+        return 0;
+      })
+      .slice(0, 3);
+  }, [selectedTrade, allFetchedTrades]);
 
   // Client-side chamber + action + amount filters layered on top of the
   // fetched set, then sorted per sortOrder.
