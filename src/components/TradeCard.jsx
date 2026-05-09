@@ -62,10 +62,17 @@ export default function TradeCard({
   onViewProfile,
   onViewTicker,
   onPoliticianClick,
+  onTradeClick,
   highlighted = false,
   following = false,
   owner = 'self',
 }) {
+  // 1AM-70: when `onTradeClick` is provided (Browse-tab, opens drawer),
+  // root-card clicks fire that instead of toggling the inline expand.
+  // When `onTradeClick` is omitted (Feed-tab, other consumers), the
+  // existing expand behaviour is preserved — backwards-compatible. A
+  // future ticket can migrate Feed to the drawer pattern; this prop
+  // shape supports both worlds without per-consumer branching.
   const [expanded, setExpanded] = useState(false);
 
   const isBuy = trade.action === 'Purchase';
@@ -99,7 +106,16 @@ export default function TradeCard({
         transition: 'box-shadow 0.15s ease',
         boxShadow: expanded ? '0 4px 20px rgba(13, 27, 42, 0.08)' : 'none',
       }}
-      onClick={() => setExpanded(!expanded)}
+      onClick={() => {
+        // 1AM-70: drawer-aware click handler. If parent provided
+        // onTradeClick (Browse), open the drawer with this trade. Otherwise
+        // fall back to the legacy inline expand (Feed, others).
+        if (typeof onTradeClick === 'function') {
+          onTradeClick(trade);
+        } else {
+          setExpanded(!expanded);
+        }
+      }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = '0 4px 20px rgba(13, 27, 42, 0.08)';
       }}

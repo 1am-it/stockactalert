@@ -28,13 +28,21 @@
 //   onClose              — callback when backdrop tapped
 //   chamber              — current chamber filter value ('all' | 'senate' | 'house')
 //   onChamberChange      — callback(value)
-//   timePeriod           — current time period value ('all' | 'past7d' | 'past30d' | 'past90d' | 'pastyear')
-//   onTimePeriodChange   — callback(value)
+//   amountFilter         — current amount filter value ('any' | 'gte15k' | 'gte50k' | 'gte100k' | 'gte500k' | 'gte1m')
+//   onAmountChange       — callback(value)
 //   sortOrder            — current sort value ('newest' | 'largest')
 //   onSortOrderChange    — callback(value)
+//
+// 1AM-152: timePeriod props removed — time-range chips now live on
+// Browse-tab directly. The sheet contains only Chamber + Sort.
+// 1AM-154: Minimum amount section added between Chamber and Sort.
+// AMOUNT_OPTIONS imported from BrowseAllFilingsScreen (named export)
+// rather than redefined here — single source of truth for the option
+// list, avoids the value/label/threshold drift across files.
 
 import { useEffect } from 'react';
 import SingleChipGroup from './SingleChipGroup';
+import { AMOUNT_OPTIONS } from './BrowseAllFilingsScreen';
 
 const CHAMBER_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -42,13 +50,9 @@ const CHAMBER_OPTIONS = [
   { value: 'house', label: 'House' },
 ];
 
-const TIME_PERIOD_OPTIONS = [
-  { value: 'past7d', label: 'Past 7d' },
-  { value: 'past30d', label: 'Past 30d' },
-  { value: 'past90d', label: 'Past 90d' },
-  { value: 'pastYear', label: 'Past year' },
-  { value: 'all', label: 'All time' },
-];
+// 1AM-152 (2026-05-09): TIME_PERIOD_OPTIONS removed from this file.
+// Time-range chips now live on Browse-tab directly as a chip-row above
+// the "More filters →" link. The sheet retains only Chamber + Sort.
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
@@ -60,8 +64,8 @@ export default function FilterSheet({
   onClose,
   chamber,
   onChamberChange,
-  timePeriod,
-  onTimePeriodChange,
+  amountFilter,
+  onAmountChange,
   sortOrder,
   onSortOrderChange,
 }) {
@@ -212,15 +216,26 @@ export default function FilterSheet({
           />
         </div>
 
-        {/* ── Time period section ─────────────────────────────────────── */}
-        {/* 5 chips, may wrap to two rows on narrow viewports — SingleChipGroup
-            handles that natively. */}
+        {/* ── Minimum amount section (1AM-154) ────────────────────────── */}
+        {/* 6 chips: Any amount / ≥$15K / ≥$50K / ≥$100K / ≥$500K / ≥$1M.
+            Wraps to two rows on narrow viewports — SingleChipGroup handles
+            that natively. AMOUNT_OPTIONS sourced from BrowseAllFilingsScreen
+            (named export); SingleChipGroup uses the value + label fields
+            and ignores the threshold field.
+
+            Label "Amount" (not "Minimum amount") per design Q&A 2026-05-09:
+            CHAMBER + AMOUNT + SORT all fit in the SingleChipGroup label
+            minWidth column (56px) for clean vertical alignment of chip-rows.
+            "Minimum amount" overflowed and broke the column. The chip values
+            ("Any amount", "≥$15K" etc.) already communicate the
+            minimum-threshold semantics — the column-label being shorter
+            doesn't lose meaning. */}
         <div style={{ marginBottom: 18 }}>
           <SingleChipGroup
-            label="Time period"
-            options={TIME_PERIOD_OPTIONS}
-            value={timePeriod}
-            onChange={onTimePeriodChange}
+            label="Amount"
+            options={AMOUNT_OPTIONS}
+            value={amountFilter}
+            onChange={onAmountChange}
           />
         </div>
 

@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No unreleased changes yet._
+
+---
+
+## [0.21.0] — 2026-05-09
+
+Browse v3 redesign — six sub-tickets ship together (1AM-150 umbrella). Layout reset (1AM-151), time-range chips (1AM-152), active-filter pills (1AM-153), amount filter (1AM-154), and trade detail drawer (1AM-70). The sector data layer (1AM-37) already landed in v0.20.1 as silent foundation; v0.21.0 turns Browse-tab from a static list into a discovery surface — tap any trade for the full drawer (header, action row, sector tap-to-filter, related filings), with mobile swipe-down dismiss. MINOR bump because the user-visible surface is meaningfully expanded.
+
+### Added
+
+- **`src/components/FilterPill.jsx` (1AM-153)** — generic active-filter pill component. One pill = one active filter dimension. Click × to clear, click body (when `onClick` provided) for edit-affordance. Used by Browse for search-pill swap UX; designed to be filter-type-agnostic so 1AM-152 (time-range chips) and 1AM-154 (amount filter) can plug into the same primitive without per-type styling drift.
+- **`src/components/FilterSummaryLine.jsx` (1AM-153)** — generic count + context summary line. Single source of truth for the small meta-strip that tells users what they're looking at. Replaces both Browse's inline count strip and Feed's bespoke monospace label. Muted gray sentence-case typography reflects secondary-meta status (filter-summary is not primary content).
+
+### Changed
+
+- **Browse-tab layout reset (1AM-151)**:
+  - Header: `Browse` → `Recent Filings · last 30 days`. New `subtitle` prop on `HeaderBar` for the time-window communication.
+  - Trending Tickers section removed from Browse render-tree. Component file (`src/components/TrendingTickers.jsx`) and `aggregateTopTickers` helper parked — no consumers, may resurface in a future Tickers/Watchlist surface.
+  - Most Active Politicians section removed from Browse render-tree. Component file (`src/components/MostActivePoliticians.jsx`) stays — Feed-tab is now its sole consumer.
+  - "Recent Trades" h2 header removed (redundant when the entire screen is filings).
+  - 3-cascade `useTrades` calls (7d/30d/all-time) for Trending+MostActive sources removed. Single `useTrades(searchFilters)` is now the only fetch on this screen — fewer API calls per Browse-tab visit.
+  - `BrowseAllFilingsScreen` props slimmed: dropped `followedPoliticians` + `onTogglePolitician` (only consumer was the removed Most Active row).
+
+- **Feed-tab Most Active for active users (1AM-151)**:
+  - Most Active section now renders below the feed for users with 1+ follows, in addition to the existing empty-state embed (1AM-145). Uses the same `useTrades()` data (unfiltered set), no separate fetch.
+  - **Discovery-value check**: section is hidden when every politician in the top-N is already followed by the user — would otherwise be a redundant list adding noise instead of signal. Empty-state behaviour unchanged (always renders even if all top-N are unknown to the user).
+  - `aggregateMostActivePoliticians` (already extracted to `src/lib/politicianAggregation.js` in 1AM-145) now drives both render contexts — empty-state embed and active-user footer.
+
+- **Browse-tab active-filter pills (1AM-153)**:
+  - Pills row above the count strip when search or action filters are active. Search-pill renders as `NVDA ×`; action-pill as `Buy only ×` / `Sell only ×`. Pill × clears that filter; search-pill body tap returns input pre-filled with current value, focused, cursor at end (edit-affordance).
+  - Search-pill swap UX implemented via `isSearchInputMode` flag — input visible until user blurs (Enter / tab / click-elsewhere), at which point it collapses to a pill. Decouples mode-switch from debounce timing so users typing slower than 250ms/char don't get interrupted mid-word (initial implementation triggered the swap on every debounce settle, hotfixed to blur-trigger 2026-05-09).
+  - Inline count strip replaced with `<FilterSummaryLine>` — same typography contract as Feed FilterBar.
+
+- **Feed-tab FilterBar typography (1AM-153)**:
+  - Replaced bespoke monospace-uppercase label (`24 TRADES FROM THE 4 POLITICIANS YOU FOLLOW`, originally 1AM-66) with `<FilterSummaryLine>` (`24 trades · from the 4 politicians you follow`). Muted gray sentence-case, consistent with Browse-tab.
+  - Show-all mode now reads `124 trades · from all politicians` instead of the bare `SHOWING ALL RECENT TRADES`. Communicates magnitude relative to followed-only mode without requiring an explicit population total. Folded from 1AM-151 phase 4 smoke-test feedback.
+  - Refresh + Show all/followed buttons unchanged.
+
+- **Browse-tab time-range chips (1AM-152)**:
+  - New chip-row above the "More filters →" link: `Past 7d` / `Past 30d` / `Past 90d`. Default `Past 30d`. Reuses `SingleChipGroup` for visual consistency with the Action chip row above it.
+  - **"This week" pill removed** (1AM-124 fase 8 quick-toggle). Replaced by the canonical 3-chip row — single source of truth for time-period state, no toggle ambiguity.
+  - **`All time` and `Past year` options dropped from the codebase entirely**. `TIME_PERIOD_OPTIONS` slimmed from 5 to 3 entries; `TIME_PERIOD_DAYS` lookup slimmed; `computeSince('all')` early-return removed (unreachable path). If "All time" is needed later, an explicit chip should be added — no hidden enum values restored.
+  - **`Time period` section removed from FilterSheet**. The bottom-sheet now contains only Chamber + Sort. `timePeriod` + `onTimePeriodChange` props dropped from FilterSheet. Time-range is canonical state on Browse-tab now, not a sheet-secondary filter.
+  - Filter-zone layout: three rows with consistent 8px row-gap inside the chunk (Action chips → Time-range chips → More filters link), 12px section-break to the active-filter pills row below.
+
+- **Browse-tab amount filter (1AM-154)**:
+  - New filter dimension: `Any amount` (default) / `≥$15K` / `≥$50K` / `≥$100K` / `≥$500K` / `≥$1M`. Thresholds anchored on STOCK Act PTR reporting trigger ($15K = noise floor) and the institutional-conviction buckets used by Capitol Trades + Quiver.
+  - `AMOUNT_OPTIONS` lives in `BrowseAllFilingsScreen.jsx` as a named export with `[{ value, label, threshold }]` shape — single source of truth for FilterSheet chip-group, active-filter pill label, and `visibleTrades` filter logic. FilterSheet imports it directly instead of duplicating constants (avoids value/label/threshold drift across files).
+  - Filter applies client-side via `parseAmountMidpoint(t.amount) >= threshold` after chamber + action filters in `visibleTrades` useMemo. Skipped entirely when filter is `any` — no per-trade midpoint parse in default state.
+  - Active-filter pill (1AM-153 consumer): renders `≥$50K ×` etc. when not `any`. Pill × clears back to `any`. No edit-affordance — × is sufficient (six discrete options, picker via FilterSheet).
+  - `resetFilters` + `hasActiveFilter` extended to include amountFilter alongside the other dimensions.
+  - **FilterSheet label "Amount"** (not "Minimum amount") for label-column alignment. The 56px `SingleChipGroup` minWidth column fits CHAMBER + AMOUNT + SORT cleanly; "Minimum amount" overflowed and broke the vertical alignment of chip-rows. Chip values ("Any amount", "≥$15K") communicate the minimum-threshold semantics — the column-label being shorter doesn't lose meaning.
+
+- **Browse-tab trade detail drawer (1AM-70)**:
+  - Tap any trade card on Browse-tab → bottom-sheet drawer opens with the full trade context. Replaces the inline-expand pattern for the Browse surface only; Feed-tab and PoliticianDetailScreen TradeCards keep their existing expand behaviour (backwards-compatible via optional `onTradeClick` prop on `TradeCard`).
+  - **Header**: avatar + politicus name (Playfair) + chamber-line via `formatChamberLine` (e.g. `Senate · AR`, `House · TX-7`). Cascade fallback when member metadata is missing — `member` lookup → `trade.chamber` → `Member metadata unavailable`. Handles April Delaney / April McClain Delaney name-mismatch (1AM-148) gracefully without crashing.
+  - **Bought / Sold block**: action label color-matched (▲ green / ▼ red), oversized ticker in the action color, company name + sector via `lookupSector` (1AM-37 data), amount range, filed-relative line ("Filed 7 days later" — manual first-char capitalisation, not CSS `text-transform: capitalize` which title-cased every word), source attribution `Filed via [Source] · Original disclosure not yet linked` (honest gap-marker until disclosureUrl is wired in 1AM-157).
+  - **Action row**: filled-navy `Follow [FirstName]` ↔ outlined `✓ Following` primary CTA + outlined `View all trades` secondary CTA navigating to `PoliticianDetailScreen`. Drawer dismisses automatically before the navigation transition.
+  - **Sector tap-to-filter**: when sector data is available, the sector text in the Bought-block becomes a tappable link with a `Tap sector to filter` muted hint below. Tap dismisses the drawer and activates a new sector filter on Browse, surfaced via the active-filter pill row (`Financials ×`). The pill × is the only entry-point to clear the sector filter — no hidden state.
+  - **Related filings in [Sector]**: up to 3 other recent trades from the same sector below the action row. Sorted by trade date descending, current trade excluded. Each row shows avatar (initials only) + ticker + action label + abbreviated amount range (`$1K–$15K`, `$250K–$500K`) + trade date. Tap any row to hot-swap drawer content with the new trade — no dismiss-and-reopen animation. Section is hidden entirely (header + body) when no related trades exist or the trade's sector is unknown; drawer bottom-padding stays consistent either way.
+  - **Mobile swipe-down dismiss**: drag the grab handle down to dismiss. Combined threshold — drag past 40% of sheet height OR flick past 0.5 px/ms in the last 100ms triggers dismiss; otherwise the sheet snaps back. Both signals reflect intent: distance catches slow long swipes, velocity catches fast flicks; the `OR` avoids false-positives on iOS scroll-bounce and false-negatives on careful slow drags. Desktop unaffected — Esc + scrim-tap remain the dismiss paths.
+  - **Drawer scope**: Browse-tab only. PoliticianDetailScreen and FeedScreen TradeCards keep their inline-expand behaviour. If drawer-everywhere is desired, follow-up ticket.
+
+### Out of scope (deferred)
+
+- **Politician headshots in Most Active rows** — depends on 1AM-146.
+
 ---
 
 ## [0.20.1] — 2026-05-09

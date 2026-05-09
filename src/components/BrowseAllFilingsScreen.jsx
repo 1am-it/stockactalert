@@ -8,11 +8,26 @@
 // switches to feed-tab on tap if anything calls it programmatically), but
 // the link itself is gone from the UI.
 //
-// Originally reached from two entry points:
-//   1. FilterBar `Show all` button on Personal feed (deprecates the old toggle)
-//   2. `View all recent filings` CTA in FilterEmptyState (1AM-111)
-// 1AM-124 makes the bottom-nav Browse-tab a third entry point, and the
-// primary one going forward.
+// 1AM-151 (Browse v3 layout reset, 2026-05-09):
+//   - Header title "Browse" → "Recent Filings", subtitle "last 30 days"
+//     added via the new HeaderBar `subtitle` prop.
+//   - Trending Tickers section REMOVED from this screen (component file
+//     parked for future reuse — see TODO note below).
+//   - Most Active Politicians section REMOVED from this screen — relocates
+//     to FeedScreen as discovery affordance for both empty + active users.
+//   - "Recent Trades" h2 header REMOVED — redundant now that the entire
+//     screen is filings.
+//   - `followedPoliticians` + `onTogglePolitician` props dropped (the
+//     Most Active row was the only consumer).
+//   - 3-cascade `useTrades` calls (7d/30d/all) for Trending+MostActive
+//     dropped — main filings-list `useTrades(searchFilters)` is the only
+//     remaining fetch on this screen.
+//
+// TODO (post-1AM-151 cleanup): `src/components/TrendingTickers.jsx` and
+// `aggregateTopTickers` (was inline in this file) are now unused. Keep
+// parked until 1AM-150 umbrella ships — they may resurface in a Tickers/
+// Watchlist surface later. After v0.21.0 if no consumer reappears, run a
+// dead-code sweep.
 //
 // Architecture: page-style header (matching Your Feed / Politicians visual
 // language) + search input + chamber/action chips + trade list. No TabBar
@@ -52,20 +67,16 @@
 //   onSettingsClick  — 1AM-124: opens SettingsScreen overlay via the gear
 //                      icon in HeaderBar.
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TradeCard from './TradeCard';
+import TradeDetailDrawer from './TradeDetailDrawer';
+import { lookupSector } from '../lib/sectors';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
-import TrendingTickers from './TrendingTickers';
-import MostActivePoliticians from './MostActivePoliticians';
 import FilterSheet from './FilterSheet';
+import FilterPill from './FilterPill';
+import FilterSummaryLine from './FilterSummaryLine';
 import { useTrades } from '../hooks/useTrades';
-import { findByName } from '../lib/congress';
-import {
-  MOST_ACTIVE_TOP_N,
-  deriveInitials,
-  aggregateMostActivePoliticians,
-} from '../lib/politicianAggregation';
 import { formatRelativeTime } from '../lib/relativeTime';
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -95,23 +106,31 @@ const ACTION_OPTIONS = [
   { value: 'sell', label: 'Sell' },
 ];
 
+// 1AM-152 (2026-05-09): time-period chips on Browse-tab now drive these
+// options directly. Slimmed from 5 entries (added 'all' + 'pastYear') to 3
+// for the chip-row contract: 7d / 30d / 90d. The 'all' and 'pastYear'
+// options were dropped per Browse v3 design Q&A — anything beyond 90d in a
+// recency-driven discovery view is rarely useful (STOCK Act 45-day filing
+// window means archive trades cluster within the chip range), and keeping
+// dead options in the constant invites drift. If "All time" is needed
+// later, add an explicit chip — don't reintroduce a hidden enum.
 const TIME_PERIOD_OPTIONS = [
-  { value: 'all', label: 'All time' },
   { value: 'past7d', label: 'Past 7d' },
   { value: 'past30d', label: 'Past 30d' },
   { value: 'past90d', label: 'Past 90d' },
-  { value: 'pastYear', label: 'Past year' },
 ];
 
 const TIME_PERIOD_DAYS = {
   past7d: 7,
   past30d: 30,
   past90d: 90,
-  pastYear: 365,
 };
 
 function computeSince(timePeriod) {
-  if (timePeriod === 'all') return null;
+  // 1AM-152: 'all' early-return removed alongside the dropped option.
+  // Defensive: if an unknown timePeriod string ever reaches here (legacy
+  // cached state, future code-path), fall back to no `since` filter rather
+  // than throwing. Server returns the 50 most recent — acceptable degradation.
   const days = TIME_PERIOD_DAYS[timePeriod];
   if (!days) return null;
   const date = new Date();
@@ -119,72 +138,44 @@ function computeSince(timePeriod) {
   return date.toISOString().slice(0, 10);
 }
 
+// 1AM-154: amount filter options. Single-array shape with value + label +
+// threshold so consumers (FilterSheet chip-group, active-filter pill,
+// visibleTrades filter logic) all read from one source. Threshold is the
+// numeric floor in dollars; matching trade if `parseAmountMidpoint(amount)
+// >= threshold`. The 'any' option uses threshold 0, which the filter logic
+// short-circuits before midpoint comparison.
+//
+// Thresholds rationale:
+//   - $15K = STOCK Act PTR reporting trigger (smallest disclosed range).
+//     "≥$15K" effectively means "anything visible above the noise floor".
+//   - $50K = common "noteworthy" threshold used by Capitol Trades, Quiver.
+//   - $100K / $500K / $1M = institutional-conviction buckets.
+//
+// Pill label format ≥$Xk per design Q&A 2026-05-09: U+2265 ≥ symbol is
+// mathematically unambiguous (no "+" interpretation drift between strict-gt
+// and gte). Sits in standard system-font stack, no fallback issues. Used
+// as-is by FilterSheet SingleChipGroup (which doesn't apply text-transform
+// to chip text — only to the group label) and by FilterPill (no transform).
+//
+// Exported named so FilterSheet can import without duplicating the array.
+// Co-located with parseAmountMidpoint + filter logic per design Q&A — a
+// future lib/ extraction is justified only when a third consumer appears
+// (e.g. server-side amount filtering).
+export const AMOUNT_OPTIONS = [
+  { value: 'any', label: 'Any amount', threshold: 0 },
+  { value: 'gte15k', label: '≥$15K', threshold: 15_000 },
+  { value: 'gte50k', label: '≥$50K', threshold: 50_000 },
+  { value: 'gte100k', label: '≥$100K', threshold: 100_000 },
+  { value: 'gte500k', label: '≥$500K', threshold: 500_000 },
+  { value: 'gte1m', label: '≥$1M', threshold: 1_000_000 },
+];
+
 // 1AM-112: sort options. "Newest" matches the default API order; "Largest"
 // uses the amount range midpoint estimate for ordering.
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'largest', label: 'Largest amount' },
 ];
-
-// 1AM-124 fase 5: Trending Tickers — adaptive window strategy.
-// The archive is fresh (started 2026-05-01) and STOCK Act filings have weeks
-// of latency between trade_date and filed_date. Past 7 days will be empty for
-// months. Rather than hide Trending or show a permanent empty state, we cascade
-// through tiers: try 7d, fall back to 30d, fall back to all-time. The window
-// label updates to match. As the archive matures, the 7d tier will naturally
-// take over.
-//
-// MIN_TICKERS_THRESHOLD = 3: a Trending list with 1-2 tickers feels thin —
-// "trending" implies a pattern, not a one-off. So we wait until at least 3
-// distinct tickers exist in a window before declaring it the live one.
-const TRENDING_FETCH_LIMIT = 500;
-const TRENDING_TOP_N = 5;
-const TRENDING_MIN_TICKERS = 3;
-const TRENDING_TIERS = [
-  { days: 7, label: '7 days' },
-  { days: 30, label: '30 days' },
-  { days: null, label: 'all time' }, // null = no `since` filter
-];
-
-// 1AM-124 fase 5: Compute YYYY-MM-DD date string `n` days ago.
-// Used by Trending Tickers tier-cascade. null `n` returns null (all-time).
-function computeSinceDaysAgo(n) {
-  if (n === null) return null;
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
-// 1AM-124 fase 5: Aggregate trades by ticker, return top N most-traded.
-// Empty/null tickers are skipped so we don't surface "" as a "top ticker".
-// Stable order: ties broken by ticker symbol alphabetically (deterministic
-// across renders and useful for any future snapshot tests).
-function aggregateTopTickers(trades, topN = TRENDING_TOP_N) {
-  if (!Array.isArray(trades) || trades.length === 0) return [];
-  const counts = new Map();
-  for (const t of trades) {
-    const ticker = (t.ticker || '').trim();
-    if (!ticker) continue;
-    counts.set(ticker, (counts.get(ticker) || 0) + 1);
-  }
-  return Array.from(counts.entries())
-    .map(([ticker, count]) => ({ ticker, count }))
-    .sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return a.ticker.localeCompare(b.ticker);
-    })
-    .slice(0, topN);
-}
-
-// 1AM-124 fase 6: Most Active Politicians cascade configuration.
-// MOST_ACTIVE_TOP_N + aggregateMostActivePoliticians + deriveInitials are
-// imported from `lib/politicianAggregation` (extracted 1AM-145 so Feed-tab
-// can render its own Most Active embed using the same logic).
-//
-// MOST_ACTIVE_MIN_POLITICIANS stays here — it's the cascade threshold
-// specific to Browse-tab's adaptive window pattern (7d → 30d → all-time).
-// Feed doesn't cascade; it aggregates from already-loaded trades.
-const MOST_ACTIVE_MIN_POLITICIANS = 3;
 
 // Inline copy of the amount-midpoint parser used in PoliticianDetailScreen.
 // Duplicated here to keep this delivery scope-tight; should be DRY-ed into
@@ -207,12 +198,19 @@ function parseAmountMidpoint(amountStr) {
 }
 
 export default function BrowseAllFilingsScreen({
+  // eslint-disable-next-line no-unused-vars
   onBack,
   onSettingsClick,
-  // 1AM-124 fase 6: follow-state passed in from App so Most Active rows can
-  // toggle politicians via the same `selected` follows state used by Feed.
+  // 1AM-70 phase 3: drawer plumbing. followedPoliticians + onTogglePolitician
+  // came back after 1AM-151 dropped them — the drawer's Follow CTA needs to
+  // both read current follow state and toggle it. onPoliticianClick is new
+  // for this ticket; the drawer's "View all trades" button calls it with
+  // the politicus name to navigate to PoliticianDetailScreen via App.jsx's
+  // detailPolitician route. Defaults to no-ops so the screen still renders
+  // when invoked without these (legacy call-sites, tests).
   followedPoliticians = [],
-  onTogglePolitician,
+  onTogglePolitician = () => {},
+  onPoliticianClick = () => {},
 }) {
   // Local UI state — not persisted across sessions per ticket scope ("Browse
   // is a stateless utility for v1").
@@ -220,13 +218,37 @@ export default function BrowseAllFilingsScreen({
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [chamberFilter, setChamberFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
-  // 1AM-124 fase 8: default changed from 'all' to 'past30d'. Browse-tab is
-  // a recency-driven discovery view (consistent with Trending Tickers and
-  // Most Active sections which also surface ~30-day windows via cascade).
-  // Users can still pick "All time" via the filter sheet.
+  // 1AM-124 fase 8: default 'past30d'. Browse-tab is a recency-driven
+  // discovery view. Users can still pick "All time" via the filter sheet.
+  // 1AM-151: subtitle "last 30 days" in HeaderBar communicates this default
+  // explicitly; chip changes update the listing-count below, not the header.
   const [timePeriod, setTimePeriod] = useState('past30d');
   // 1AM-112: sort order. Default 'newest' matches API order.
   const [sortOrder, setSortOrder] = useState('newest');
+
+  // 1AM-154: minimum-amount filter. Default 'any' = no threshold applied.
+  // Filter logic in `visibleTrades` useMemo. Pill renders in active-filter
+  // row when not 'any'. Resets to 'any' via `resetFilters`.
+  const [amountFilter, setAmountFilter] = useState('any');
+
+  // 1AM-70: trade currently shown in the bottom-sheet drawer. null = no
+  // drawer open. Set by TradeCard onTradeClick, cleared by drawer's onClose.
+  // Phase 1 = skeleton; phases 2-5 fill in drawer content.
+  const [selectedTrade, setSelectedTrade] = useState(null);
+
+  // 1AM-70 phase 4: sector filter activated by tapping a sector in the
+  // drawer's Bought-block. null = no filter (default). Filter logic in
+  // visibleTrades useMemo uses lookupSector(t.ticker)?.sector to compare
+  // against this value (case-sensitive match against sectors.json values).
+  // Cleared via the active-filter pill × — only entry-point to clear, per
+  // design Q&A 2026-05-09 (no hidden state, pill must be the affordance).
+  const [sectorFilter, setSectorFilter] = useState(null);
+
+  // 1AM-70 phase 5 hotfix: relatedTrades useMemo moved BELOW allFetchedTrades
+  // declaration to avoid Temporal Dead Zone ReferenceError. The original
+  // placement (here) referenced allFetchedTrades in both the function body
+  // and the dependency array before the const was initialised, crashing
+  // every render and leaving Browse-tab as a blank page.
   // 1AM-124 fase 8: filter sheet open/close state. The secondary filters
   // (Chamber, Time period, Sort) live behind a "More filters →" link to keep
   // the main view clean. Direction chips (Action) and the This week pill stay
@@ -245,6 +267,33 @@ export default function BrowseAllFilingsScreen({
   // /api/trades/stats. null while loading or on error → footer falls back
   // to a copy without the "of N" total.
   const [archiveTotal, setArchiveTotal] = useState(null);
+
+  // 1AM-153: ref to the search input so the search-pill body-tap can return
+  // focus to a freshly-revealed input with cursor at the end of the value
+  // (edit-affordance per design Q&A 2026-05-09). Without this, tap-on-pill
+  // would just remove the pill and the user would have to find the input
+  // and click into it manually.
+  const searchInputRef = useRef(null);
+
+  // 1AM-153: search-pill swap state. Decouples input visibility from
+  // debouncedSearch, so toggling between pill-mode and input-mode doesn't
+  // disturb the search query itself (no flicker, no premature backend
+  // refetch). Default true (input visible).
+  //
+  // Mode-switch trigger (1AM-153 hotfix 2026-05-09): on input BLUR, not on
+  // debounce. The first implementation auto-switched as soon as the
+  // debounced search settled to non-empty — which fired mid-word for any
+  // user typing slower than 250ms/char, killing the input before they
+  // finished typing the search. The user observation was: typing "NVDA"
+  // would auto-collapse to a `N ×` pill after the first character because
+  // 250ms had elapsed before the second keystroke.
+  //
+  // Blur-trigger: input stays open while the user is interacting with it.
+  // When they tab away, click elsewhere, or hit Enter (which blurs in most
+  // browsers), the input collapses to a pill. Pill × clears the search and
+  // returns to input-mode empty. Pill body tap returns to input-mode with
+  // value + focus + cursor-at-end for editing.
+  const [isSearchInputMode, setIsSearchInputMode] = useState(true);
 
   // Debounce the search input to avoid hitting the API on every keystroke.
   useEffect(() => {
@@ -297,105 +346,6 @@ export default function BrowseAllFilingsScreen({
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } =
     useTrades(searchFilters);
 
-  // 1AM-124 fase 5: Trending Tickers — adaptive window cascade.
-  // Three useTrades calls (7d / 30d / all-time), each cached separately by
-  // /api/trades CDN headers. We pick the first tier that yields >= MIN_TICKERS
-  // distinct tickers, and surface the matching label so the UI is honest about
-  // which window is showing. As the archive matures (more recent filings), the
-  // 7d tier will start meeting the threshold and the cascade becomes a no-op.
-  //
-  // Memoised separately so each filter object has stable identity — otherwise
-  // useTrades' deps would re-stringify on every render.
-  const trendingFilters7d = useMemo(
-    () => ({ since: computeSinceDaysAgo(7), limit: TRENDING_FETCH_LIMIT }),
-    []
-  );
-  const trendingFilters30d = useMemo(
-    () => ({ since: computeSinceDaysAgo(30), limit: TRENDING_FETCH_LIMIT }),
-    []
-  );
-  const trendingFiltersAllTime = useMemo(
-    () => ({ limit: TRENDING_FETCH_LIMIT }),
-    []
-  );
-
-  const { trades: trending7dTrades, loading: trending7dLoading } =
-    useTrades(trendingFilters7d);
-  const { trades: trending30dTrades, loading: trending30dLoading } =
-    useTrades(trendingFilters30d);
-  const { trades: trendingAllTrades, loading: trendingAllLoading } =
-    useTrades(trendingFiltersAllTime);
-
-  // Pick the first tier with enough distinct tickers. Cascade: 7d → 30d →
-  // all-time. If even all-time is below threshold, fall back to all-time
-  // anyway (rare; only when archive is genuinely tiny) — better to show what
-  // we have than to hide.
-  //
-  // 1AM-124 fase 6: Most Active Politicians uses the SAME fetched trade sets
-  // (re-aggregated by politician instead of ticker). Each section evaluates
-  // its own threshold against its own aggregation, so the selected tier may
-  // differ between Trending and MostActive — e.g. 30d has 5 distinct tickers
-  // but only 2 distinct politicians, so Trending shows 30d while MostActive
-  // falls through to all-time. Independent labels reflect that.
-  const {
-    trendingTopTickers,
-    trendingWindowLabel,
-    trendingLoading,
-    mostActivePoliticians,
-    mostActiveWindowLabel,
-    mostActiveLoading,
-  } = useMemo(() => {
-    // Trending tiers
-    const trendingTier7d = aggregateTopTickers(trending7dTrades, TRENDING_TOP_N);
-    const trendingTier30d = aggregateTopTickers(trending30dTrades, TRENDING_TOP_N);
-    const trendingTierAll = aggregateTopTickers(trendingAllTrades, TRENDING_TOP_N);
-
-    // Most Active tiers (same trades, different aggregator)
-    const activeTier7d = aggregateMostActivePoliticians(trending7dTrades, MOST_ACTIVE_TOP_N);
-    const activeTier30d = aggregateMostActivePoliticians(trending30dTrades, MOST_ACTIVE_TOP_N);
-    const activeTierAll = aggregateMostActivePoliticians(trendingAllTrades, MOST_ACTIVE_TOP_N);
-
-    // Show loading if all three fetches are still in flight on first paint.
-    const stillLoading =
-      trending7dLoading && trending30dLoading && trendingAllLoading;
-
-    // Trending cascade
-    let trendingPick;
-    if (trendingTier7d.length >= TRENDING_MIN_TICKERS) {
-      trendingPick = { tickers: trendingTier7d, label: TRENDING_TIERS[0].label };
-    } else if (trendingTier30d.length >= TRENDING_MIN_TICKERS) {
-      trendingPick = { tickers: trendingTier30d, label: TRENDING_TIERS[1].label };
-    } else {
-      trendingPick = { tickers: trendingTierAll, label: TRENDING_TIERS[2].label };
-    }
-
-    // Most Active cascade (independent of Trending pick)
-    let activePick;
-    if (activeTier7d.length >= MOST_ACTIVE_MIN_POLITICIANS) {
-      activePick = { politicians: activeTier7d, label: TRENDING_TIERS[0].label };
-    } else if (activeTier30d.length >= MOST_ACTIVE_MIN_POLITICIANS) {
-      activePick = { politicians: activeTier30d, label: TRENDING_TIERS[1].label };
-    } else {
-      activePick = { politicians: activeTierAll, label: TRENDING_TIERS[2].label };
-    }
-
-    return {
-      trendingTopTickers: trendingPick.tickers,
-      trendingWindowLabel: trendingPick.label,
-      trendingLoading: stillLoading,
-      mostActivePoliticians: activePick.politicians,
-      mostActiveWindowLabel: activePick.label,
-      mostActiveLoading: stillLoading,
-    };
-  }, [
-    trending7dTrades,
-    trending30dTrades,
-    trendingAllTrades,
-    trending7dLoading,
-    trending30dLoading,
-    trendingAllLoading,
-  ]);
-
   // 1AM-114: reset pagination state whenever backend filters change. useTrades
   // refetches the first page on filter change; we drop any appended extra
   // pages so they don't blend pages from different filter sets.
@@ -408,14 +358,11 @@ export default function BrowseAllFilingsScreen({
   // 1AM-114: combine first-page trades (from useTrades) with appended extra
   // pages. Order preserved — useTrades' first page first, then extras in
   // load order. Client-side filter/sort runs over the combined array below.
-  //
-  // 1AM-114 dedup: backend sort by trade_date desc has no tiebreaker, so on a
-  // page boundary the same row can appear in two consecutive pages when
-  // multiple trades share the trade_date. Frontend dedup by trade.id is a
-  // defensive cap; root-cause fix (backend secondary sort) is tracked
-  // separately.
   const allFetchedTrades = useMemo(() => {
     const combined = [...(trades || []), ...extraTrades];
+    // Defensive dedup by id — should be redundant given /api/trades returns
+    // distinct rows per page, but a stale extras array during a fast filter
+    // change could overlap with the new first page. Cheap to keep.
     const seen = new Set();
     return combined.filter((t) => {
       if (seen.has(t.id)) return false;
@@ -424,9 +371,59 @@ export default function BrowseAllFilingsScreen({
     });
   }, [trades, extraTrades]);
 
-  // Client-side chamber + action filters layered on top of the fetched set,
-  // then sorted per sortOrder.
+  // 1AM-70 phase 5 (moved here in phase 5 hotfix): related filings for the
+  // drawer's "Related filings in [Sector]" section. Computed when
+  // selectedTrade has a known sector; returns up to 3 OTHER trades in the
+  // same sector, sorted by tradeDate descending (most-recent first).
+  //
+  // Position: AFTER allFetchedTrades is declared — earlier placement caused
+  // a Temporal Dead Zone ReferenceError on every render (the dependency
+  // array `[selectedTrade, allFetchedTrades]` accessed allFetchedTrades
+  // before its `const` was initialised), which crashed BrowseAllFilingsScreen
+  // and rendered the tab as a blank page after onboarding completion.
+  //
+  // Source: allFetchedTrades — the complete fetched set, NOT visibleTrades.
+  // This is intentional: related filings are a discovery affordance and
+  // should surface trades regardless of the user's current filters
+  // (chamber, action, amount, etc.). If we used visibleTrades a chamber
+  // filter on Senate would hide House trades in the same sector — wrong
+  // mental model. The drawer's section headline ("Related filings in
+  // Financials") promises sector-scoped, not filter-scoped.
+  //
+  // Empty array when:
+  //   - no selectedTrade
+  //   - selectedTrade has unknown sector (lookupSector miss)
+  //   - no other trades in that sector
+  // Drawer hides the entire section (header + body) when empty per design.
+  const relatedTrades = useMemo(() => {
+    if (!selectedTrade) return [];
+    const currentSector = lookupSector(selectedTrade.ticker)?.sector;
+    if (!currentSector) return [];
+    return allFetchedTrades
+      .filter((t) => {
+        if (t.id === selectedTrade.id) return false;
+        return lookupSector(t.ticker)?.sector === currentSector;
+      })
+      .sort((a, b) => {
+        // tradeDate is YYYY-MM-DD; lexicographic sort = chronological sort.
+        // Descending = most recent first.
+        if (b.tradeDate < a.tradeDate) return -1;
+        if (b.tradeDate > a.tradeDate) return 1;
+        return 0;
+      })
+      .slice(0, 3);
+  }, [selectedTrade, allFetchedTrades]);
+
+  // Client-side chamber + action + amount filters layered on top of the
+  // fetched set, then sorted per sortOrder.
   const visibleTrades = useMemo(() => {
+    // 1AM-154: resolve amount threshold once outside the per-trade loop.
+    // For 'any' the option's threshold is 0; we still skip the comparison
+    // entirely via the early-continue below to avoid parsing midpoints when
+    // no filter is active.
+    const amountOption = AMOUNT_OPTIONS.find((o) => o.value === amountFilter);
+    const amountThreshold = amountOption ? amountOption.threshold : 0;
+
     const filtered = allFetchedTrades.filter((t) => {
       if (chamberFilter !== 'all') {
         // trade.chamber is "Senate" or "House" (titlecased upstream). Compare
@@ -440,6 +437,22 @@ export default function BrowseAllFilingsScreen({
         if (actionFilter === 'buy' && !isBuy) return false;
         if (actionFilter === 'sell' && isBuy) return false;
       }
+      // 1AM-154: minimum-amount threshold. Skip entirely when filter is
+      // 'any' (threshold 0) — saves the parseAmountMidpoint call on every
+      // trade in the default case.
+      if (amountFilter !== 'any') {
+        const midpoint = parseAmountMidpoint(t.amount);
+        if (midpoint < amountThreshold) return false;
+      }
+      // 1AM-70 phase 4: sector filter via lookupSector enrichment. Skip
+      // entirely when sectorFilter is null (default) — saves the lookup
+      // call. When set, compare against the sectors.json value for this
+      // trade's ticker; trades whose ticker isn't in sectors.json fail
+      // the filter (no false positives via empty-string match).
+      if (sectorFilter) {
+        const tradeSector = lookupSector(t.ticker)?.sector;
+        if (!tradeSector || tradeSector !== sectorFilter) return false;
+      }
       return true;
     });
 
@@ -452,7 +465,7 @@ export default function BrowseAllFilingsScreen({
       );
     }
     return filtered;
-  }, [allFetchedTrades, chamberFilter, actionFilter, sortOrder]);
+  }, [allFetchedTrades, chamberFilter, actionFilter, amountFilter, sectorFilter, sortOrder]);
 
   // 1AM-114: fetch the next page of trades and append them to extraTrades.
   // Offset is the count of already-fetched backend rows (NOT the visible
@@ -491,6 +504,8 @@ export default function BrowseAllFilingsScreen({
     chamberFilter !== 'all' ||
     actionFilter !== 'all' ||
     timePeriod !== 'past30d' ||
+    amountFilter !== 'any' ||
+    sectorFilter !== null ||
     debouncedSearch !== '';
 
   const resetFilters = () => {
@@ -500,26 +515,11 @@ export default function BrowseAllFilingsScreen({
     // 1AM-124 fase 8: reset matches new default, not 'all'.
     setTimePeriod('past30d');
     setSortOrder('newest');
+    // 1AM-154: reset amount filter back to 'any' (no threshold).
+    setAmountFilter('any');
+    // 1AM-70 phase 4: reset sector filter back to null (no filter).
+    setSectorFilter(null);
   };
-
-  // 1AM-134: tap a Trending Tickers row → populate search input and scroll
-  // smoothly to the Recent Trades section. Last-action-wins: if user already
-  // had something in the search bar, the ticker symbol overwrites it. The
-  // user can clear by tapping the X-button in the search input (existing
-  // affordance) or by tapping a different ticker row.
-  //
-  // The 50ms timeout gives React one paint cycle to update the search input
-  // before scrollIntoView fires — avoids a race where the scroll happens
-  // before the result-count strip reflects the new filter (visually jumpy).
-  const handleTickerSelect = useCallback((ticker) => {
-    setSearchInput(ticker);
-    setTimeout(() => {
-      const target = document.getElementById('recent-trades-section');
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 50);
-  }, []);
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
@@ -531,166 +531,136 @@ export default function BrowseAllFilingsScreen({
         }}
       >
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        {/* 1AM-124: HeaderBar replaces the old `← Back to feed` link + h1 +
-            description. Browse is now a top-level tab, so there's nothing to
-            navigate "back" to from a UI perspective. The gear icon top-right
-            opens SettingsScreen overlay. */}
+        {/* 1AM-151: title "Recent Filings" + subtitle "last 30 days". The
+            subtitle communicates the default time-window honestly without
+            taking up filter-row real estate. Chip changes update the count
+            below the filter row, not the header. */}
         <HeaderBar
-          title="Browse"
+          title="Recent Filings"
+          subtitle="last 30 days"
           onSettingsClick={onSettingsClick}
         />
 
-        {/* ── Trending Tickers (1AM-124 fase 5) ─────────────────────────── */}
-        {/* Top 5 most-traded tickers via adaptive window cascade
-            (7d → 30d → all-time). windowLabel reflects the actual tier that
-            met the minimum-tickers threshold so the UI is honest about which
-            slice of the archive is displayed. Independent of the search/filter
-            state below — Trending is a discovery signal, not a filtered view. */}
-        <TrendingTickers
-          tickers={trendingTopTickers}
-          loading={trendingLoading}
-          windowLabel={trendingWindowLabel}
-          onTickerSelect={handleTickerSelect}
-        />
-
-        {/* ── Most Active Politicians (1AM-124 fase 6) ──────────────────── */}
-        {/* Top 3 most-active politicians via the same adaptive window cascade
-            as Trending (re-aggregated by politician). Each row has a Follow
-            toggle wired to the App-level `selected` follows state. windowLabel
-            may differ from Trending's because the threshold is checked against
-            distinct politicians, not distinct tickers.
-            1AM-145: id="most-active-section" is the scroll-anchor used by the
-            Feed empty-state "Manage who you follow" CTA — Pad B routes that
-            CTA to Browse-tab + scroll here as a placeholder until 1AM-28
-            (FollowedList screen) ships. */}
-        <div id="most-active-section">
-          <MostActivePoliticians
-            politicians={mostActivePoliticians}
-            loading={mostActiveLoading}
-            windowLabel={mostActiveWindowLabel}
-            followedNames={followedPoliticians}
-            onToggleFollow={onTogglePolitician}
-          />
-        </div>
-
         {/* ── Search input ────────────────────────────────────────────────── */}
-        {/* Single text input. Type ticker in ALL CAPS for ticker search,
-            otherwise treated as politicus name substring. */}
-        <div
-          style={{
-            position: 'relative',
-            marginBottom: 14,
-          }}
-        >
-          <span
-            aria-hidden="true"
+        {/* 1AM-153: search-pill swap UX. Input renders when isSearchInputMode
+            is true (default + after pill-tap-to-edit). When user submits a
+            search, the auto-switch effect flips to pill-mode and hides this
+            input — same content, different control-affordance. Tap pill
+            body → input returns with value+focus+cursor-at-end. Tap pill
+            × → searchInput clears, mode flips back to input, input is empty.
+            The two states share `searchInput` state directly, so debounce +
+            backend-search behaviour is unaffected. */}
+        {isSearchInputMode && (
+          <div
             style={{
-              position: 'absolute',
-              left: 12,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#9CA3AF',
-              fontSize: 14,
-              pointerEvents: 'none',
+              position: 'relative',
+              marginBottom: 12,
             }}
           >
-            ⌕
-          </span>
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by politician or stock…"
-            aria-label="Search filings by politician name or stock ticker"
-            style={{
-              width: '100%',
-              padding: '10px 12px 10px 32px',
-              background: '#FFFFFF',
-              border: '1px solid #E5E7EB',
-              borderRadius: 10,
-              fontSize: 13,
-              color: '#0D1B2A',
-              fontFamily: "'DM Sans', sans-serif",
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
-
-        {/* ── Filter row (1AM-124 fase 8) ──────────────────────────────── */}
-        {/* Direction chips on the left (replaces the old "Action" row),
-            This week pill on the right, "More filters →" link below
-            right-aligned. Chamber, Time period, and Sort moved to the
-            FilterSheet bottom-sheet (rendered at the end of this component). */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 8,
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Direction chips: All / Buy / Sell. Reuses ACTION_OPTIONS +
-              SingleChipGroup for consistency. The chip group renders without
-              a label (label="" hides the uppercase header that other groups
-              show). */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <SingleChipGroup
-              label=""
-              options={ACTION_OPTIONS}
-              value={actionFilter}
-              onChange={setActionFilter}
+            <span
+              style={{
+                position: 'absolute',
+                left: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 13,
+                color: '#9CA3AF',
+                fontFamily: "'DM Sans', sans-serif",
+                pointerEvents: 'none',
+              }}
+            >
+              🔍
+            </span>
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onBlur={() => {
+                // 1AM-153: blur-triggered switch to pill-mode. Only switch
+                // when there's something to pill-ify — empty input on blur
+                // stays as input (matches default state).
+                if (searchInput.trim()) {
+                  setIsSearchInputMode(false);
+                }
+              }}
+              onKeyDown={(e) => {
+                // Enter blurs the input which triggers the onBlur handler
+                // above. Explicitly blur on Enter to avoid relying on
+                // browser-native form-submit behaviour (we're not in a form).
+                if (e.key === 'Enter') {
+                  e.target.blur();
+                }
+              }}
+              placeholder="Search by politician or stock…"
+              aria-label="Search filings by politician name or stock ticker"
+              style={{
+                width: '100%',
+                padding: '10px 12px 10px 32px',
+                background: '#FFFFFF',
+                border: '1px solid #E5E7EB',
+                borderRadius: 10,
+                fontSize: 13,
+                color: '#0D1B2A',
+                fontFamily: "'DM Sans', sans-serif",
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
             />
           </div>
+        )}
 
-          {/* This week pill — independent shortcut for past7d (1AM-124 fase 8,
-              decision B from architecture review). Tap toggles between
-              past7d and past30d (the default). The pill's "active" visual
-              state is derived from timePeriod === 'past7d', not from a
-              separate boolean — single source of truth.
+        {/* ── Filter zone (1AM-124 fase 8 → 1AM-152) ─────────────────────── */}
+        {/* Three-row chunk in the filter zone:
+              Row 1: Direction chips (All/Buy/Sell)
+              Row 2: Time-range chips (Past 7d/30d/90d) — replaces the
+                     "This week" pill from 1AM-124 fase 8
+              Row 3: "More filters →" text link, right-aligned
 
-              Visual contract: navy-fill pill when active, outline pill when
-              inactive. Same visual language as a SingleChipGroup chip. */}
-          <button
-            type="button"
-            onClick={() => {
-              // Last action wins. Tap pill → toggle between past7d and the
-              // default (past30d). When user picks something else via the
-              // sheet, pill goes inactive automatically because timePeriod
-              // is no longer 'past7d'.
-              setTimePeriod((prev) =>
-                prev === 'past7d' ? 'past30d' : 'past7d'
-              );
-            }}
-            aria-pressed={timePeriod === 'past7d'}
-            style={{
-              background: timePeriod === 'past7d' ? '#0D1B2A' : '#FFFFFF',
-              color: timePeriod === 'past7d' ? '#FAFAF7' : '#0D1B2A',
-              border: '1px solid #0D1B2A',
-              borderRadius: 999,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: "'DM Sans', sans-serif",
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              transition: 'background 0.15s ease, color 0.15s ease',
-            }}
-          >
-            This week
-          </button>
+            Consistent 8px row-gap inside the chunk per design Q&A
+            (1AM-152 caveat 1) — section break to the active-filter pills
+            below kicks in at 12px (existing pills row marginBottom).
+
+            Chamber + Sort live behind the FilterSheet bottom-sheet (Time
+            period section there was removed in 1AM-152 phase 2 — chips
+            here are the canonical control). */}
+
+        {/* Row 1 — Direction chips (Action). All / Buy / Sell. Reuses
+            ACTION_OPTIONS + SingleChipGroup. Empty label hides the uppercase
+            header so the row reads as quick-toggles, not a labelled section. */}
+        <div style={{ marginBottom: 8 }}>
+          <SingleChipGroup
+            label=""
+            options={ACTION_OPTIONS}
+            value={actionFilter}
+            onChange={setActionFilter}
+          />
         </div>
 
-        {/* "More filters →" link — opens the FilterSheet with the secondary
-            filters (Chamber, Time period, Sort). Right-aligned, modest
-            text-link style. */}
+        {/* Row 2 — Time-range chips (1AM-152). Past 7d / Past 30d / Past 90d,
+            default Past 30d (matches `timePeriod` initial state). Direct
+            mapping: tapping a chip sets timePeriod to that value, useTrades
+            refetches via `since` query param. No cascade fallback, no
+            "This week" toggle ambiguity — the chip is canonical state. */}
+        <div style={{ marginBottom: 8 }}>
+          <SingleChipGroup
+            label=""
+            options={TIME_PERIOD_OPTIONS}
+            value={timePeriod}
+            onChange={setTimePeriod}
+          />
+        </div>
+
+        {/* Row 3 — "More filters →" text link. Opens the FilterSheet with
+            the remaining secondary filters (Chamber, Sort). Distinct
+            typography from the chip rows above (smaller, muted gray,
+            underlined) so it doesn't read as a fourth chip — design Q&A
+            caveat 2. */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'flex-end',
-            marginBottom: 18,
+            marginBottom: 12,
           }}
         >
           <button
@@ -712,50 +682,129 @@ export default function BrowseAllFilingsScreen({
           </button>
         </div>
 
-        {/* ── Recent Trades section header (1AM-124 fase 7) ─────────────── */}
-        {/* Cosmetic header that frames the filings-list as its own section,
-            parallel to Trending Tickers and Most Active above. No right-side
-            label like the other two sections — Recent Trades is filtered by
-            the user's chips, not by a fixed window, so a window-label would
-            be misleading. The result-count + freshness pill below stays as
-            the live stats-strip for this section.
-            1AM-134: id="recent-trades-section" is the scroll-anchor used by
-            the Trending Tickers tap-to-filter handler — tapping a ticker row
-            populates the search input and scrolls smoothly to this header. */}
-        <h2
-          id="recent-trades-section"
-          style={{
-            fontFamily: "'Playfair Display', 'Lora', serif",
-            fontSize: 18,
-            fontWeight: 500,
-            color: '#0D1B2A',
-            margin: '0 0 10px',
-            letterSpacing: '-0.2px',
-          }}
-        >
-          Recent Trades
-        </h2>
+        {/* ── Active filter pills (1AM-153) ──────────────────────────────── */}
+        {/* Pills row above the count strip. Each pill represents one
+            currently-applied filter dimension. Pills appear/disappear based
+            on whether their underlying state is at the default value.
+
+            Search-pill UX (per design Q&A 2026-05-09):
+              - × removes search → input returns empty
+              - body tap returns the input pre-filled with the current value
+                + focused + cursor-at-end so the user can edit instead of
+                retyping. Without focus + cursor positioning, the affordance
+                is dead and clearing+retyping would be faster.
+
+            Implementation: `isSearchInputMode` local flag decouples input
+            visibility from `debouncedSearch` value, avoiding a data-flicker
+            where setSearchInput('') would trigger a 250ms debounce window
+            during which the trade list re-fetches with no search filter.
+            With the flag, search-input value stays intact while toggling
+            between input-mode and pill-mode purely for display.
+
+            Action-pill: only renders when actionFilter !== 'all'. No edit-
+            affordance — actions are binary (Buy/Sell), pill × is sufficient.
+
+            Amount-pill (1AM-154): renders when amountFilter !== 'any'.
+            Label sourced from AMOUNT_OPTIONS so the pill text stays in
+            lockstep with the FilterSheet chip-group label. No edit-
+            affordance — × clears back to 'any', user picks a new threshold
+            via the FilterSheet chip-group.
+
+            Sector-pill (1AM-70 phase 4): renders when sectorFilter is non-
+            null. Activated via the drawer's tap-to-filter affordance —
+            no chip-group entry-point in FilterSheet (sector is discovery-
+            via-context, not upfront filter). × is the only way to clear
+            (per design Q&A — no hidden state).
+
+            Chamber + time-period are NOT pillified — chamber stays as
+            tabs (handled in FilterSheet), time-period has its own chip
+            treatment (1AM-152). Sort isn't a filter, no pill. */}
+        {(debouncedSearch ||
+          actionFilter !== 'all' ||
+          amountFilter !== 'any' ||
+          sectorFilter !== null) && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 6,
+              marginBottom: 12,
+            }}
+          >
+            {debouncedSearch && !isSearchInputMode && (
+              <FilterPill
+                label={debouncedSearch}
+                onRemove={() => {
+                  // × clears search → input returns empty (per design
+                  // contract). searchInput cleared first, then mode swap
+                  // so the rebuilt input renders with empty value.
+                  setSearchInput('');
+                  setIsSearchInputMode(true);
+                }}
+                onClick={() => {
+                  // Body tap → return to input mode with current value
+                  // intact + focus + cursor at end. searchInput already
+                  // holds the value; we just toggle visibility.
+                  setIsSearchInputMode(true);
+                  // Focus + cursor positioning happens in a microtask
+                  // after React mounts the input element.
+                  setTimeout(() => {
+                    if (searchInputRef.current) {
+                      searchInputRef.current.focus();
+                      const len = searchInput.length;
+                      searchInputRef.current.setSelectionRange(len, len);
+                    }
+                  }, 0);
+                }}
+              />
+            )}
+            {actionFilter !== 'all' && (
+              <FilterPill
+                label={actionFilter === 'buy' ? 'Buy only' : 'Sell only'}
+                onRemove={() => setActionFilter('all')}
+              />
+            )}
+            {amountFilter !== 'any' && (
+              <FilterPill
+                label={
+                  AMOUNT_OPTIONS.find((o) => o.value === amountFilter)?.label ||
+                  amountFilter
+                }
+                onRemove={() => setAmountFilter('any')}
+              />
+            )}
+            {sectorFilter !== null && (
+              <FilterPill
+                label={sectorFilter}
+                onRemove={() => setSectorFilter(null)}
+              />
+            )}
+          </div>
+        )}
 
         {/* ── Result count + freshness ────────────────────────────────────── */}
-        {/* Reuses 1AM-38 FreshnessIndicator for the "Updated X ago" pill.
-            The count label inside the indicator is custom — we override the
-            "Latest publicly available filings" text by rendering an inline
-            count instead. */}
+        {/* 1AM-151: Recent Trades h2 header removed (redundant — entire
+            screen is filings).
+            1AM-153: count strip refactored to use FilterSummaryLine — same
+            visual treatment as Feed FilterBar. contextParts stays empty for
+            Browse v1 (filter-context labels like "NVDA · Senate" are an
+            optional v2 polish; the active-filter pills above already
+            communicate which filters are on). */}
         {!loading && !error && (
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              marginBottom: 6,
+              marginBottom: 14,
               fontFamily: "'DM Sans', sans-serif",
               flexWrap: 'wrap',
             }}
           >
-            <span style={{ fontSize: 12, color: '#0D1B2A' }}>
-              {visibleTrades.length}{' '}
-              {visibleTrades.length === 1 ? 'filing' : 'filings'} shown
-            </span>
+            <FilterSummaryLine
+              count={visibleTrades.length}
+              noun="filing"
+            />
             {newTradeCount > 0 && (
               <span
                 style={{
@@ -773,19 +822,6 @@ export default function BrowseAllFilingsScreen({
             <FreshnessIndicatorPill lastUpdatedAt={lastUpdatedAt} />
           </div>
         )}
-
-        <div
-          style={{
-            fontSize: 11,
-            color: '#9CA3AF',
-            fontFamily: 'monospace',
-            fontStyle: 'italic',
-            padding: '0 2px',
-            marginBottom: 14,
-          }}
-        >
-          From Senate and House
-        </div>
 
         {/* ── Loading / error / empty / list ──────────────────────────────── */}
         {loading && (
@@ -823,9 +859,9 @@ export default function BrowseAllFilingsScreen({
             <button
               onClick={refetch}
               style={{
-                padding: '8px 20px',
+                padding: '8px 16px',
                 background: '#0D1B2A',
-                color: '#fff',
+                color: '#FAFAF7',
                 border: 'none',
                 borderRadius: 10,
                 fontSize: 12,
@@ -846,8 +882,13 @@ export default function BrowseAllFilingsScreen({
                 key={trade.id}
                 trade={trade}
                 owner={trade.owner}
-                // Browse is anonymous-discovery in spirit — no follow state
-                // shown here, no detail-page hop. Both could be wired later.
+                // 1AM-70 phase 1: tap-on-card opens the trade detail
+                // drawer instead of expanding inline. Replaces the
+                // expand-on-tap behaviour for Browse-tab. Feed-tab still
+                // gets the legacy expand because it doesn't pass this
+                // prop — see TradeCard's backwards-compatible click
+                // handler.
+                onTradeClick={setSelectedTrade}
               />
             ))}
 
@@ -869,8 +910,8 @@ export default function BrowseAllFilingsScreen({
                   fontWeight: 500,
                   fontFamily: "'DM Sans', sans-serif",
                   cursor: loadingMore ? 'wait' : 'pointer',
-                  opacity: loadingMore ? 0.6 : 1,
                   marginTop: 16,
+                  opacity: loadingMore ? 0.6 : 1,
                 }}
               >
                 {loadingMore ? 'Loading…' : 'Load more'}
@@ -962,19 +1003,77 @@ export default function BrowseAllFilingsScreen({
       </div>
 
       {/* ── Filter sheet (1AM-124 fase 8) ──────────────────────────────── */}
-      {/* Bottom-sheet overlay containing Chamber, Time period, and Sort
-          filters. Reached via the "More filters →" link below the direction
-          chips. Live filtering — chip taps update the same state used by
-          the rest of the screen, so Recent Trades re-renders immediately. */}
+      {/* Bottom-sheet overlay containing Chamber, Minimum amount, and Sort
+          filters.
+          1AM-152: Time period section moved to a chip-row in the main filter
+          zone — sheet only retains the genuinely secondary filters now.
+          1AM-154: Minimum amount section added between Chamber and Sort. */}
       <FilterSheet
         isOpen={isShowingFilters}
         onClose={() => setIsShowingFilters(false)}
         chamber={chamberFilter}
         onChamberChange={setChamberFilter}
-        timePeriod={timePeriod}
-        onTimePeriodChange={setTimePeriod}
+        amountFilter={amountFilter}
+        onAmountChange={setAmountFilter}
         sortOrder={sortOrder}
         onSortOrderChange={setSortOrder}
+      />
+
+      {/* ── Trade detail drawer (1AM-70) ────────────────────────────────── */}
+      {/* Phase 1 = skeleton. Phase 2 = header + Bought-block. Phase 3 = action
+          row (Follow + View all trades) — drawer now consumes followed state,
+          toggle callback, and profile-navigate callback from App.jsx. Phase 6
+          will add swipe-down gesture; phases 4-5 fill in sector filter
+          tap-to-activate + Related filings.
+
+          isFollowing derived from the followed list each render — kept stale-
+          free without a separate state. onToggleFollow + onViewProfile are
+          stable callbacks via App.jsx; profile-navigate also dismisses the
+          drawer so the navigation transition feels clean. */}
+      <TradeDetailDrawer
+        trade={selectedTrade}
+        onClose={() => setSelectedTrade(null)}
+        isFollowing={
+          selectedTrade
+            ? followedPoliticians.includes(selectedTrade.politician)
+            : false
+        }
+        onToggleFollow={() => {
+          if (selectedTrade) {
+            onTogglePolitician(selectedTrade.politician);
+          }
+        }}
+        onViewProfile={() => {
+          if (selectedTrade) {
+            const name = selectedTrade.politician;
+            // Dismiss drawer before navigation so the user doesn't see the
+            // sheet animate out on top of the new screen.
+            setSelectedTrade(null);
+            onPoliticianClick(name);
+          }
+        }}
+        onSectorClick={(sectorName) => {
+          // 1AM-70 phase 4: sector tap-to-filter. Activate the sector
+          // filter with the tapped sector value, then dismiss the drawer
+          // so the user sees the freshly-filtered list. The active-filter
+          // pill (1AM-153) will appear in the pills row, and clearing the
+          // filter is its × — no hidden state per design Q&A.
+          setSectorFilter(sectorName);
+          setSelectedTrade(null);
+        }}
+        relatedTrades={relatedTrades}
+        onRelatedTradeClick={(trade) => {
+          // 1AM-70 phase 5: drawer content swap. Setting selectedTrade to
+          // a different trade triggers the drawer to re-render with the
+          // new trade's data — header, Bought-block, related filings all
+          // update. No dismiss-and-reopen animation; the drawer stays
+          // mounted, content hot-swaps. relatedTrades useMemo recomputes
+          // for the new trade, so the section now shows OTHER trades in
+          // the new trade's sector (which is the same sector since they
+          // were grouped that way to begin with — but the current trade
+          // exclusion shifts).
+          setSelectedTrade(trade);
+        }}
       />
     </div>
   );
@@ -1010,3 +1109,12 @@ function FreshnessIndicatorPill({ lastUpdatedAt }) {
     </span>
   );
 }
+
+// Used by FILTER_OPTIONS exported in case other surfaces want to reuse them
+// (none today, but kept for forward-compat).
+export const _BROWSE_FILTER_OPTIONS = {
+  CHAMBER: CHAMBER_OPTIONS,
+  ACTION: ACTION_OPTIONS,
+  TIME_PERIOD: TIME_PERIOD_OPTIONS,
+  SORT: SORT_OPTIONS,
+};

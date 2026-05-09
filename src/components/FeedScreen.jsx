@@ -61,6 +61,7 @@ import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
 import FreshnessIndicator from './FreshnessIndicator';
 import MostActivePoliticians from './MostActivePoliticians';
+import FilterSummaryLine from './FilterSummaryLine';
 import FeedMetricsStrip from './FeedMetricsStrip';
 import FeedEmptyHero from './FeedEmptyHero';
 import { useTrades } from '../hooks/useTrades';
@@ -119,15 +120,32 @@ export default function FeedScreen({
     emptyVariant = followingCount < FOLLOW_VOLUME_HIGH ? 'empty-low' : 'empty-high';
   }
 
-  // 1AM-145: Most Active aggregation for the "While you wait" embed.
-  // Aggregates from already-loaded trades — no separate cascade fetch like
-  // BrowseAllFilingsScreen does. Acceptable simplification for v1: we use
-  // whatever data useTrades has on hand. Window label communicates this
-  // honestly ("recent" rather than a precise "this week").
+  // 1AM-145 / 1AM-151: Most Active aggregation drives two surfaces:
+  //   - Empty-state takeover (1AM-145): "While you wait — Most Active" embed
+  //     for users with 0 follows. Discovery affordance.
+  //   - Active-user feed footer (1AM-151): same component below the filings
+  //     list as secondary discovery. Only renders when there's discovery
+  //     value — i.e. when at least one of the top-N most active politicians
+  //     is NOT yet followed by the user. Otherwise it's a redundant list of
+  //     people they already follow, which adds noise instead of signal.
+  //
+  // Aggregates from `trades` (the unfiltered set returned by useTrades —
+  // followed-filter is applied client-side via `visibleTrades` only). No
+  // separate cascade fetch — uses whatever data useTrades has on hand.
+  // Window label "recent" reflects this honestly.
   const mostActiveTopPoliticians = useMemo(() => {
-    if (!emptyVariant) return []; // skip aggregation when not rendering empty-state
     return aggregateMostActivePoliticians(trades);
-  }, [trades, emptyVariant]);
+  }, [trades]);
+
+  // 1AM-151: discovery-value check for active-user rendering. If every
+  // politician in the top-N is already followed, the section adds no
+  // discovery value — hide it. Empty-state always renders the section
+  // (showing already-followed names is fine when the user has nothing).
+  const hasUnfollowedInTopN = useMemo(() => {
+    if (mostActiveTopPoliticians.length === 0) return false;
+    const followedSet = new Set(followedPoliticians);
+    return mostActiveTopPoliticians.some((p) => !followedSet.has(p.name));
+  }, [mostActiveTopPoliticians, followedPoliticians]);
 
   // ── Compute active vs inactive split (1AM-26) ──────────────────────────────
   // For each followed politician: active if they have ≥1 trade in `trades`,
@@ -319,6 +337,26 @@ export default function FeedScreen({
       {filterHasMatches && inactivePoliticians.length > 0 && (
         <NoRecentActivitySection inactivePoliticians={inactivePoliticians} />
       )}
+
+      {/* 1AM-151: Most Active politicians as discovery affordance for active
+          users. Renders below the feed (and below the inactive section if
+          present) so it doesn't push the personal feed down. Hidden when:
+          - The aggregation produced 0 politicians (degenerate empty case)
+          - Every top-N politician is already followed (no discovery value;
+            see `hasUnfollowedInTopN` for the check)
+          The component itself reuses the same shape as the empty-state
+          embed — same row layout, same Follow toggle wiring. */}
+      {hasUnfollowedInTopN && (
+        <div style={{ marginTop: 24 }}>
+          <MostActivePoliticians
+            politicians={mostActiveTopPoliticians}
+            loading={loading}
+            windowLabel="recent"
+            followedNames={followedPoliticians}
+            onToggleFollow={onUnfollow}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -333,17 +371,22 @@ function FilterBar({
   onToggleShowAll,
   onRefresh,
 }) {
-  const tradeWord = visibleCount === 1 ? 'TRADE' : 'TRADES';
-  // 1AM-66: include followedCount explicitly in the active-filter label so
-  // the user sees both numbers — how many trades visible AND how many
-  // politicians they follow. Replaces "RECENT" framing with explicit count.
-  const politicianWord = followedCount === 1 ? 'POLITICIAN' : 'POLITICIANS';
-
-  const label = filterActive
-    ? `${visibleCount} ${tradeWord} FROM THE ${followedCount} ${politicianWord} YOU FOLLOW`
-    : hasFollowed
-      ? 'SHOWING ALL RECENT TRADES'
-      : `${visibleCount} RECENT ${tradeWord}`;
+  // 1AM-153 phase 4: replace bespoke monospace-uppercase label with
+  // FilterSummaryLine for unified treatment across Browse + Feed.
+  // Folded UX requirement from 1AM-151 phase 4 smoke test: in Show-all
+  // mode, communicate that the user is now seeing the broader Congress
+  // universe instead of just their followed politicians.
+  //
+  // Two states drive contextParts:
+  //   - filterActive (Followed): "from the N politicians you follow"
+  //   - !filterActive (Show all): "from all politicians"
+  // FollowedCount is included in the followed-mode label because the
+  // existing 1AM-66 design surfaces both numbers (trades visible + politicians
+  // followed) — preserved behaviour, new typography.
+  const politicianWord = followedCount === 1 ? 'politician' : 'politicians';
+  const contextParts = filterActive
+    ? [`from the ${followedCount} ${politicianWord} you follow`]
+    : ['from all politicians'];
 
   const toggleLabel = filterActive ? 'Show all' : 'Show followed';
 
@@ -359,16 +402,11 @@ function FilterBar({
           flexWrap: 'wrap',
         }}
       >
-        <div
-          style={{
-            fontSize: 11,
-            color: '#9CA3AF',
-            fontFamily: 'monospace',
-            letterSpacing: '0.06em',
-          }}
-        >
-          {label}
-        </div>
+        <FilterSummaryLine
+          count={visibleCount}
+          noun="trade"
+          contextParts={contextParts}
+        />
 
         <div style={{ display: 'flex', gap: 6 }}>
           {hasFollowed && (
