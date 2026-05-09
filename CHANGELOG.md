@@ -11,6 +11,26 @@ _No unreleased changes yet._
 
 ---
 
+## [0.21.2] — 2026-05-09
+
+Patch release fixing a 502 error on the `/api/trades/by-politician` Edge Function (1AM-158). FMP moved `senate-trades-by-name` and `house-trades-by-name` behind a paid tier (402 Payment Required), causing both chamber calls to fail and surface as 502 to clients. Same pattern as 1AM-37 (sp500-constituent paywall). Migrated the endpoint to query the Supabase archive (1AM-114) instead — same external contract, no FMP calls, no paywall risk for this surface going forward.
+
+### Fixed
+
+- **`/api/trades/by-politician` 502 on all politicians (1AM-158)** — endpoint now queries the Supabase `filings` table via `ilike('politician_name', ...)` instead of FMP's per-politician endpoints. PoliticianDetailScreen full-history view (Net Positions, sparkline, trade history) restored.
+
+### Changed
+
+- Edge Function depth source: FMP per-politician calls → Supabase archive. Practical depth is comparable (previous FMP cap was 25 trades per chamber; archive returns up to 200 trades, growing over time).
+- Error response status on archive failure: 503 (Service Unavailable) instead of 502 (Bad Gateway) — more accurate now that the dependency is internal not upstream.
+
+### Out of scope
+
+- Migrating other FMP-dependent endpoints to Supabase (covered by individual tickets if/when they hit the same paywall).
+- Acquiring an FMP paid tier (separate business decision tracked under 1AM-47).
+
+---
+
 ## [0.21.1] — 2026-05-09
 
 Politician headshots from the public-domain `unitedstates/images` dataset (1AM-146). Photos render across every Avatar surface — TradeCards, Most Active section, drawer header + related filings rows, FollowedListScreen, OnboardingPickPoliticians, PoliticianCard, and the PoliticianDetailScreen header (1AM-74). Joint trades show the politicus photo (mede-actor); spouse/dependent stay initials-only (privacy of non-public figures). Newly-appointed members may display initials until upstream publishes their portrait — photos auto-populate as upstream data updates, no app update required. PATCH bump because no schema changes, no new API surfaces, purely visual enrichment of an existing primitive.
@@ -841,7 +861,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.21.2...HEAD
+[0.21.2]: https://github.com/1am-it/stockactalert/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/1am-it/stockactalert/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/1am-it/stockactalert/compare/v0.20.1...v0.21.0
 [0.12.1]: https://github.com/1am-it/stockactalert/compare/v0.12.0...v0.12.1
