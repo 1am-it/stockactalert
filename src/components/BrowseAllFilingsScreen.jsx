@@ -69,6 +69,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TradeCard from './TradeCard';
+import TradeDetailDrawer from './TradeDetailDrawer';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
 import FilterSheet from './FilterSheet';
@@ -218,6 +219,11 @@ export default function BrowseAllFilingsScreen({
   // Filter logic in `visibleTrades` useMemo. Pill renders in active-filter
   // row when not 'any'. Resets to 'any' via `resetFilters`.
   const [amountFilter, setAmountFilter] = useState('any');
+
+  // 1AM-70: trade currently shown in the bottom-sheet drawer. null = no
+  // drawer open. Set by TradeCard onTradeClick, cleared by drawer's onClose.
+  // Phase 1 = skeleton; phases 2-5 fill in drawer content.
+  const [selectedTrade, setSelectedTrade] = useState(null);
   // 1AM-124 fase 8: filter sheet open/close state. The secondary filters
   // (Chamber, Time period, Sort) live behind a "More filters →" link to keep
   // the main view clean. Direction chips (Action) and the This week pill stay
@@ -783,8 +789,13 @@ export default function BrowseAllFilingsScreen({
                 key={trade.id}
                 trade={trade}
                 owner={trade.owner}
-                // Browse is anonymous-discovery in spirit — no follow state
-                // shown here, no detail-page hop. Both could be wired later.
+                // 1AM-70 phase 1: tap-on-card opens the trade detail
+                // drawer instead of expanding inline. Replaces the
+                // expand-on-tap behaviour for Browse-tab. Feed-tab still
+                // gets the legacy expand because it doesn't pass this
+                // prop — see TradeCard's backwards-compatible click
+                // handler.
+                onTradeClick={setSelectedTrade}
               />
             ))}
 
@@ -913,6 +924,21 @@ export default function BrowseAllFilingsScreen({
         onAmountChange={setAmountFilter}
         sortOrder={sortOrder}
         onSortOrderChange={setSortOrder}
+      />
+
+      {/* ── Trade detail drawer (1AM-70) ────────────────────────────────── */}
+      {/* Phase 1 = skeleton: opens on TradeCard tap, dismisses via Esc /
+          scrim-tap. Phase 6 will add swipe-down gesture. Phases 2-5 fill in
+          the visual content (header, Bought-block, action row, sector
+          filter affordance, Related filings).
+
+          The drawer is conditionally-rendered — when selectedTrade is null,
+          TradeDetailDrawer returns null internally. No portal needed; the
+          fixed-position scrim + sheet break out of any parent stacking
+          context via z-index 40/50. */}
+      <TradeDetailDrawer
+        trade={selectedTrade}
+        onClose={() => setSelectedTrade(null)}
       />
     </div>
   );
