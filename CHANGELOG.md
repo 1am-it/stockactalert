@@ -11,6 +11,25 @@ _No unreleased changes yet._
 
 ---
 
+## [0.22.1] — 2026-05-09
+
+Patch release adding company name + sector enrichment to PoliticianDetailScreen Net Positions (1AM-159). Tickers like TDG, PKG, ENTG are not universally recognisable — this matches the readability pattern already used in TradeDetailDrawer's Bought-block (1AM-70 phase 2) and brings PoliticianDetailScreen up to the same standard. Coverage audit before scoping confirmed 86% of production tickers have data in `sectors.json`; the remaining ~14% gracefully fall back to ticker-only display, no layout breakage. PATCH bump because no schema changes, no new API surfaces, purely visual enrichment of an existing list.
+
+### Added
+
+- **Net Positions row enrichment (1AM-159)** — each row in the Net Positions card on PoliticianDetailScreen now shows a muted secondary line with `companyName · sector` when the ticker is present in `sectors.json`. Visual treatment matches TradeDetailDrawer's Bought-block (DM Sans 12px, `#6B7280` for company name, `· ` separator in `#D1D5DB`, sector in `#9CA3AF`). Long company names truncate with ellipsis on a single row. Amount column stays right-aligned and top-anchored — no shift between covered and uncovered rows.
+
+### Fixed
+
+- **Restored politician headshots and recent header avatar work that briefly regressed mid-deploy (1AM-146 / 1AM-74)** — during the 1AM-159 push, an older copy of `PoliticianDetailScreen.jsx` was inadvertently committed, reverting the file to a pre-1AM-146 state and dropping headshots from the PoliticianDetailScreen header. Hotfix re-applied 1AM-146 + 1AM-74 + 1AM-159 changes in a single commit. Vercel preview verified before tagging the release.
+
+### Out of scope
+
+- Expanding `sectors.json` coverage beyond the current 176 tickers — refresh cycle is documented in `src/lib/sectors.js` (every few months via `npm run query:top-tickers` + `npm run fetch:sectors`); not gating this release.
+- Tap-to-filter on sector in the Net Positions context — different surface from the drawer where the same affordance exists; defer until requested.
+
+---
+
 ## [0.22.0] — 2026-05-09
 
 New surface: **BrowsePoliticiansScreen** (1AM-160) — full ~536-member Congress directory accessible from the Feed-tab via a new people-icon entry-point in the header. Closes the discovery gap that opened when 1AM-123 (3-tab IA redesign) dropped the dedicated Politicians-tab. Use cases restored: "follow my Arizona senators without waiting for them to appear in the feed", "browse who I'm not yet following", "filter by chamber/party deliberately outside one-time onboarding". MINOR bump because of the new user-facing surface + new shared component + HeaderBar API extension.
