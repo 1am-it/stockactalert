@@ -30,6 +30,13 @@
 // existing conventions (TradeCard owner-line, BrowseAllFilingsScreen footer).
 // Defined as a constant so a future change is one edit, not a search-and-
 // replace across the file.
+//
+// Typography (1AM-153 phase 4 design Q&A 2026-05-09): muted gray (#6B7280)
+// + sentence-case + DM Sans 12px. Filter-summary is meta/secondary content,
+// not primary — typography reflects that. Replaces the old monospace-
+// uppercase Feed FilterBar styling (1AM-66) and the navy Browse count
+// styling (1AM-114). Single muted treatment for both surfaces — unification
+// is the explicit goal of 1AM-153.
 
 const SEPARATOR = ' · ';
 
@@ -64,7 +71,7 @@ export default function FilterSummaryLine({
     <div
       style={{
         fontSize: 12,
-        color: '#0D1B2A',
+        color: '#6B7280',
         fontFamily: "'DM Sans', sans-serif",
       }}
     >

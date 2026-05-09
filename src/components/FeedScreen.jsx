@@ -61,6 +61,7 @@ import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
 import FreshnessIndicator from './FreshnessIndicator';
 import MostActivePoliticians from './MostActivePoliticians';
+import FilterSummaryLine from './FilterSummaryLine';
 import FeedMetricsStrip from './FeedMetricsStrip';
 import FeedEmptyHero from './FeedEmptyHero';
 import { useTrades } from '../hooks/useTrades';
@@ -370,17 +371,22 @@ function FilterBar({
   onToggleShowAll,
   onRefresh,
 }) {
-  const tradeWord = visibleCount === 1 ? 'TRADE' : 'TRADES';
-  // 1AM-66: include followedCount explicitly in the active-filter label so
-  // the user sees both numbers — how many trades visible AND how many
-  // politicians they follow. Replaces "RECENT" framing with explicit count.
-  const politicianWord = followedCount === 1 ? 'POLITICIAN' : 'POLITICIANS';
-
-  const label = filterActive
-    ? `${visibleCount} ${tradeWord} FROM THE ${followedCount} ${politicianWord} YOU FOLLOW`
-    : hasFollowed
-      ? 'SHOWING ALL RECENT TRADES'
-      : `${visibleCount} RECENT ${tradeWord}`;
+  // 1AM-153 phase 4: replace bespoke monospace-uppercase label with
+  // FilterSummaryLine for unified treatment across Browse + Feed.
+  // Folded UX requirement from 1AM-151 phase 4 smoke test: in Show-all
+  // mode, communicate that the user is now seeing the broader Congress
+  // universe instead of just their followed politicians.
+  //
+  // Two states drive contextParts:
+  //   - filterActive (Followed): "from the N politicians you follow"
+  //   - !filterActive (Show all): "from all politicians"
+  // FollowedCount is included in the followed-mode label because the
+  // existing 1AM-66 design surfaces both numbers (trades visible + politicians
+  // followed) — preserved behaviour, new typography.
+  const politicianWord = followedCount === 1 ? 'politician' : 'politicians';
+  const contextParts = filterActive
+    ? [`from the ${followedCount} ${politicianWord} you follow`]
+    : ['from all politicians'];
 
   const toggleLabel = filterActive ? 'Show all' : 'Show followed';
 
@@ -396,16 +402,11 @@ function FilterBar({
           flexWrap: 'wrap',
         }}
       >
-        <div
-          style={{
-            fontSize: 11,
-            color: '#9CA3AF',
-            fontFamily: 'monospace',
-            letterSpacing: '0.06em',
-          }}
-        >
-          {label}
-        </div>
+        <FilterSummaryLine
+          count={visibleCount}
+          noun="trade"
+          contextParts={contextParts}
+        />
 
         <div style={{ display: 'flex', gap: 6 }}>
           {hasFollowed && (
