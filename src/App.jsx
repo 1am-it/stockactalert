@@ -395,10 +395,19 @@ function App() {
       >
         {/* 1AM-125 fase 1: HeaderBar replaces the previous inline h1+p block.
             Same component as Browse-tab uses internally — title in Playfair
-            32px navy + gear icon top-right that opens SettingsScreen. */}
+            32px navy + gear icon top-right that opens SettingsScreen.
+            1AM-160: people-icon entry-point to FollowedListScreen passed in
+            for the Feed-tab only. Browse + Alerts continue to render
+            gear-only header. */}
         <HeaderBar
           title={currentTitle}
           onSettingsClick={() => setIsShowingSettings(true)}
+          {...(activeTab === 'feed'
+            ? {
+                followingCount: followedPoliticians.length,
+                onManageFollowingClick: () => setFeedSubScreen('followedList'),
+              }
+            : {})}
         />
 
         {/* ── Active tab content ── */}
