@@ -221,10 +221,18 @@ export default function FilterSheet({
             Wraps to two rows on narrow viewports — SingleChipGroup handles
             that natively. AMOUNT_OPTIONS sourced from BrowseAllFilingsScreen
             (named export); SingleChipGroup uses the value + label fields
-            and ignores the threshold field. */}
+            and ignores the threshold field.
+
+            Label "Amount" (not "Minimum amount") per design Q&A 2026-05-09:
+            CHAMBER + AMOUNT + SORT all fit in the SingleChipGroup label
+            minWidth column (56px) for clean vertical alignment of chip-rows.
+            "Minimum amount" overflowed and broke the column. The chip values
+            ("Any amount", "≥$15K" etc.) already communicate the
+            minimum-threshold semantics — the column-label being shorter
+            doesn't lose meaning. */}
         <div style={{ marginBottom: 18 }}>
           <SingleChipGroup
-            label="Minimum amount"
+            label="Amount"
             options={AMOUNT_OPTIONS}
             value={amountFilter}
             onChange={onAmountChange}
