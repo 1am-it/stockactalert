@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "fetch:congress": "node scripts/fetch-congress.mjs",
-    "audit:names": "node --env-file=.env.local scripts/audit-trade-names.mjs"
+    "audit:names": "node --env-file=.env.local scripts/audit-trade-names.mjs",
+    "query:top-tickers": "node --env-file=.env.local scripts/query-top-tickers.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.1",
