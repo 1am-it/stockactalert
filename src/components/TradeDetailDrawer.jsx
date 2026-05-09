@@ -34,7 +34,14 @@
 // row → onRelatedTradeClick hot-swaps drawer content (no dismiss/re-
 // open). Section returns null entirely when relatedTrades is empty.
 //
-// Phase 6 will add the swipe-down gesture.
+// Phase 6 (swipe-down gesture, 2026-05-09): mobile-only swipe-down
+// dismiss via touch handlers on the grab handle. Combined threshold —
+// either >40% of sheet height OR velocity > 0.5px/ms over the last
+// 100ms triggers dismiss; otherwise the sheet snaps back. Distance
+// catches slow long swipes, velocity catches fast flicks; the OR is
+// what avoids both false-positives (iOS scroll-bounce) and false-
+// negatives (deliberate slow drags). Desktop is unaffected — touch
+// events don't fire there, Esc + scrim-tap remain the dismiss paths.
 //
 // Animation: pure CSS keyframes for the open animation (250ms slideUp +
 // fadeIn). Close happens via instant unmount when `trade` becomes null.
@@ -46,7 +53,7 @@
 // Body-scroll lock: while the drawer is open, document.body overflow is set
 // to 'hidden'. Restored on unmount.
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Avatar from './Avatar';
 import { findByName } from '../lib/congress';
 import { formatChamberLine } from '../lib/formatChamberLine';
@@ -146,9 +153,31 @@ export default function TradeDetailDrawer({
   relatedTrades = [],
   onRelatedTradeClick,
 }) {
-  // Ref to the scrollable content area. Phase 6 will read scrollTop to gate
-  // the swipe-down gesture; phase 1+ wires the ref so structure is in place.
+  // Ref to the scrollable content area. Phase 6 reads scrollTop to gate
+  // the swipe-down gesture (only allow drag-dismiss when content is at
+  // the top — otherwise touchmove should let native scroll happen).
   const contentRef = useRef(null);
+
+  // 1AM-70 phase 6: swipe-down gesture refs + state.
+  // - sheetRef: measure sheet height for the dismiss-threshold (40% of
+  //   sheet height) and for the dismiss animation (translateY(sheetH)).
+  // - dragStateRef: scratchpad during a drag — startY, startTime, samples
+  //   for velocity. Lives in a ref so updates don't trigger re-renders.
+  //   Velocity is computed on touchend over the LAST ~100ms of samples
+  //   (b1 design choice: pure-distance threshold would dismiss on iOS
+  //   scroll-bounce after the user reads to the bottom, hits the bounce,
+  //   and pulls down — velocity discriminates intent from accidental).
+  // - dragOffset state (px): drives the inline transform. State, not ref,
+  //   so React re-renders on each touchmove and the transform updates;
+  //   this is a single style change per render at ~60fps, well within
+  //   budget on modern phones.
+  // - isDragging state: switches transition off during the drag (instant
+  //   finger-follow) and back on for the post-release animation (snap-
+  //   back or dismiss).
+  const sheetRef = useRef(null);
+  const dragStateRef = useRef(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Member metadata from congress.json directory. Used for the secondary
   // header line (chamber · state · district). Returns null when the politicus
@@ -186,6 +215,17 @@ export default function TradeDetailDrawer({
       document.body.style.overflow = previousOverflow;
     };
   }, [trade, onClose]);
+
+  // 1AM-70 phase 6: reset drag state when the trade swaps in the drawer
+  // (Related-filings hot-swap). Without this, an in-flight drag offset
+  // would persist into the new trade's render. Hot-swap during an active
+  // drag is unlikely (single-finger interaction), but the reset is cheap
+  // safety against any partial-state carryover.
+  useEffect(() => {
+    setDragOffset(0);
+    setIsDragging(false);
+    dragStateRef.current = null;
+  }, [trade?.id]);
 
   if (!trade) return null;
 
@@ -241,6 +281,90 @@ export default function TradeDetailDrawer({
     ? filedRelativeRaw.charAt(0).toUpperCase() + filedRelativeRaw.slice(1)
     : 'Filing date unknown';
 
+  // 1AM-70 phase 6: swipe-down dismiss thresholds.
+  // Distance threshold (40% of sheet height) covers slow long swipes;
+  // velocity threshold (0.5 px/ms ≈ 500 px/s) covers fast short flicks.
+  // Either path triggers dismiss — both reflect intent. Pure-distance
+  // alone would dismiss accidentally on iOS scroll-bounce rebound; pure-
+  // velocity alone would miss careful slow swipes that clearly cross
+  // the visual midpoint.
+  const DRAG_DISTANCE_RATIO = 0.4;
+  const DRAG_VELOCITY_THRESHOLD = 0.5;
+  const DRAG_VELOCITY_WINDOW_MS = 100;
+  const DRAG_DISMISS_ANIMATION_MS = 200;
+
+  const handleTouchStart = (event) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    dragStateRef.current = {
+      startY: touch.clientY,
+      startTime: performance.now(),
+      sheetHeight: sheetRef.current?.getBoundingClientRect().height || 0,
+      samples: [{ y: touch.clientY, t: performance.now() }],
+    };
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (event) => {
+    const drag = dragStateRef.current;
+    if (!drag) return;
+    const touch = event.touches[0];
+    const deltaY = touch.clientY - drag.startY;
+    // Only track downward drag — upward (negative) clamps to 0 so users
+    // can't pull the sheet up beyond its rest position. Native browser
+    // bounce would otherwise feel inconsistent across iOS/Android.
+    const clamped = Math.max(0, deltaY);
+    setDragOffset(clamped);
+    // Keep the recent-samples window small — used only for the velocity
+    // calc on touchend. Drop samples older than the window to keep the
+    // array bounded.
+    const now = performance.now();
+    drag.samples.push({ y: touch.clientY, t: now });
+    while (
+      drag.samples.length > 0 &&
+      now - drag.samples[0].t > DRAG_VELOCITY_WINDOW_MS
+    ) {
+      drag.samples.shift();
+    }
+  };
+
+  const handleTouchEnd = () => {
+    const drag = dragStateRef.current;
+    if (!drag) return;
+    dragStateRef.current = null;
+    setIsDragging(false);
+
+    const finalDelta = dragOffset;
+    const sheetHeight = drag.sheetHeight;
+    const distancePassed =
+      sheetHeight > 0 && finalDelta > sheetHeight * DRAG_DISTANCE_RATIO;
+
+    // Velocity over the recent-samples window: (last.y - first.y) / dt.
+    // Positive velocity = downward motion. We require minimum 2 samples
+    // for a meaningful slope.
+    let velocity = 0;
+    if (drag.samples.length >= 2) {
+      const first = drag.samples[0];
+      const last = drag.samples[drag.samples.length - 1];
+      const dt = last.t - first.t;
+      if (dt > 0) {
+        velocity = (last.y - first.y) / dt;
+      }
+    }
+    const velocityPassed = velocity > DRAG_VELOCITY_THRESHOLD;
+
+    if (distancePassed || velocityPassed) {
+      // Animate to fully off-screen, then trigger close. Don't unmount
+      // immediately — the user expects to see the sheet slide out.
+      setDragOffset(sheetHeight || window.innerHeight);
+      window.setTimeout(onClose, DRAG_DISMISS_ANIMATION_MS);
+    } else {
+      // Snap back to rest position. The transition (re-enabled because
+      // isDragging is now false) handles the animation smoothly.
+      setDragOffset(0);
+    }
+  };
+
   return (
     <>
       {/* ── Backdrop scrim ─────────────────────────────────────────────── */}
@@ -257,6 +381,7 @@ export default function TradeDetailDrawer({
 
       {/* ── Sheet ──────────────────────────────────────────────────────── */}
       <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Trade detail for ${trade.ticker} by ${trade.politician}`}
@@ -272,16 +397,43 @@ export default function TradeDetailDrawer({
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 -8px 32px rgba(13, 27, 42, 0.15)',
-          animation: 'tdd-slideUp 250ms ease-out',
+          // 1AM-70 phase 6: open animation runs only on first mount (no
+          // dragOffset yet, so transform is a no-op then). After mount
+          // dragOffset drives the position via inline transform; isDragging
+          // disables the transition during finger-tracking so the sheet
+          // follows instantly, and re-enables it for snap-back / dismiss
+          // animations after release.
+          animation:
+            dragOffset === 0 && !isDragging
+              ? 'tdd-slideUp 250ms ease-out'
+              : 'none',
+          transform: `translateY(${dragOffset}px)`,
+          transition: isDragging
+            ? 'none'
+            : `transform ${DRAG_DISMISS_ANIMATION_MS}ms ease-out`,
+          touchAction: 'pan-y',
         }}
       >
-        {/* Grab handle (phase 6 will attach swipe-down handlers here) */}
+        {/* 1AM-70 phase 6: swipe-down gesture. Touch handlers attached to
+            the grab handle area only (not the whole sheet) — handle-only
+            v1 keeps the implementation focused and avoids conflict with
+            content scroll / related-trade row taps inside the sheet. The
+            handle's touch-target is ~44×44 (the visible 36×3 pill plus
+            the surrounding 8px+ vertical padding), which meets common
+            touch-target sizing. Cursor stays default — desktop clicks
+            don't trigger drag (no touch events fire). */}
         <div
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
           style={{
             display: 'flex',
             justifyContent: 'center',
             padding: '8px 0 4px',
             flexShrink: 0,
+            cursor: 'grab',
+            touchAction: 'none',
           }}
         >
           <div
