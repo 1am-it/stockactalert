@@ -1,0 +1,394 @@
+{
+  "generatedAt": "2026-05-09T05:26:43.461Z",
+  "windowMonths": 12,
+  "sinceDate": "2025-05-09",
+  "totalFilings": 136,
+  "uniqueUnderlyings": 96,
+  "topN": 200,
+  "tickers": [
+    {
+      "ticker": "MSFT",
+      "count": 5
+    },
+    {
+      "ticker": "TDG",
+      "count": 5
+    },
+    {
+      "ticker": "AAPL",
+      "count": 3
+    },
+    {
+      "ticker": "FDS",
+      "count": 3
+    },
+    {
+      "ticker": "MORN",
+      "count": 3
+    },
+    {
+      "ticker": "ACN",
+      "count": 2
+    },
+    {
+      "ticker": "ASML",
+      "count": 2
+    },
+    {
+      "ticker": "AVGO",
+      "count": 2
+    },
+    {
+      "ticker": "AXP",
+      "count": 2
+    },
+    {
+      "ticker": "BRO",
+      "count": 2
+    },
+    {
+      "ticker": "CEG",
+      "count": 2
+    },
+    {
+      "ticker": "COR",
+      "count": 2
+    },
+    {
+      "ticker": "ERIE",
+      "count": 2
+    },
+    {
+      "ticker": "GD",
+      "count": 2
+    },
+    {
+      "ticker": "GE",
+      "count": 2
+    },
+    {
+      "ticker": "GOOGL",
+      "count": 2
+    },
+    {
+      "ticker": "HYLS",
+      "count": 2
+    },
+    {
+      "ticker": "IWD",
+      "count": 2
+    },
+    {
+      "ticker": "IWF",
+      "count": 2
+    },
+    {
+      "ticker": "JPM",
+      "count": 2
+    },
+    {
+      "ticker": "MSI",
+      "count": 2
+    },
+    {
+      "ticker": "NVDA",
+      "count": 2
+    },
+    {
+      "ticker": "ORCL",
+      "count": 2
+    },
+    {
+      "ticker": "PANW",
+      "count": 2
+    },
+    {
+      "ticker": "PAYX",
+      "count": 2
+    },
+    {
+      "ticker": "PH",
+      "count": 2
+    },
+    {
+      "ticker": "PKG",
+      "count": 2
+    },
+    {
+      "ticker": "PLTR",
+      "count": 2
+    },
+    {
+      "ticker": "TSCO",
+      "count": 2
+    },
+    {
+      "ticker": "VIK",
+      "count": 2
+    },
+    {
+      "ticker": "WFC",
+      "count": 2
+    },
+    {
+      "ticker": "ADP",
+      "count": 1
+    },
+    {
+      "ticker": "AMGN",
+      "count": 1
+    },
+    {
+      "ticker": "AMP",
+      "count": 1
+    },
+    {
+      "ticker": "AMZN",
+      "count": 1
+    },
+    {
+      "ticker": "ARES",
+      "count": 1
+    },
+    {
+      "ticker": "ATH",
+      "count": 1
+    },
+    {
+      "ticker": "BBEU",
+      "count": 1
+    },
+    {
+      "ticker": "BX",
+      "count": 1
+    },
+    {
+      "ticker": "BXSL",
+      "count": 1
+    },
+    {
+      "ticker": "CAT",
+      "count": 1
+    },
+    {
+      "ticker": "CB",
+      "count": 1
+    },
+    {
+      "ticker": "CHRW",
+      "count": 1
+    },
+    {
+      "ticker": "CI",
+      "count": 1
+    },
+    {
+      "ticker": "CLH",
+      "count": 1
+    },
+    {
+      "ticker": "CMI",
+      "count": 1
+    },
+    {
+      "ticker": "CNXC",
+      "count": 1
+    },
+    {
+      "ticker": "DBEU",
+      "count": 1
+    },
+    {
+      "ticker": "ENTG",
+      "count": 1
+    },
+    {
+      "ticker": "ETN",
+      "count": 1
+    },
+    {
+      "ticker": "FBIN",
+      "count": 1
+    },
+    {
+      "ticker": "FITB",
+      "count": 1
+    },
+    {
+      "ticker": "FIXD",
+      "count": 1
+    },
+    {
+      "ticker": "FPE",
+      "count": 1
+    },
+    {
+      "ticker": "FTCB",
+      "count": 1
+    },
+    {
+      "ticker": "FTGC",
+      "count": 1
+    },
+    {
+      "ticker": "FTSL",
+      "count": 1
+    },
+    {
+      "ticker": "FULT",
+      "count": 1
+    },
+    {
+      "ticker": "GS",
+      "count": 1
+    },
+    {
+      "ticker": "HD",
+      "count": 1
+    },
+    {
+      "ticker": "HON",
+      "count": 1
+    },
+    {
+      "ticker": "HSY",
+      "count": 1
+    },
+    {
+      "ticker": "JNJ",
+      "count": 1
+    },
+    {
+      "ticker": "KLAC",
+      "count": 1
+    },
+    {
+      "ticker": "KO",
+      "count": 1
+    },
+    {
+      "ticker": "LBRDA",
+      "count": 1
+    },
+    {
+      "ticker": "LGOV",
+      "count": 1
+    },
+    {
+      "ticker": "LLY",
+      "count": 1
+    },
+    {
+      "ticker": "LNG",
+      "count": 1
+    },
+    {
+      "ticker": "MA",
+      "count": 1
+    },
+    {
+      "ticker": "MCD",
+      "count": 1
+    },
+    {
+      "ticker": "MCK",
+      "count": 1
+    },
+    {
+      "ticker": "MKL",
+      "count": 1
+    },
+    {
+      "ticker": "MNST",
+      "count": 1
+    },
+    {
+      "ticker": "NDAQ",
+      "count": 1
+    },
+    {
+      "ticker": "NFS",
+      "count": 1
+    },
+    {
+      "ticker": "PEP",
+      "count": 1
+    },
+    {
+      "ticker": "PNC",
+      "count": 1
+    },
+    {
+      "ticker": "PWR",
+      "count": 1
+    },
+    {
+      "ticker": "QCOM",
+      "count": 1
+    },
+    {
+      "ticker": "RKT",
+      "count": 1
+    },
+    {
+      "ticker": "SBUX",
+      "count": 1
+    },
+    {
+      "ticker": "SCI",
+      "count": 1
+    },
+    {
+      "ticker": "SCIO",
+      "count": 1
+    },
+    {
+      "ticker": "SPYM",
+      "count": 1
+    },
+    {
+      "ticker": "STE",
+      "count": 1
+    },
+    {
+      "ticker": "T",
+      "count": 1
+    },
+    {
+      "ticker": "TEAM",
+      "count": 1
+    },
+    {
+      "ticker": "TECH",
+      "count": 1
+    },
+    {
+      "ticker": "TJX",
+      "count": 1
+    },
+    {
+      "ticker": "TOST",
+      "count": 1
+    },
+    {
+      "ticker": "TPYP",
+      "count": 1
+    },
+    {
+      "ticker": "VEA",
+      "count": 1
+    },
+    {
+      "ticker": "VGK",
+      "count": 1
+    },
+    {
+      "ticker": "VUG",
+      "count": 1
+    },
+    {
+      "ticker": "VZ",
+      "count": 1
+    }
+  ]
+}
