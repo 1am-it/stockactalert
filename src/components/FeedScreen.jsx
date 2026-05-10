@@ -66,6 +66,7 @@ import FeedMetricsStrip from './FeedMetricsStrip';
 import FeedEmptyHero from './FeedEmptyHero';
 import { useTrades } from '../hooks/useTrades';
 import { aggregateMostActivePoliticians } from '../lib/politicianAggregation';
+import { findByName } from '../lib/congress';
 
 // 1AM-145: thresholds for empty-state variant selection.
 // 0           → 'empty-zero' (Pick a few politicians to follow)
@@ -137,15 +138,38 @@ export default function FeedScreen({
     return aggregateMostActivePoliticians(trades);
   }, [trades]);
 
+  // 1AM-148: bioguideId-resolved set of currently-followed politicians.
+  // Used by MostActivePoliticians (followedBioguideIds prop) for a robust
+  // follow-state check that survives upstream name-spelling drift (e.g.
+  // FMP "Mark R. Warner" vs directory canonical "Mark Warner"). Names that
+  // don't resolve via findByName are silently skipped — the name-string
+  // fallback in MostActive still covers those.
+  const followedBioguideIds = useMemo(() => {
+    const ids = new Set();
+    for (const name of followedPoliticians) {
+      const matches = findByName(name);
+      if (matches.length > 0 && matches[0].bioguideId) {
+        ids.add(matches[0].bioguideId);
+      }
+    }
+    return ids;
+  }, [followedPoliticians]);
+
   // 1AM-151: discovery-value check for active-user rendering. If every
   // politician in the top-N is already followed, the section adds no
   // discovery value — hide it. Empty-state always renders the section
   // (showing already-followed names is fine when the user has nothing).
+  // 1AM-148: check both bioguideId (robust) and name (fallback) so that
+  // name-spelling drift doesn't make the section think a politician is
+  // unfollowed when they're really not.
   const hasUnfollowedInTopN = useMemo(() => {
     if (mostActiveTopPoliticians.length === 0) return false;
     const followedSet = new Set(followedPoliticians);
-    return mostActiveTopPoliticians.some((p) => !followedSet.has(p.name));
-  }, [mostActiveTopPoliticians, followedPoliticians]);
+    return mostActiveTopPoliticians.some((p) => {
+      const matchedById = p.bioguideId && followedBioguideIds.has(p.bioguideId);
+      return !matchedById && !followedSet.has(p.name);
+    });
+  }, [mostActiveTopPoliticians, followedPoliticians, followedBioguideIds]);
 
   // ── Compute active vs inactive split (1AM-26) ──────────────────────────────
   // For each followed politician: active if they have ≥1 trade in `trades`,
@@ -282,6 +306,7 @@ export default function FeedScreen({
           loading={loading}
           windowLabel="recent"
           followedNames={followedPoliticians}
+          followedBioguideIds={followedBioguideIds}
           onToggleFollow={onUnfollow}
         />
       </div>
@@ -353,6 +378,7 @@ export default function FeedScreen({
             loading={loading}
             windowLabel="recent"
             followedNames={followedPoliticians}
+            followedBioguideIds={followedBioguideIds}
             onToggleFollow={onUnfollow}
           />
         </div>
