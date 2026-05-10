@@ -31,7 +31,7 @@
 
 import { useMemo } from 'react';
 import PoliticianPickerList from './PoliticianPickerList';
-import { MEMBERS } from '../lib/congress';
+import { MEMBERS, findByName } from '../lib/congress';
 import { useTrades } from '../hooks/useTrades';
 
 // 1AM-171: 90d window for activity-signal aggregation. Hardcoded — Browse
@@ -47,19 +47,28 @@ export default function BrowsePoliticiansScreen({
   const totalMembers = MEMBERS.length;
   const followingCount = followedPoliticians.length;
 
-  // 1AM-171: aggregate trade-count per politician name within 90d window.
-  // Uses name-string as key (same convention as `selected[]` / followed
-  // storage). Politicians with 0 trades simply absent from the Map —
-  // MemberListRow's default of 0 handles that case (no suffix rendered).
+  // 1AM-171: aggregate trade-count per politician (keyed on bioguideId) within
+  // 90d window. Bioguide-keying is the durable form — name-string keying
+  // breaks for any member whose roster entry includes a middle name that the
+  // upstream feed (FMP) omits, e.g. "April McClain Delaney" (roster) vs
+  // "April Delaney" (FMP). findByName provides the cascade + name-overrides
+  // resolution (same pattern as 1AM-106 / 1AM-148). Politicians with 0 trades
+  // simply absent from the Map — MemberListRow's default of 0 handles that
+  // case (no suffix rendered). Trades whose politician name fails to resolve
+  // to a roster member are skipped (no suffix anywhere is preferable to a
+  // misattributed count).
   const { trades } = useTrades();
-  const tradeCountsByName = useMemo(() => {
+  const tradeCountsByBioguide = useMemo(() => {
     const since = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 10);
     const counts = new Map();
     for (const t of trades) {
       if (t.tradeDate && t.tradeDate < since) continue;
-      counts.set(t.politician, (counts.get(t.politician) || 0) + 1);
+      const matches = findByName(t.politician);
+      const bioguideId = matches[0]?.bioguideId;
+      if (!bioguideId) continue;
+      counts.set(bioguideId, (counts.get(bioguideId) || 0) + 1);
     }
     return counts;
   }, [trades]);
@@ -132,7 +141,7 @@ export default function BrowsePoliticiansScreen({
           selected={followedPoliticians}
           onToggle={onTogglePolitician}
           showSuggested={false}
-          tradeCountsByName={tradeCountsByName}
+          tradeCountsByBioguide={tradeCountsByBioguide}
         />
       </div>
 
