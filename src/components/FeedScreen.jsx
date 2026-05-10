@@ -59,10 +59,8 @@
 
 import { useState, useMemo } from 'react';
 import TradeCard from './TradeCard';
-import FreshnessIndicator from './FreshnessIndicator';
 import MostActivePoliticians from './MostActivePoliticians';
 import FilterSummaryLine from './FilterSummaryLine';
-import FeedMetricsStrip from './FeedMetricsStrip';
 import FeedEmptyHero from './FeedEmptyHero';
 import { useTrades } from '../hooks/useTrades';
 import { aggregateMostActivePoliticians } from '../lib/politicianAggregation';
@@ -81,6 +79,10 @@ export default function FeedScreen({
   // filterActive and showAll views — the user's mute decision overrides the
   // show-all toggle.
   mutedPoliticians = [],
+  // 1AM-168: window from WatchHeader as single source of truth.
+  // '24h' | '7d' | '30d' | '90d'. Filters visible trades by trade_date,
+  // and propagates the label to FeedEmptyHero for window-driven copy.
+  watchWindow = '30d',
   onUnfollow,
   onNavigateToPoliticians,
   onShowPoliticianDetail,
@@ -97,14 +99,23 @@ export default function FeedScreen({
   const hasFollowed = followedPoliticians.length > 0;
   const filterActive = hasFollowed && !showAll;
 
-  // Apply the followed-filter client-side, then strip muted politicians.
-  // Muting is independent of the followed-filter: a muted politician is
-  // hidden in both `Show followed` and `Show all` modes.
+  // 1AM-168: compute the cutoff date from the watch-window for trade
+  // filtering. trade_date is ISO YYYY-MM-DD; sinceISO is the same format
+  // for direct string comparison (lexicographic == chronological for ISO).
+  const windowDays = { '24h': 1, '7d': 7, '30d': 30, '90d': 90 };
+  const sinceMs = Date.now() - (windowDays[watchWindow] || 30) * 24 * 60 * 60 * 1000;
+  const sinceISO = new Date(sinceMs).toISOString().slice(0, 10);
+
+  // Apply the followed-filter client-side, then strip muted politicians,
+  // then apply the watch-window cutoff. Order matters for performance —
+  // the cheapest filter (Set membership) runs first.
   const visibleTrades = (
     filterActive
       ? trades.filter((t) => followedPoliticians.includes(t.politician))
       : trades
-  ).filter((t) => !mutedPoliticians.includes(t.politician));
+  )
+    .filter((t) => !mutedPoliticians.includes(t.politician))
+    .filter((t) => !t.trade_date || t.trade_date >= sinceISO);
 
   // 1AM-145: empty-state variant selection.
   //   - 0 follows                                    → 'empty-zero' (regardless of trades)
@@ -277,21 +288,18 @@ export default function FeedScreen({
   const filterHasNoMatches = filterActive && visibleTrades.length === 0;
 
   // 1AM-145: when emptyVariant is set, render the new empty-state takeover
-  // (metrics strip + hero + Most Active embed). Otherwise render the existing
-  // FreshnessIndicator + FilterBar + TradeCards flow unchanged. The new path
-  // intentionally does NOT show TradeCards — Lovable's v2 mockup design
-  // decision is a clean takeover, not a banner-above-trades pattern.
+  // (hero + Most Active embed). Otherwise render the trades flow.
+  // 1AM-168: FeedMetricsStrip removed — its three columns (following/window/
+  // last-update) are absorbed into the WatchHeader rendered by App.jsx above.
+  // FeedEmptyHero now receives `watchWindow` so its headline copy is
+  // window-driven ("0 filings today/this week/this month/in 90 days").
   if (emptyVariant) {
     return (
       <div>
-        <FeedMetricsStrip
-          followingCount={followingCount}
-          windowLabel="30d"
-          lastUpdatedAt={lastUpdatedAt}
-        />
         <FeedEmptyHero
           variant={emptyVariant}
           followingCount={followingCount}
+          watchWindow={watchWindow}
           onBrowseAll={onBrowseAll}
           onManageFollowing={onManageFollowing}
         />
@@ -300,7 +308,8 @@ export default function FeedScreen({
             label "recent" reflects that we don't run a separate cascade fetch
             here — we aggregate from already-loaded trades. Acceptable v1
             simplification; can move to a shared cascade hook in a later
-            iteration if user-feedback signals the precision matters. */}
+            iteration if user-feedback signals the precision matters.
+            1AM-169 (Phase 3) will scope this to followed-only. */}
         <MostActivePoliticians
           politicians={mostActiveTopPoliticians}
           loading={loading}
@@ -315,35 +324,17 @@ export default function FeedScreen({
 
   return (
     <div>
-      {/* 1AM-38: Freshness indicator — dot only when stale, label, optional 'N new' badge,
-          and "Updated X ago" pill. Tracks per-fetch state from useTrades. */}
-      <FreshnessIndicator
-        lastUpdatedAt={lastUpdatedAt}
-        newTradeCount={newTradeCount}
-      />
+      {/* 1AM-168: FreshnessIndicator + FilterBar removed.
+          - "Last update N min ago" + tap-to-refresh moved into WatchHeader
+            (1AM-168). Newtrade-count badge dropped — the timestamp itself
+            is the dominant freshness signal, the badge added little.
+          - FilterBar's "Show all" toggle was already routed to Explore-tab
+            (1AM-112); the only remaining FilterBar duty was the filter-status
+            label + refresh, both now redundant. Watch-tab is by definition
+            scoped to followed-politicians + window — no toggle needed.
+          - The "Show all" alternative path lives on Explore-tab. */}
 
-      {/* Filter indicator + toggle.
-          1AM-112: `Show all` button now navigates to BrowseAllFilingsScreen
-          (via onBrowseAll prop) instead of toggling in-place. The legacy
-          in-place toggle (setShowAll) is kept as a fallback when onBrowseAll
-          isn't wired — useful for any remaining in-app contexts that haven't
-          adopted the new flow yet. */}
-      <FilterBar
-        filterActive={filterActive}
-        hasFollowed={hasFollowed}
-        followedCount={followedPoliticians.length}
-        visibleCount={visibleTrades.length}
-        onToggleShowAll={onBrowseAll || (() => setShowAll((v) => !v))}
-        onRefresh={refetch}
-      />
-
-      {/* 1AM-145: previous EmptyFollowedListBanner (no follows) and
-          FilterEmptyState (no matches) paths now collapse into the
-          emptyVariant render branch above — when we reach this point,
-          we have follows AND visible trades to render, OR the user
-          explicitly hit "Show all" (showAll=true). */}
-
-      {/* Render trades */}
+      {/* Render trades — already filtered by followed + muted + window above. */}
       {visibleTrades.map((trade) => (
         <TradeCard
           key={trade.id}

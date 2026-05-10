@@ -41,12 +41,18 @@
 export default function FeedEmptyHero({
   variant,
   followingCount = 0,
+  // 1AM-168: watchWindow drives empty-state copy. Phase 2 swaps "All quiet —
+  // 0 filings this week" for window-driven copy ("0 filings today/this week/
+  // this month/in 90 days"). Phase 3 (1AM-169) replaces the entire visual
+  // hierarchy per Lovable mockup 2 — big mono 0, no "All quiet", STOCK Act
+  // lag micro-line, dashed CTA. This is the minimal Phase 2 step.
+  watchWindow = '30d',
   onBrowseAll,
   onManageFollowing,
 }) {
   // Resolve copy + CTA order per variant. All three share the outer
   // shape — only these four fields vary.
-  const config = getVariantConfig(variant, followingCount, {
+  const config = getVariantConfig(variant, followingCount, watchWindow, {
     onBrowseAll,
     onManageFollowing,
   });
@@ -167,7 +173,7 @@ export default function FeedEmptyHero({
 // Returns headline / subline / icon / CTA pair for the requested variant.
 // Kept as a function (not a top-level constant) so it can interpolate the
 // followingCount into the subline copy and wire the parent's CTA handlers.
-function getVariantConfig(variant, followingCount, handlers) {
+function getVariantConfig(variant, followingCount, watchWindow, handlers) {
   const { onBrowseAll, onManageFollowing } = handlers;
 
   if (variant === 'empty-zero') {
@@ -188,6 +194,18 @@ function getVariantConfig(variant, followingCount, handlers) {
     };
   }
 
+  // 1AM-168: window-driven copy for empty-low / empty-high. The headline
+  // suffix matches the WatchHeader window selection so the user sees a
+  // coherent count ("0 filings today" when 24h is selected, etc.). Phase 3
+  // rewrites this whole hero layout per Lovable mockup 2.
+  const windowLabels = {
+    '24h': 'today',
+    '7d': 'this week',
+    '30d': 'this month',
+    '90d': 'in 90 days',
+  };
+  const headlineSuffix = windowLabels[watchWindow] || 'this month';
+
   // Both 'empty-low' and 'empty-high' share copy + CTA order at v1. Separated
   // as variants so future tuning can differ — e.g. high-volume users might
   // benefit from "Most active politicians this week" framing while low-volume
@@ -197,7 +215,7 @@ function getVariantConfig(variant, followingCount, handlers) {
     headline: (
       <>
         All quiet —
-        <br />0 filings this week
+        <br />0 filings {headlineSuffix}
       </>
     ),
     subline: `Following ${followingCount} ${followingCount === 1 ? 'politician' : 'politicians'} — all set`,

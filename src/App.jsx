@@ -44,6 +44,7 @@ import SettingsScreen from './components/SettingsScreen';
 // all three tabs use HeaderBar — Browse renders it internally,
 // Feed/Alerts wrap it here in App.jsx around their respective screens.
 import HeaderBar from './components/HeaderBar';
+import WatchHeader from './components/WatchHeader';
 // 1AM-66 v0.13.1: Welcome + Explainer screens removed; Discovery makes them
 // redundant. Steps simplified to 'discovery' → 'pick-politicians' → 'done'.
 // Migration of explainer content tracked in 1AM-110.
@@ -140,6 +141,14 @@ function App() {
     const saved = getJSON(STORAGE_KEYS.FOLLOWED_LIST_SORT, null);
     return VALID_FOLLOWED_SORT.includes(saved) ? saved : 'most-active';
   });
+  // 1AM-168: persist time-window selection on Watch-tab. Single source of
+  // truth for all Watch sections. Whitelist guards against stale or
+  // malformed values from older builds.
+  const VALID_WATCH_WINDOWS = ['24h', '7d', '30d', '90d'];
+  const [watchWindow, setWatchWindow] = useState(() => {
+    const saved = getJSON(STORAGE_KEYS.WATCH_WINDOW, null);
+    return VALID_WATCH_WINDOWS.includes(saved) ? saved : '30d';
+  });
   // 1AM-124: isBrowsingAll state removed — Browse-tab is now a top-level
   // tab (formerly an overlay reachable from FeedScreen `Show all`). The
   // `Show all` button on FeedScreen now switches activeTab to 'browse'
@@ -151,7 +160,9 @@ function App() {
   // FeedScreen still calls useTrades() too — that's fine; the hook's outer
   // request is cached at CDN level (s-maxage=3600), so a second render
   // shouldn't add real load.
-  const { trades } = useTrades();
+  // 1AM-168: lastUpdatedAt + refetch added so WatchHeader can render
+  // "Last update N min ago" and tap-to-refresh from the same hook call.
+  const { trades, lastUpdatedAt, refetch } = useTrades();
 
   // Persist onboarding completion whenever step transitions to/from 'done'
   useEffect(() => {
@@ -178,6 +189,11 @@ function App() {
   useEffect(() => {
     setJSON(STORAGE_KEYS.FOLLOWED_LIST_SORT, followedListSort);
   }, [followedListSort]);
+
+  // 1AM-168: Persist Watch-tab window selection on every change.
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.WATCH_WINDOW, watchWindow);
+  }, [watchWindow]);
 
   const togglePolitician = (name) => {
     setFollowedPoliticians((prev) =>
@@ -397,27 +413,35 @@ function App() {
           padding: '20px 24px 100px',
         }}
       >
-        {/* 1AM-125 fase 1: HeaderBar replaces the previous inline h1+p block.
-            Same component as Browse-tab uses internally — title in Playfair
-            32px navy + gear icon top-right that opens SettingsScreen.
-            1AM-160: people-icon entry-point to FollowedListScreen passed in
-            for the Feed-tab only. Browse + Alerts continue to render
-            gear-only header. */}
-        <HeaderBar
-          title={currentTitle}
-          onSettingsClick={() => setIsShowingSettings(true)}
-          {...(activeTab === 'feed'
-            ? {
-                followingCount: followedPoliticians.length,
-                onManageFollowingClick: () => setFeedSubScreen('followedList'),
-              }
-            : {})}
-        />
+        {/* 1AM-168: Watch-tab gets WatchHeader (window-selector + Last
+            update + Following-pill). Alerts-tab keeps the simpler HeaderBar
+            for now. Browse-tab renders its own header internally and is
+            handled by the early-return path above. */}
+        {activeTab === 'feed' ? (
+          <WatchHeader
+            followingCount={followedPoliticians.length}
+            onManageFollowingClick={() => setFeedSubScreen('followedList')}
+            onSettingsClick={() => setIsShowingSettings(true)}
+            watchWindow={watchWindow}
+            onWindowChange={setWatchWindow}
+            lastUpdatedAt={lastUpdatedAt}
+            onRefresh={refetch}
+          />
+        ) : (
+          <HeaderBar
+            title={currentTitle}
+            onSettingsClick={() => setIsShowingSettings(true)}
+          />
+        )}
 
         {/* ── Active tab content ── */}
         {activeTab === 'feed' && (
           <FeedScreen
             followedPoliticians={followedPoliticians}
+            // 1AM-168: window from WatchHeader as single source of truth.
+            // FeedScreen filters visible trades by trade_date >= since(window)
+            // and propagates the label to FeedEmptyHero for window-driven copy.
+            watchWindow={watchWindow}
             // 1AM-28: pass muted list so Feed cards from muted politicians
             // are filtered out (in both filterActive and showAll views).
             mutedPoliticians={mutedPoliticians}

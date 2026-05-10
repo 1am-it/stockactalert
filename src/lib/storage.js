@@ -76,4 +76,10 @@ export const STORAGE_KEYS = {
   // 'most-active' (default), 'alphabetical', 'recently-added'.
   // Read by FollowedListScreen; falls back to 'most-active' on missing/invalid.
   FOLLOWED_LIST_SORT: 'followedListSort',
+  // 1AM-168: persist time-window selection on Watch-tab. Values:
+  // '24h' / '7d' / '30d' (default) / '90d'. Single source of truth for
+  // all Watch sections (header copy, empty-state counter, Most Active
+  // aggregation, Sector Heatmap). Explore-tab has its own filter state
+  // and is not affected by this key.
+  WATCH_WINDOW: 'watchWindow',
 };
