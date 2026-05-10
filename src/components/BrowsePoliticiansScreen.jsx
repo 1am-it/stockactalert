@@ -93,12 +93,7 @@ export default function BrowsePoliticiansScreen({
   // default of 0 handles that case (no suffix rendered). Trades whose
   // politician name fails to resolve to a roster member are skipped (no
   // suffix anywhere is preferable to a misattributed count).
-  // 1AM-173: limit raised from server-default 50 to 200. Activity-signal
-  // suffix on rows is only as complete as the trade-set it aggregates from;
-  // with default 50 globally-recent trades, only the highest-frequency
-  // traders (Tuberville, Delaney, etc.) had visible counts. 200 widens
-  // coverage substantially for the directory-browse use-case.
-  const { trades } = useTrades({ limit: 200 });
+  const { trades } = useTrades();
   const tradeCountsByBioguide = useMemo(() => {
     const since = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000)
       .toISOString()
