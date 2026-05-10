@@ -110,13 +110,42 @@ export default function FeedScreen({
   const sinceMs = Date.now() - (windowDays[watchWindow] || 30) * 24 * 60 * 60 * 1000;
   const sinceISO = new Date(sinceMs).toISOString().slice(0, 10);
 
+  // 1AM-148: bioguideId-resolved set of currently-followed politicians.
+  // Used by both visibleTrades and watchTrades (and by MostActivePoliticians
+  // via prop) for a robust follow-state check that survives upstream
+  // name-spelling drift (e.g. FMP "James E Hon Banks" vs directory canonical
+  // "Jim Banks"). Names that don't resolve via findByName are silently
+  // skipped — the name-string fallback covers those.
+  const followedBioguideIds = useMemo(() => {
+    const ids = new Set();
+    for (const name of followedPoliticians) {
+      const matches = findByName(name);
+      if (matches.length > 0 && matches[0].bioguideId) {
+        ids.add(matches[0].bioguideId);
+      }
+    }
+    return ids;
+  }, [followedPoliticians]);
+
+  // 1AM-169 hotfix: shared "is this trade from a followed politician?" check.
+  // Both visibleTrades (drives empty-state and TradeCards) and watchTrades
+  // (drives Most Active) must use this — otherwise a trade that resolves
+  // only via bioguideId fallback shows up in Most Active while the
+  // empty-state still claims "0 filings". This was the Jim Banks / James
+  // E Hon Banks bug observed on 2026-05-10.
+  const followedSet = new Set(followedPoliticians);
+  const isFollowedTrade = (t) => {
+    if (followedSet.has(t.politician)) return true;
+    const matches = findByName(t.politician);
+    const bid = matches[0]?.bioguideId;
+    return Boolean(bid && followedBioguideIds.has(bid));
+  };
+
   // Apply the followed-filter client-side, then strip muted politicians,
   // then apply the watch-window cutoff. Order matters for performance —
   // the cheapest filter (Set membership) runs first.
   const visibleTrades = (
-    filterActive
-      ? trades.filter((t) => followedPoliticians.includes(t.politician))
-      : trades
+    filterActive ? trades.filter(isFollowedTrade) : trades
   )
     .filter((t) => !mutedPoliticians.includes(t.politician))
     .filter((t) => !t.tradeDate || t.tradeDate >= sinceISO);
@@ -138,44 +167,14 @@ export default function FeedScreen({
 
   // 1AM-169: Most Active is scoped to followed-only + window — the Watch-tab
   // is the user's personal monitoring view. Cross-Congress discovery moves
-  // to Explore-tab via the "Explore all >" link in the card header.
-  // 1AM-148: bioguideId-resolved set of currently-followed politicians.
-  // Used by MostActivePoliticians (followedBioguideIds prop) for a robust
-  // follow-state check that survives upstream name-spelling drift (e.g.
-  // FMP "Mark R. Warner" vs directory canonical "Mark Warner"). Names that
-  // don't resolve via findByName are silently skipped — the name-string
-  // fallback in MostActive still covers those.
-  const followedBioguideIds = useMemo(() => {
-    const ids = new Set();
-    for (const name of followedPoliticians) {
-      const matches = findByName(name);
-      if (matches.length > 0 && matches[0].bioguideId) {
-        ids.add(matches[0].bioguideId);
-      }
-    }
-    return ids;
-  }, [followedPoliticians]);
-
-  // 1AM-169: scope Most Active to followed-only + window. Watch-tab is by
-  // definition the user's personal monitoring view — the Most Active section
-  // here ranks the user's own follows by recent trade activity, NOT the
-  // full Congress. Cross-Congress discovery happens on Explore-tab via the
-  // "Explore all >" link in the card header.
-  //
-  // Trades input: filter to followed politicians (name OR bioguideId match
-  // for resilience to FMP/directory name drift, per 1AM-148) + within the
-  // current watch-window. Then aggregate.
+  // to Explore-tab via the "Explore all >" link in the card header. Same
+  // isFollowedTrade helper as visibleTrades — keeps both filters in lock-step.
   const watchTrades = useMemo(() => {
-    const followedSet = new Set(followedPoliticians);
     return trades.filter((t) => {
-      // Window cutoff (same logic as visibleTrades above).
       if (t.tradeDate && t.tradeDate < sinceISO) return false;
-      // Followed-check: name first, bioguideId fallback.
-      if (followedSet.has(t.politician)) return true;
-      const matches = findByName(t.politician);
-      const bid = matches[0]?.bioguideId;
-      return Boolean(bid && followedBioguideIds.has(bid));
+      return isFollowedTrade(t);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trades, followedPoliticians, followedBioguideIds, sinceISO]);
 
   const mostActiveTopPoliticians = useMemo(() => {
