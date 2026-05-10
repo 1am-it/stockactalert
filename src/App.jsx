@@ -469,6 +469,12 @@ function App() {
               }, 50);
             }}
             onManageFollowing={() => setFeedSubScreen('followedList')}
+            // 1AM-169: Explore-all hand-off from "Your most active" card.
+            // Switches to Explore-tab; sort-preset wiring is intentionally
+            // deferred (BrowseAllFilingsScreen already shows Most Active
+            // on its own surface, so a tab-switch is enough — the user
+            // sees the cross-Congress Most Active section there).
+            onExploreAll={() => setActiveTab('browse')}
           />
         )}
 

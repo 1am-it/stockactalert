@@ -90,6 +90,10 @@ export default function FeedScreen({
   // 1AM-28: rewired from the 1AM-145 Pad B scroll-anchor placeholder to
   // navigate directly to FollowedListScreen.
   onManageFollowing,
+  // 1AM-169: hand-off to Explore-tab from the "Your most active" card's
+  // "Explore all >" link. Lets the user see Most Active across full
+  // Congress (escape hatch when Watch-tab is scoped to followed-only).
+  onExploreAll,
 }) {
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } = useTrades();
 
@@ -132,23 +136,9 @@ export default function FeedScreen({
     emptyVariant = followingCount < FOLLOW_VOLUME_HIGH ? 'empty-low' : 'empty-high';
   }
 
-  // 1AM-145 / 1AM-151: Most Active aggregation drives two surfaces:
-  //   - Empty-state takeover (1AM-145): "While you wait — Most Active" embed
-  //     for users with 0 follows. Discovery affordance.
-  //   - Active-user feed footer (1AM-151): same component below the filings
-  //     list as secondary discovery. Only renders when there's discovery
-  //     value — i.e. when at least one of the top-N most active politicians
-  //     is NOT yet followed by the user. Otherwise it's a redundant list of
-  //     people they already follow, which adds noise instead of signal.
-  //
-  // Aggregates from `trades` (the unfiltered set returned by useTrades —
-  // followed-filter is applied client-side via `visibleTrades` only). No
-  // separate cascade fetch — uses whatever data useTrades has on hand.
-  // Window label "recent" reflects this honestly.
-  const mostActiveTopPoliticians = useMemo(() => {
-    return aggregateMostActivePoliticians(trades);
-  }, [trades]);
-
+  // 1AM-169: Most Active is scoped to followed-only + window — the Watch-tab
+  // is the user's personal monitoring view. Cross-Congress discovery moves
+  // to Explore-tab via the "Explore all >" link in the card header.
   // 1AM-148: bioguideId-resolved set of currently-followed politicians.
   // Used by MostActivePoliticians (followedBioguideIds prop) for a robust
   // follow-state check that survives upstream name-spelling drift (e.g.
@@ -166,21 +156,37 @@ export default function FeedScreen({
     return ids;
   }, [followedPoliticians]);
 
-  // 1AM-151: discovery-value check for active-user rendering. If every
-  // politician in the top-N is already followed, the section adds no
-  // discovery value — hide it. Empty-state always renders the section
-  // (showing already-followed names is fine when the user has nothing).
-  // 1AM-148: check both bioguideId (robust) and name (fallback) so that
-  // name-spelling drift doesn't make the section think a politician is
-  // unfollowed when they're really not.
-  const hasUnfollowedInTopN = useMemo(() => {
-    if (mostActiveTopPoliticians.length === 0) return false;
+  // 1AM-169: scope Most Active to followed-only + window. Watch-tab is by
+  // definition the user's personal monitoring view — the Most Active section
+  // here ranks the user's own follows by recent trade activity, NOT the
+  // full Congress. Cross-Congress discovery happens on Explore-tab via the
+  // "Explore all >" link in the card header.
+  //
+  // Trades input: filter to followed politicians (name OR bioguideId match
+  // for resilience to FMP/directory name drift, per 1AM-148) + within the
+  // current watch-window. Then aggregate.
+  const watchTrades = useMemo(() => {
     const followedSet = new Set(followedPoliticians);
-    return mostActiveTopPoliticians.some((p) => {
-      const matchedById = p.bioguideId && followedBioguideIds.has(p.bioguideId);
-      return !matchedById && !followedSet.has(p.name);
+    return trades.filter((t) => {
+      // Window cutoff (same logic as visibleTrades above).
+      if (t.trade_date && t.trade_date < sinceISO) return false;
+      // Followed-check: name first, bioguideId fallback.
+      if (followedSet.has(t.politician)) return true;
+      const matches = findByName(t.politician);
+      const bid = matches[0]?.bioguideId;
+      return Boolean(bid && followedBioguideIds.has(bid));
     });
-  }, [mostActiveTopPoliticians, followedPoliticians, followedBioguideIds]);
+  }, [trades, followedPoliticians, followedBioguideIds, sinceISO]);
+
+  const mostActiveTopPoliticians = useMemo(() => {
+    return aggregateMostActivePoliticians(watchTrades);
+  }, [watchTrades]);
+
+  // 1AM-169: hasUnfollowedInTopN obsolete — Watch's Most Active is scoped
+  // to followed-only, so by definition every entry is already followed.
+  // Render is gated only on "do we have any data at all" (component itself
+  // returns null on empty). The legacy 1AM-151 discovery-hint behaviour
+  // moves to Explore-tab where it makes sense.
 
   // ── Compute active vs inactive split (1AM-26) ──────────────────────────────
   // For each followed politician: active if they have ≥1 trade in `trades`,
@@ -287,12 +293,17 @@ export default function FeedScreen({
   const filterHasMatches = filterActive && visibleTrades.length > 0;
   const filterHasNoMatches = filterActive && visibleTrades.length === 0;
 
-  // 1AM-145: when emptyVariant is set, render the new empty-state takeover
-  // (hero + Most Active embed). Otherwise render the trades flow.
-  // 1AM-168: FeedMetricsStrip removed — its three columns (following/window/
-  // last-update) are absorbed into the WatchHeader rendered by App.jsx above.
-  // FeedEmptyHero now receives `watchWindow` so its headline copy is
-  // window-driven ("0 filings today/this week/this month/in 90 days").
+  // 1AM-145: when emptyVariant is set, render the new empty-state takeover.
+  // 1AM-168: FeedMetricsStrip removed — header chrome moved to WatchHeader.
+  // 1AM-169:
+  //   - empty-zero (no follows): hero alone — Most Active embed dropped here.
+  //     Discovery for not-yet-following users moves to Explore-tab. Showing
+  //     it inside the Watch-tab "0 follows" state would duplicate Explore.
+  //   - empty-low / empty-high (has follows but quiet window): hero + the
+  //     "Your most active" card scoped to the user's follows. The card
+  //     itself returns null when there are no followed-trades in the window
+  //     (MostActivePoliticians bails on length===0), so this slot quietly
+  //     disappears in long quiet stretches — that's intentional.
   if (emptyVariant) {
     return (
       <div>
@@ -303,21 +314,17 @@ export default function FeedScreen({
           onBrowseAll={onBrowseAll}
           onManageFollowing={onManageFollowing}
         />
-        {/* 1AM-145: "While you wait — Most Active" embed.
-            Reuses the MostActivePoliticians component from Browse-tab. Window
-            label "recent" reflects that we don't run a separate cascade fetch
-            here — we aggregate from already-loaded trades. Acceptable v1
-            simplification; can move to a shared cascade hook in a later
-            iteration if user-feedback signals the precision matters.
-            1AM-169 (Phase 3) will scope this to followed-only. */}
-        <MostActivePoliticians
-          politicians={mostActiveTopPoliticians}
-          loading={loading}
-          windowLabel="recent"
-          followedNames={followedPoliticians}
-          followedBioguideIds={followedBioguideIds}
-          onToggleFollow={onUnfollow}
-        />
+        {emptyVariant !== 'empty-zero' && (
+          <YourMostActiveCard
+            politicians={mostActiveTopPoliticians}
+            loading={loading}
+            watchWindow={watchWindow}
+            followedNames={followedPoliticians}
+            followedBioguideIds={followedBioguideIds}
+            onToggleFollow={onUnfollow}
+            onExploreAll={onExploreAll}
+          />
+        )}
       </div>
     );
   }
@@ -354,27 +361,64 @@ export default function FeedScreen({
         <NoRecentActivitySection inactivePoliticians={inactivePoliticians} />
       )}
 
-      {/* 1AM-151: Most Active politicians as discovery affordance for active
-          users. Renders below the feed (and below the inactive section if
-          present) so it doesn't push the personal feed down. Hidden when:
-          - The aggregation produced 0 politicians (degenerate empty case)
-          - Every top-N politician is already followed (no discovery value;
-            see `hasUnfollowedInTopN` for the check)
-          The component itself reuses the same shape as the empty-state
-          embed — same row layout, same Follow toggle wiring. */}
-      {hasUnfollowedInTopN && (
-        <div style={{ marginTop: 24 }}>
-          <MostActivePoliticians
-            politicians={mostActiveTopPoliticians}
-            loading={loading}
-            windowLabel="recent"
-            followedNames={followedPoliticians}
-            followedBioguideIds={followedBioguideIds}
-            onToggleFollow={onUnfollow}
-          />
-        </div>
-      )}
+      {/* 1AM-169: "Your most active" — scoped to followed politicians within
+          the current watch-window. Renders below the feed (and the inactive
+          section if present) so the trades stay primary. The component itself
+          returns null when there are no entries — no need for an outer gate.
+          The 1AM-151 hasUnfollowedInTopN gate is gone: by definition every
+          entry in the scoped Most Active is followed. Cross-Congress
+          discovery moves to Explore-tab via the "Explore all >" link. */}
+      <div style={{ marginTop: 24 }}>
+        <YourMostActiveCard
+          politicians={mostActiveTopPoliticians}
+          loading={loading}
+          watchWindow={watchWindow}
+          followedNames={followedPoliticians}
+          followedBioguideIds={followedBioguideIds}
+          onToggleFollow={onUnfollow}
+          onExploreAll={onExploreAll}
+        />
+      </div>
     </div>
+  );
+}
+
+// ── Your most active card (1AM-169) ──────────────────────────────────────────
+// Watch-tab wrapper around MostActivePoliticians with Watch-specific copy
+// and the "Explore all >" escape hatch. Kept as a thin wrapper so the
+// underlying component stays reusable for Browse-tab (where the original
+// Browse-tab card-title "Most Active" + windowLabel pill behaviour lives).
+function YourMostActiveCard({
+  politicians,
+  loading,
+  watchWindow,
+  followedNames,
+  followedBioguideIds,
+  onToggleFollow,
+  onExploreAll,
+}) {
+  // Window-driven subtitle copy. Mirrors the empty-state "filings today/this
+  // week/this month/in 90 days" pattern but in past-tense framing for active
+  // window data.
+  const subtitleByWindow = {
+    '24h': 'Followed politicians · last 24h',
+    '7d': 'Followed politicians · last 7d',
+    '30d': 'Followed politicians · last 30d',
+    '90d': 'Followed politicians · last 90d',
+  };
+  const cardSubtitle = subtitleByWindow[watchWindow] || 'Followed politicians';
+
+  return (
+    <MostActivePoliticians
+      politicians={politicians}
+      loading={loading}
+      followedNames={followedNames}
+      followedBioguideIds={followedBioguideIds}
+      onToggleFollow={onToggleFollow}
+      cardTitle="Your most active"
+      cardSubtitle={cardSubtitle}
+      onExploreAll={onExploreAll}
+    />
   );
 }
 
