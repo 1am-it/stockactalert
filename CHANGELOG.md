@@ -11,6 +11,22 @@ _No unreleased changes yet._
 
 ---
 
+## [0.22.2] — 2026-05-10
+
+Patch release for a long-standing visual bug in the Most Active section: Mark Warner's row showed `+ Follow` even when he was already in the user's follow-list, and tapping the button silently added a slightly-different name to storage. Same name-spelling-drift pattern as the Bernie Sanders / Shelley Capito migrations from 1AM-67 / 1AM-68. Fixed two ways: an alias entry that rewrites the FMP-typed `Mark R. Warner` to the directory-canonical `Mark Warner` on next reload, and a bioguideId-based fallback in the follow-state check so the next politician with the same pattern doesn't surprise us. PATCH bump because no schema change, no new surfaces, purely a follow-state correctness fix.
+
+### Fixed
+
+- **Mark Warner alias (1AM-148)** — `FOLLOWED_NAME_ALIASES` in `App.jsx` now rewrites stored `Mark R. Warner` → `Mark Warner` on hydration via the existing `migrateFollowedNames` path. Users who followed Warner before this release will see their stored name normalised to the directory-canonical form on next page load. No duplicate-storage growth from re-tapping `+ Follow` on his row.
+- **Bioguide-resolved follow-state in MostActivePoliticians (1AM-148)** — the component's `isFollowed` check now matches on `bioguideId` first (robust to upstream name spelling drift), with name-string matching as fallback for legacy cases where `findByName` doesn't resolve. New `followedBioguideIds` prop computed in `FeedScreen` via `findByName` over the followed-names list. The `hasUnfollowedInTopN` discovery-section gate uses the same dual-check so it doesn't flicker between visible and hidden when a politician resolves by ID but not by name.
+
+### Out of scope
+
+- Long-term migration of `selected[]` storage to bioguideId-keyed (covered by 1AM-82 phase C).
+- Comprehensive audit of every politician with FMP / directory name discrepancies — would need a script that diffs FMP-emitted names against the directory's canonical names. The `Mark R. Warner` fix is the third in a slow trickle (Sanders, Capito, Warner); if a fourth surfaces, the audit-script is worth it.
+
+---
+
 ## [0.22.1] — 2026-05-09
 
 Patch release adding company name + sector enrichment to PoliticianDetailScreen Net Positions (1AM-159). Tickers like TDG, PKG, ENTG are not universally recognisable — this matches the readability pattern already used in TradeDetailDrawer's Bought-block (1AM-70 phase 2) and brings PoliticianDetailScreen up to the same standard. Coverage audit before scoping confirmed 86% of production tickers have data in `sectors.json`; the remaining ~14% gracefully fall back to ticker-only display, no layout breakage. PATCH bump because no schema changes, no new API surfaces, purely visual enrichment of an existing list.

@@ -70,6 +70,10 @@ import { useTrades } from './hooks/useTrades';
 const FOLLOWED_NAME_ALIASES = {
   'Bernie Sanders': 'Bernard Sanders',
   'Shelley Moore Capito': 'Shelley Capito',
+  // 1AM-148: FMP emits "Mark R. Warner" (with middle initial) but the
+  // directory canonical is "Mark Warner". Without this alias, MostActive
+  // shows "+ Follow" on Warner's row even when he's already in selected[].
+  'Mark R. Warner': 'Mark Warner',
 };
 
 function migrateFollowedNames(names) {

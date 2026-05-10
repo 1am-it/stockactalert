@@ -22,11 +22,15 @@
 // Loading state: 3 skeleton rows so the page doesn't jump when data arrives.
 //
 // Props:
-//   politicians     — array of { name, bioguideId, party, chamber, state, count, initials }, length 0-3
-//   loading         — boolean, show skeleton while true
-//   windowLabel     — string shown in the section header right side, e.g. "30 days"
-//   followedNames   — array of currently-followed politician names (for toggle state)
-//   onToggleFollow  — callback(name: string) when Follow button is tapped
+//   politicians          — array of { name, bioguideId, party, chamber, state, count, initials }, length 0-3
+//   loading              — boolean, show skeleton while true
+//   windowLabel          — string shown in the section header right side, e.g. "30 days"
+//   followedNames        — array of currently-followed politician names (for toggle state)
+//   followedBioguideIds  — Set of currently-followed politician bioguideIds (1AM-148; robust
+//                          fallback when name strings drift between FMP and the directory,
+//                          e.g. "Mark R. Warner" vs "Mark Warner"). Optional — when omitted,
+//                          falls back to name-only matching for backward compat.
+//   onToggleFollow       — callback(name: string) when Follow button is tapped
 
 import Avatar from './Avatar';
 
@@ -35,6 +39,7 @@ export default function MostActivePoliticians({
   loading = false,
   windowLabel = '7 days',
   followedNames = [],
+  followedBioguideIds = new Set(),
   onToggleFollow,
 }) {
   // Hide section entirely when not loading and no data — quieter UX.
@@ -138,7 +143,14 @@ export default function MostActivePoliticians({
               </div>
             ))
           : politicians.map((p) => {
-              const isFollowed = followedSet.has(p.name);
+              // 1AM-148: match on bioguideId first (robust to name-spelling
+              // drift between FMP and the directory), fall back to name-string
+              // matching when bioguideId is unavailable. The fallback covers
+              // legacy cases where findByName didn't resolve and the name
+              // path is the only key we have.
+              const isFollowed =
+                (p.bioguideId && followedBioguideIds.has(p.bioguideId)) ||
+                followedSet.has(p.name);
               return (
                 <div
                   key={p.bioguideId || p.name}
