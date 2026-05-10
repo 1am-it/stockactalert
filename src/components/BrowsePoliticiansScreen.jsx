@@ -29,8 +29,15 @@
 //   - No section split for "Already following" — sort stays consistent
 //     with onboarding (alphabetic / activity-based via applyFilters)
 
+import { useMemo } from 'react';
 import PoliticianPickerList from './PoliticianPickerList';
 import { MEMBERS } from '../lib/congress';
+import { useTrades } from '../hooks/useTrades';
+
+// 1AM-171: 90d window for activity-signal aggregation. Hardcoded — Browse
+// Politicians is a directory, not a tunable dashboard. 90d is broad enough
+// to surface recent activity without noise from much-older trades.
+const ACTIVITY_WINDOW_DAYS = 90;
 
 export default function BrowsePoliticiansScreen({
   followedPoliticians,
@@ -39,6 +46,67 @@ export default function BrowsePoliticiansScreen({
 }) {
   const totalMembers = MEMBERS.length;
   const followingCount = followedPoliticians.length;
+
+  // 1AM-171: name normalisation matching the lib/congress `normaliseSearchString`
+  // (NFKD + diacritics-strip + lowercase + trim) so this lookup map agrees with
+  // any future cross-checks against findByName-derived data.
+  const normName = (s) =>
+    (s || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+  // 1AM-171: build a normalised-name → bioguideId Map covering the compound-
+  // lastName mismatch between roster and FMP feed. Roster lastName for ~15
+  // members includes a middle component (e.g. "McClain Delaney") that FMP
+  // omits — its display form is just first + last-word ("April Delaney").
+  // Four strategy keys per member ensure we resolve both forms, plus the
+  // `name` and `officialFull` variants for completeness. Done in module scope
+  // (no useMemo deps on MEMBERS — it's a static import) but wrapped in
+  // useMemo to avoid rebuilding per render.
+  const bioguideByName = useMemo(() => {
+    const m = new Map();
+    for (const member of MEMBERS) {
+      const first = member.firstName || '';
+      const last = member.lastName || '';
+      const lastWord = last.split(' ').pop();
+      const keys = [
+        member.name,
+        member.officialFull,
+        `${first} ${last}`,
+        `${first} ${lastWord}`,
+      ];
+      for (const k of keys) {
+        const nk = normName(k);
+        if (nk && !m.has(nk)) m.set(nk, member.bioguideId);
+      }
+    }
+    return m;
+  }, []);
+
+  // 1AM-171: aggregate trade-count per politician (keyed on bioguideId) within
+  // 90d window. Bioguide-keying is the durable form — name-string keying
+  // breaks for any member whose roster entry includes a middle name that the
+  // upstream feed omits (April McClain Delaney roster vs April Delaney feed).
+  // Politicians with 0 trades simply absent from the Map — MemberListRow's
+  // default of 0 handles that case (no suffix rendered). Trades whose
+  // politician name fails to resolve to a roster member are skipped (no
+  // suffix anywhere is preferable to a misattributed count).
+  const { trades } = useTrades();
+  const tradeCountsByBioguide = useMemo(() => {
+    const since = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const counts = new Map();
+    for (const t of trades) {
+      if (t.tradeDate && t.tradeDate < since) continue;
+      const bioguideId = bioguideByName.get(normName(t.politician));
+      if (!bioguideId) continue;
+      counts.set(bioguideId, (counts.get(bioguideId) || 0) + 1);
+    }
+    return counts;
+  }, [trades, bioguideByName]);
 
   return (
     <div
@@ -108,6 +176,7 @@ export default function BrowsePoliticiansScreen({
           selected={followedPoliticians}
           onToggle={onTogglePolitician}
           showSuggested={false}
+          tradeCountsByBioguide={tradeCountsByBioguide}
         />
       </div>
 

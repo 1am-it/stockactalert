@@ -27,7 +27,7 @@ const PARTY_COLORS = {
   I: { fg: '#6B7280', bg: '#F3F4F6' }, // grey
 };
 
-export default function MemberListRow({ member, isSelected, onToggle, onClickRow }) {
+export default function MemberListRow({ member, isSelected, onToggle, onClickRow, tradeCount90d = 0 }) {
   const partyColor = PARTY_COLORS[member.party] || PARTY_COLORS.I;
 
   // 1AM-102: state shown as full name ("California" not "CA"), district dropped
@@ -129,6 +129,12 @@ export default function MemberListRow({ member, isSelected, onToggle, onClickRow
           }}
         >
           {member.party} · {stateLabel} · {member.chamber}
+          {tradeCount90d > 0 && (
+            <>
+              {' · '}
+              {tradeCount90d} {tradeCount90d === 1 ? 'trade' : 'trades'} 90d
+            </>
+          )}
         </div>
       </div>
     </>

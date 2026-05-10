@@ -68,6 +68,14 @@ export default function PoliticianPickerList({
   selected,
   onToggle,
   showSuggested = true,
+  // 1AM-171: optional Map<bioguideId, count> for the activity-signal
+  // suffix on each row's meta-line. Empty Map by default — onboarding
+  // doesn't pass it and rows render without the count. Browse Politicians
+  // (BrowsePoliticiansScreen) passes the 90d-windowed count, keyed on
+  // bioguideId (resolved from upstream politician name via findByName) so
+  // roster middle-name forms (e.g. "April McClain Delaney") match feed
+  // first+last forms (e.g. "April Delaney").
+  tradeCountsByBioguide = new Map(),
 }) {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -216,6 +224,7 @@ export default function PoliticianPickerList({
                 member={member}
                 isSelected={selected.includes(member.name)}
                 onToggle={() => handleToggle(member.name)}
+                tradeCount90d={tradeCountsByBioguide.get(member.bioguideId) || 0}
               />
             </div>
           ))}

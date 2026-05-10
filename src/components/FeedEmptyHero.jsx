@@ -1,56 +1,189 @@
-// 1AM-145: FeedEmptyHero
-// Variant-aware empty-state hero card for the Feed-tab. Three variants based
-// on the user's follow count:
+// 1AM-145 / 1AM-169: FeedEmptyHero
+// Watch-tab empty-state hero.
 //
-//   - empty-zero  → selected.length === 0    ("Pick a few politicians to follow")
-//   - empty-low   → 1 ≤ selected.length ≤ 9  ("All quiet — Following N — all set")
-//   - empty-high  → selected.length ≥ 10     (same as empty-low, no different copy
-//                                             at this threshold — but separated
-//                                             so future iterations can tune
-//                                             messaging differently)
+// Two distinct variants depending on follow-state:
 //
-// All three share the same outer card, headline + body + CTAs structure. They
-// differ in:
-//   - Headline copy
-//   - Subline / reassurance copy (with green check icon in low/high variants)
-//   - CTA primary/secondary order
-//   - CTA labels (Manage who you follow vs Browse all recent filings)
+// 1. empty-zero — user has zero followed politicians (post-onboarding edge
+//    case via 1AM-42). Renders the legacy 1AM-145 "Pick a few politicians to
+//    follow" hero with PeopleIcon and dual-CTA (manage / explore). Behaviour
+//    intentionally preserved — that path isn't part of the v0.22.x
+//    Lovable-mockup redesign.
 //
-// Lovable v2 mockup decision: empty-zero gets "Manage who you follow" as
-// primary because the user's most useful action is to start following someone.
-// empty-low/high get "Browse all recent filings" as primary because the user
-// already follows people; their most useful action while waiting is to explore.
+// 2. empty-low / empty-high — user has follows but no trades within the
+//    current watch-window. Renders the 1AM-169 mockup-2 design:
+//      - Large mono `0` (Playfair, ~96px) centred
+//      - Window-driven label below it ("filings today/this week/this month
+//        /in 90 days")
+//      - Single factual STOCK Act lag micro-line, no editorial stance
+//      - Separate dashed-border row "Want to watch more politicians?" with
+//        only a people-icon (no buttons, no labels). Tap = navigate to
+//        BrowsePoliticiansScreen via the same handler that drives the
+//        WatchHeader people-pill.
 //
-// CTA wiring (1AM-145 Pad B — temporary scroll-anchors, 2026-05-07):
-//   - "Browse all recent filings" → Browse-tab + scroll to #recent-trades-section
-//   - "Manage who you follow"     → Browse-tab + scroll to Most Active section
-//                                   (placeholder until 1AM-28 FollowedList screen
-//                                   ships; rework is ~5 lines)
-//
-// Both CTAs go to Browse-tab in v1. The destination differentiation is the
-// scroll anchor. When 1AM-28 ships, the "Manage who you follow" handler gets
-// rewired to navigate to the FollowedList screen instead.
+// Decisions logged:
+//   - No "All quiet", "All set", or check-mark visuals (project-owner spec)
+//   - No "Browse all recent filings" CTA in this hero (Explore-tab is the
+//     escape hatch via the bottom-nav, no in-hero CTA needed)
+//   - Politici-CTA is a separate dashed card under the hero card, not part
+//     of it — visual restraint, separate intentions (status-feedback vs
+//     follow-management)
 //
 // Props:
 //   variant            — 'empty-zero' | 'empty-low' | 'empty-high'
-//   followingCount     — number, used in empty-low/high reassurance copy
-//   onBrowseAll        — callback, navigates to Browse + scrolls to Recent Trades
-//   onManageFollowing  — callback, navigates to Browse + scrolls to Most Active
-//                        (will be rewired to FollowedList screen when 1AM-28 ships)
+//   followingCount     — number, used in micro-context line for empty-zero
+//   watchWindow        — '24h' | '7d' | '30d' | '90d', drives copy
+//   onBrowseAll        — callback when explore-link tapped (empty-zero only)
+//   onManageFollowing  — callback when people-icon / manage tapped
+
+const WINDOW_COPY = {
+  '24h': 'today',
+  '7d': 'this week',
+  '30d': 'this month',
+  '90d': 'in 90 days',
+};
 
 export default function FeedEmptyHero({
   variant,
   followingCount = 0,
+  watchWindow = '30d',
   onBrowseAll,
   onManageFollowing,
 }) {
-  // Resolve copy + CTA order per variant. All three share the outer
-  // shape — only these four fields vary.
-  const config = getVariantConfig(variant, followingCount, {
-    onBrowseAll,
-    onManageFollowing,
-  });
+  if (variant === 'empty-zero') {
+    return (
+      <EmptyZeroHero
+        onBrowseAll={onBrowseAll}
+        onManageFollowing={onManageFollowing}
+      />
+    );
+  }
 
+  // empty-low and empty-high share the same visual design — they only differ
+  // in which user-segment we'd address differently in copy. v1 keeps them
+  // identical; future tuning can branch here if needed.
+  return (
+    <EmptyWithFollowsHero
+      followingCount={followingCount}
+      watchWindow={watchWindow}
+      onManageFollowing={onManageFollowing}
+    />
+  );
+}
+
+// ── empty-with-follows: 1AM-169 mockup 2 ─────────────────────────────────────
+// Big `0` + window-driven label + STOCK Act lag micro-line. Politici-CTA is
+// a separate dashed card below, not nested.
+function EmptyWithFollowsHero({ followingCount, watchWindow, onManageFollowing }) {
+  const windowLabel = WINDOW_COPY[watchWindow] || 'this month';
+
+  return (
+    <>
+      <section
+        style={{
+          background: '#FFFFFF',
+          border: '1px solid #E8E5D8',
+          borderRadius: 14,
+          padding: '40px 24px',
+          marginBottom: 16,
+          textAlign: 'center',
+          fontFamily: "'DM Sans', sans-serif",
+        }}
+      >
+        {/* Big 0 — Playfair, monospaced numerals via tabular-nums. */}
+        <div
+          style={{
+            fontFamily: "'Playfair Display', 'Lora', serif",
+            fontSize: 96,
+            fontWeight: 400,
+            color: '#0D1B2A',
+            lineHeight: 1,
+            letterSpacing: '-2px',
+            margin: 0,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          0
+        </div>
+
+        {/* Window-driven label, slightly muted. */}
+        <div
+          style={{
+            fontFamily: "'Playfair Display', 'Lora', serif",
+            fontSize: 22,
+            color: '#374151',
+            margin: '16px 0 24px',
+            fontWeight: 400,
+            lineHeight: 1.3,
+          }}
+        >
+          filings {windowLabel}
+        </div>
+
+        {/* STOCK Act lag micro-line — factual, no apology, no relativering. */}
+        <div
+          style={{
+            fontSize: 12,
+            color: '#9CA3AF',
+            margin: 0,
+            lineHeight: 1.5,
+            maxWidth: 320,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+          }}
+        >
+          Filings can lag the actual trade by up to 45 days under the STOCK Act.
+        </div>
+      </section>
+
+      {/* Politici-CTA blok — dashed border, single tap-target row. No button.
+          Whole row is the click surface. */}
+      <button
+        type="button"
+        onClick={onManageFollowing}
+        style={{
+          display: 'flex',
+          width: '100%',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '14px 18px',
+          marginBottom: 24,
+          background: '#FAFAF7',
+          border: '1.5px dashed #D1D5DB',
+          borderRadius: 12,
+          cursor: 'pointer',
+          fontFamily: "'DM Sans', sans-serif",
+          transition: 'background 0.15s ease, border-color 0.15s ease',
+          textAlign: 'left',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#F3F4F6';
+          e.currentTarget.style.borderColor = '#9CA3AF';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#FAFAF7';
+          e.currentTarget.style.borderColor = '#D1D5DB';
+        }}
+      >
+        <span
+          style={{
+            fontSize: 14,
+            color: '#374151',
+            fontWeight: 500,
+          }}
+        >
+          Want to watch more politicians?
+        </span>
+        <PeopleIcon />
+      </button>
+    </>
+  );
+}
+
+// ── empty-zero: 1AM-145 legacy preserved ─────────────────────────────────────
+// User has zero followed politicians. This isn't reached via the WatchHeader
+// flow (you only see Watch-tab after picking at least one politician in
+// onboarding), but is reachable via 1AM-42 edge cases (unfollowing all).
+function EmptyZeroHero({ onBrowseAll, onManageFollowing }) {
   return (
     <section
       style={{
@@ -63,10 +196,7 @@ export default function FeedEmptyHero({
         fontFamily: "'DM Sans', sans-serif",
       }}
     >
-      {/* ── Icon (variant-specific) ─────────────────────────────────────── */}
-      {config.icon}
-
-      {/* ── Headline ────────────────────────────────────────────────────── */}
+      <PeopleIconLarge />
       <h2
         style={{
           fontFamily: "'Playfair Display', 'Lora', serif",
@@ -78,50 +208,21 @@ export default function FeedEmptyHero({
           lineHeight: 1.25,
         }}
       >
-        {config.headline}
+        Pick a few politicians to follow
       </h2>
-
-      {/* ── Subline (with optional green check) ─────────────────────────── */}
       <div
         style={{
           fontSize: 13,
-          color: config.sublineMuted ? '#6B7280' : '#0D1B2A',
+          color: '#0D1B2A',
           margin: '0 0 24px',
           lineHeight: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          flexWrap: 'wrap',
         }}
       >
-        {config.sublineCheck && (
-          <span
-            aria-hidden="true"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 16,
-              height: 16,
-              borderRadius: '50%',
-              background: '#ECFDF5',
-              color: '#059669',
-              fontSize: 11,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            ✓
-          </span>
-        )}
-        <span>{config.subline}</span>
+        Browse 535 members of Congress
       </div>
-
-      {/* ── Primary CTA ─────────────────────────────────────────────────── */}
       <button
         type="button"
-        onClick={config.primaryCta.onClick}
+        onClick={onManageFollowing}
         style={{
           display: 'block',
           width: '100%',
@@ -138,13 +239,11 @@ export default function FeedEmptyHero({
           cursor: 'pointer',
         }}
       >
-        {config.primaryCta.label} →
+        Manage who you follow →
       </button>
-
-      {/* ── Secondary CTA (text-link) ───────────────────────────────────── */}
       <button
         type="button"
-        onClick={config.secondaryCta.onClick}
+        onClick={onBrowseAll}
         style={{
           background: 'transparent',
           border: 'none',
@@ -157,119 +256,55 @@ export default function FeedEmptyHero({
           textDecorationColor: '#9CA3AF',
         }}
       >
-        {config.secondaryCta.label} →
+        Explore all recent filings →
       </button>
     </section>
   );
 }
 
-// ── Variant config resolver ──────────────────────────────────────────────────
-// Returns headline / subline / icon / CTA pair for the requested variant.
-// Kept as a function (not a top-level constant) so it can interpolate the
-// followingCount into the subline copy and wire the parent's CTA handlers.
-function getVariantConfig(variant, followingCount, handlers) {
-  const { onBrowseAll, onManageFollowing } = handlers;
-
-  if (variant === 'empty-zero') {
-    return {
-      icon: <PeopleIcon />,
-      headline: 'Pick a few politicians to follow',
-      subline: 'Browse 535 members of Congress',
-      sublineMuted: false,
-      sublineCheck: true,
-      primaryCta: {
-        label: 'Manage who you follow',
-        onClick: onManageFollowing,
-      },
-      secondaryCta: {
-        label: 'Browse all recent filings',
-        onClick: onBrowseAll,
-      },
-    };
-  }
-
-  // Both 'empty-low' and 'empty-high' share copy + CTA order at v1. Separated
-  // as variants so future tuning can differ — e.g. high-volume users might
-  // benefit from "Most active politicians this week" framing while low-volume
-  // users benefit from "your follows are all set" reassurance.
-  return {
-    icon: <CheckIcon />,
-    headline: (
-      <>
-        All quiet —
-        <br />0 filings this week
-      </>
-    ),
-    subline: `Following ${followingCount} ${followingCount === 1 ? 'politician' : 'politicians'} — all set`,
-    sublineMuted: false,
-    sublineCheck: true,
-    primaryCta: {
-      label: 'Browse all recent filings',
-      onClick: onBrowseAll,
-    },
-    secondaryCta: {
-      label: 'Manage who you follow',
-      onClick: onManageFollowing,
-    },
-  };
-}
-
 // ── Icons ────────────────────────────────────────────────────────────────────
 // Inline SVGs — design system bans emoji.
 
-// Three-people icon for empty-zero state (Lovable v2 mockup).
+// Compact people-icon for the dashed Politici-CTA row.
 function PeopleIcon() {
   return (
-    <svg
-      width="56"
-      height="40"
-      viewBox="0 0 56 40"
-      fill="none"
-      stroke="#9CA3AF"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      style={{ margin: '0 auto', display: 'block' }}
-    >
-      <circle cx="28" cy="14" r="6" />
-      <path d="M16 38c0-6.6 5.4-12 12-12s12 5.4 12 12" />
-      <circle cx="10" cy="18" r="4.5" />
-      <path d="M2 36c0-4 3-8 8-8" />
-      <circle cx="46" cy="18" r="4.5" />
-      <path d="M54 36c0-4-3-8-8-8" />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.2" stroke="#6B7280" strokeWidth="2" />
+      <path
+        d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"
+        stroke="#6B7280"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="16.5" cy="9.5" r="2.4" stroke="#6B7280" strokeWidth="2" />
+      <path
+        d="M15 14.5c2.5 0.4 4.5 2.5 4.5 5"
+        stroke="#6B7280"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
-// Green check-circle for empty-low/high states (Lovable v2 mockup).
-function CheckIcon() {
+// Larger version for the legacy empty-zero hero.
+function PeopleIconLarge() {
   return (
-    <div
-      aria-hidden="true"
-      style={{
-        width: 48,
-        height: 48,
-        borderRadius: '50%',
-        background: '#ECFDF5',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: '0 auto',
-      }}
-    >
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#059669"
-        strokeWidth="2.5"
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.2" stroke="#0D1B2A" strokeWidth="1.6" />
+      <path
+        d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"
+        stroke="#0D1B2A"
+        strokeWidth="1.6"
         strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <polyline points="5 12 10 17 19 8" />
-      </svg>
-    </div>
+      />
+      <circle cx="16.5" cy="9.5" r="2.4" stroke="#0D1B2A" strokeWidth="1.6" />
+      <path
+        d="M15 14.5c2.5 0.4 4.5 2.5 4.5 5"
+        stroke="#0D1B2A"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

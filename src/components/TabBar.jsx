@@ -8,7 +8,7 @@
 const TABS = [
   {
     id: 'feed',
-    label: 'Feed',
+    label: 'Watch',
     icon: (active) => (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
         <rect
@@ -41,7 +41,7 @@ const TABS = [
   {
     // 1AM-124: Browse-tab semantically "discover/explore" — compass icon.
     id: 'browse',
-    label: 'Browse',
+    label: 'Explore',
     icon: (active) => (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
         <circle

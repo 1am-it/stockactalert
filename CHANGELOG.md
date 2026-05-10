@@ -11,6 +11,38 @@ _No unreleased changes yet._
 
 ---
 
+## [0.23.0] — 2026-05-10
+
+Watch-tab IA redesign + new **Sector Activity Heatmap** surface, addressing the "maze" / "no perceived feed" user feedback that prompted the v0/Lovable IA exploration earlier in the cycle. The Watch tab (renamed from Feed in 1AM-167) is now the personalized surface — scoped to politici you follow, with a window-selector at the top, a re-thought empty-state that explains the STOCK Act filing-lag rather than implying the feed is broken, and a new Sector Activity Heatmap that surfaces sector-level buy/sell patterns within the active window. Browse Politicians (renamed from Browse in 1AM-167 → Explore) gains an activity-signal suffix on each row so users can see at a glance which politici are actively trading. MINOR bump: tab-label rename is user-visible naming, two new components (WatchHeader, SectorActivityHeatmap), and the activity-signal is a new affordance on an existing surface.
+
+### Added
+
+- **`WatchHeader` with window-selector (1AM-168)** — new sticky header on the Watch tab containing: a chip-row window selector (`24h / 7d / 30d / 90d`, default `24h`), a `Last update` freshness indicator (relative-time, derived from `lastUpdatedAt` in `useTrades`), and a `Following N` pill linking to FollowedListScreen. Window selection drives the trade-list filter, the Most Active section, and the Sector Activity Heatmap (one source of truth, no per-section mismatches).
+- **Watch empty-state rework — "mockup 2" treatment (1AM-169)** — when zero trades match the active window, the body now renders a large `0` numeral, a short STOCK Act filing-lag explainer (so users understand "no recent trades" ≠ "feed is broken"), and a dashed CTA card pointing at BrowsePoliticiansScreen ("Volg meer politici"). Replaces the previous flat `Geen recente filings` line which gave users no path forward and no context for the silence.
+- **Most Active "Explore all ›" link (1AM-169)** — appended to the Most Active heading row when scoping to followed politici returns fewer than 5 results, linking to the Explore-tab politicians directory. Closes the discovery-loop without forcing users back to the empty-state CTA.
+- **`SectorActivityHeatmap` — new surface (1AM-170)** — bar-chart-style breakdown of buy/sell volume by sector for the active window, rendered below Most Active on the Watch tab. Neutral split-bars (`#0D1B2A` for buys, `#9CA3AF` for sells) chosen over the green-buy / red-sell convention used in trade rows, because at the sector-aggregate level the buy-vs-sell signal is informational not directional. Auto-hides when fewer than 3 sectors have data in the window (avoids a near-empty chart on short windows or sparse-follow sets).
+- **Activity-signal suffix on Browse Politicians rows (1AM-171)** — each member row in `BrowsePoliticiansScreen` (now reached via the renamed Explore tab) now shows a muted `· N trades 90d` suffix in the meta-line when the politician has filings in the last 90 days. 90d window is hardcoded for the directory surface — fixed-window scope makes the signal stable for follow-decisions, decoupled from whatever the user has set on Watch. Includes a 4-strategy `name → bioguideId` lookup map covering compound-lastName edge cases (April McClain Delaney / FMP "April Delaney", Lisa Blunt Rochester, Catherine Cortez Masto, etc.).
+
+### Changed
+
+- **Tab labels: Feed → Watch, Browse → Explore (1AM-167)** — TabBar labels, back-link copy on sub-screens, header titles, and CTA labels all updated to the new naming. Reflects the IA shift: Watch is your personalised surface (followed politici + window), Explore is the global directory (all politici, all filings). Visible back-label `← Feed` on FollowedListScreen / BrowsePoliticiansScreen also corrected (Phase 1 oversight initially missed by aria-label-only grep — see hotfix below).
+- **Most Active scoping changed from global to followed-only on Watch (1AM-169)** — previously Most Active showed top global trade-volume politici regardless of follow-state. On Watch this conflicted with the personalisation premise; users following Pelosi/Schumer would still see Tuberville at the top of "Most Active". Watch-tab Most Active now filters to followed politici only (Explore-tab keeps the global Most Active for discovery). The previous `useActivePoliticians` hook is reused with a follow-set parameter.
+
+### Fixed
+
+- **Phase 1 visible back-label oversight (1AM-167)** — initial Feed → Watch rename updated `aria-label` but missed the visible button text on FollowedListScreen / BrowsePoliticiansScreen back-buttons. Both now read `← Watch` consistently. Lesson: rename audits need to grep both `aria-label` and visible-text occurrences.
+- **`visibleTrades` / `watchTrades` follow-state-check unification (1AM-169 hotfix)** — `visibleTrades` filtered with name-only check while `watchTrades` used name + bioguideId. Result was an off-by-one inconsistency where the empty-state showed `0 filings` but Most Active still rendered a Banks trade (FMP "James E Hon Banks" resolves by bioguideId but not by name-string). Both paths now share an `isFollowedTrade(t)` helper that checks bioguideId first, name-string fallback.
+- **`tradeDate` (camelCase) discipline in window filters (1AM-169 + 1AM-171 hotfix)** — Phase 2 implementation read `t.trade_date` (snake_case Supabase field) post-normaliser. Always-undefined → fallback `!t.trade_date` let every trade through the window filter, masking the bug until time-windowed counts diverged from expectations. Both Watch window filter and Browse activity-signal aggregator now consistently use `t.tradeDate` (the post-normaliser camelCase field).
+- **Compound-lastName name resolution in activity-signal aggregator (1AM-171 hotfix)** — `findByName` haystacks for members with multi-word `lastName` (April McClain Delaney's lastName is `"McClain Delaney"`, not `"Delaney"`) didn't include the FMP-style first + last-word form, so 15 members never matched their FMP-emitted display names. Aggregator now builds a 4-strategy lookup map: `member.name`, `member.officialFull`, `${first} ${last}`, `${first} ${lastWord}`. Verified against all 15 compound-lastName members; resolves correctly without false positives.
+
+### Out of scope (future tickets)
+
+- **Tap-to-filter on Sector Activity Heatmap** — deferred as Phase 4b follow-up. Current iteration is read-only; tapping a sector to filter the trade list is a logical next step but adds state-mgmt scope not needed for v0.23.0.
+- **`useTrades` global 50-limit affecting Watch + activity-signal** — surfaced during 1AM-171 diagnosis: low-frequency-but-high-profile politici (Pelosi, Schumer, Sanders) often fall outside the global top-50 trade-window, so users following only that profile see Watch chronicly-empty and Browse activity-signals partially populated. Either raise the limit (cheap, ~80% improvement) or move to per-followed-politician fetch via Supabase archive (durable). New ticket to follow.
+- **Comprehensive FMP / roster name-discrepancy audit** — the trickle continues (Sanders, Capito, Warner, now compound-lastNames). Worth a one-off script that diffs FMP-emitted politician names against directory canonicals if a fifth pattern surfaces.
+
+---
+
 ## [0.22.2] — 2026-05-10
 
 Patch release for a long-standing visual bug in the Most Active section: Mark Warner's row showed `+ Follow` even when he was already in the user's follow-list, and tapping the button silently added a slightly-different name to storage. Same name-spelling-drift pattern as the Bernie Sanders / Shelley Capito migrations from 1AM-67 / 1AM-68. Fixed two ways: an alias entry that rewrites the FMP-typed `Mark R. Warner` to the directory-canonical `Mark Warner` on next reload, and a bioguideId-based fallback in the follow-state check so the next politician with the same pattern doesn't surprise us. PATCH bump because no schema change, no new surfaces, purely a follow-state correctness fix.
@@ -918,7 +950,10 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/1am-it/stockactalert/compare/v0.22.2...v0.23.0
+[0.22.2]: https://github.com/1am-it/stockactalert/compare/v0.22.1...v0.22.2
+[0.22.1]: https://github.com/1am-it/stockactalert/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/1am-it/stockactalert/compare/v0.21.2...v0.22.0
 [0.21.2]: https://github.com/1am-it/stockactalert/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/1am-it/stockactalert/compare/v0.21.0...v0.21.1

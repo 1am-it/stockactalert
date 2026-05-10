@@ -31,6 +31,14 @@
 //                          e.g. "Mark R. Warner" vs "Mark Warner"). Optional — when omitted,
 //                          falls back to name-only matching for backward compat.
 //   onToggleFollow       — callback(name: string) when Follow button is tapped
+//   cardTitle            — optional title override (default "Most Active"). 1AM-169 sets
+//                          this to "Your most active" on Watch-tab.
+//   cardSubtitle         — optional subtitle line under the title (DM Sans muted).
+//                          1AM-169: "Followed politicians · last [windowLabel]".
+//   onExploreAll         — optional callback for "Explore all >" link in the header
+//                          right side. 1AM-169: navigates to Explore-tab so the user
+//                          can see Most Active across full Congress (escape hatch
+//                          when Watch-tab is scoped to followed-only).
 
 import Avatar from './Avatar';
 
@@ -41,6 +49,9 @@ export default function MostActivePoliticians({
   followedNames = [],
   followedBioguideIds = new Set(),
   onToggleFollow,
+  cardTitle = 'Most Active',
+  cardSubtitle = null,
+  onExploreAll,
 }) {
   // Hide section entirely when not loading and no data — quieter UX.
   if (!loading && politicians.length === 0) {
@@ -59,31 +70,76 @@ export default function MostActivePoliticians({
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'baseline',
+          alignItems: 'flex-start',
           marginBottom: 10,
+          gap: 12,
         }}
       >
-        <h2
-          style={{
-            fontFamily: "'Playfair Display', 'Lora', serif",
-            fontSize: 18,
-            fontWeight: 500,
-            color: '#0D1B2A',
-            margin: 0,
-            letterSpacing: '-0.2px',
-          }}
-        >
-          Most Active
-        </h2>
-        <span
-          style={{
-            fontSize: 11,
-            color: '#9CA3AF',
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        >
-          {windowLabel}
-        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2
+            style={{
+              fontFamily: "'Playfair Display', 'Lora', serif",
+              fontSize: 18,
+              fontWeight: 500,
+              color: '#0D1B2A',
+              margin: 0,
+              letterSpacing: '-0.2px',
+            }}
+          >
+            {cardTitle}
+          </h2>
+          {cardSubtitle && (
+            <div
+              style={{
+                fontSize: 12,
+                color: '#9CA3AF',
+                fontFamily: "'DM Sans', sans-serif",
+                marginTop: 4,
+              }}
+            >
+              {cardSubtitle}
+            </div>
+          )}
+        </div>
+        {/* Right-side: Explore-all link (1AM-169) when handler is wired,
+            otherwise the legacy windowLabel pill (Browse-tab usage). */}
+        {typeof onExploreAll === 'function' ? (
+          <button
+            type="button"
+            onClick={onExploreAll}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '4px 0',
+              fontSize: 12,
+              color: '#6B7280',
+              fontFamily: "'DM Sans', sans-serif",
+              cursor: 'pointer',
+              fontWeight: 500,
+              flexShrink: 0,
+              lineHeight: 1.5,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#0D1B2A';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#6B7280';
+            }}
+          >
+            Explore all &rsaquo;
+          </button>
+        ) : (
+          <span
+            style={{
+              fontSize: 11,
+              color: '#9CA3AF',
+              fontFamily: "'DM Sans', sans-serif",
+              flexShrink: 0,
+            }}
+          >
+            {windowLabel}
+          </span>
+        )}
       </div>
 
       {/* ── Politician rows ─────────────────────────────────────────────── */}
