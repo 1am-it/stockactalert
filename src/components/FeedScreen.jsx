@@ -100,7 +100,15 @@ export default function FeedScreen({
   // Pre-set filter wiring comes in a follow-up ticket (4b).
   onSectorTap,
 }) {
-  const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } = useTrades();
+  // 1AM-173: limit raised from server-default 50 to 200. Watch tab filters
+  // trades by followed politici; with the default 50 globally-recent set,
+  // users following only low-frequency-but-high-profile politici (Pelosi,
+  // Schumer, Sanders, McConnell) saw chronicly-empty Watch even when their
+  // followed set had filings in the last 30d — those trades just fell
+  // outside the global top-50 window. 200 covers ~80% of low-frequency-
+  // followed scenarios per estimate. Path B (per-followed Supabase fetch)
+  // remains the durable fix if 80% turns out to be insufficient.
+  const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } = useTrades({ limit: 200 });
 
   // Whether to bypass the followed-filter for the current session
   const [showAll, setShowAll] = useState(false);
