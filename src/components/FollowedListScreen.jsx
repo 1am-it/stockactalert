@@ -189,7 +189,7 @@ export default function FollowedListScreen({
             cursor: 'pointer',
           }}
         >
-          ← Feed
+          ← Watch
         </button>
         {count > 0 && (
           <button
