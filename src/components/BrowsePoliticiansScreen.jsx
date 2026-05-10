@@ -58,7 +58,7 @@ export default function BrowsePoliticiansScreen({
       .slice(0, 10);
     const counts = new Map();
     for (const t of trades) {
-      if (t.trade_date && t.trade_date < since) continue;
+      if (t.tradeDate && t.tradeDate < since) continue;
       counts.set(t.politician, (counts.get(t.politician) || 0) + 1);
     }
     return counts;
