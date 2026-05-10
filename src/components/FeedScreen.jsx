@@ -62,6 +62,7 @@ import TradeCard from './TradeCard';
 import MostActivePoliticians from './MostActivePoliticians';
 import FilterSummaryLine from './FilterSummaryLine';
 import FeedEmptyHero from './FeedEmptyHero';
+import SectorActivityHeatmap from './SectorActivityHeatmap';
 import { useTrades } from '../hooks/useTrades';
 import { aggregateMostActivePoliticians } from '../lib/politicianAggregation';
 import { findByName } from '../lib/congress';
@@ -94,6 +95,10 @@ export default function FeedScreen({
   // "Explore all >" link. Lets the user see Most Active across full
   // Congress (escape hatch when Watch-tab is scoped to followed-only).
   onExploreAll,
+  // 1AM-170: hand-off from Sector Heatmap row tap. v1 implementation
+  // just navigates to Explore-tab without a preset sector-filter.
+  // Pre-set filter wiring comes in a follow-up ticket (4b).
+  onSectorTap,
 }) {
   const { trades, loading, error, refetch, lastUpdatedAt, newTradeCount } = useTrades();
 
@@ -314,15 +319,27 @@ export default function FeedScreen({
           onManageFollowing={onManageFollowing}
         />
         {emptyVariant !== 'empty-zero' && (
-          <YourMostActiveCard
-            politicians={mostActiveTopPoliticians}
-            loading={loading}
-            watchWindow={watchWindow}
-            followedNames={followedPoliticians}
-            followedBioguideIds={followedBioguideIds}
-            onToggleFollow={onUnfollow}
-            onExploreAll={onExploreAll}
-          />
+          <>
+            <YourMostActiveCard
+              politicians={mostActiveTopPoliticians}
+              loading={loading}
+              watchWindow={watchWindow}
+              followedNames={followedPoliticians}
+              followedBioguideIds={followedBioguideIds}
+              onToggleFollow={onUnfollow}
+              onExploreAll={onExploreAll}
+            />
+            {/* 1AM-170: Sector Heatmap also renders in empty-state when
+                there ARE sector activity in the window — the empty-state's
+                "0 filings" message is about visible TradeCards, not about
+                whether sector data exists. Auto-hides when no sector data.
+                For empty-zero (no follows): no sector data possible, skip. */}
+            <SectorActivityHeatmap
+              trades={watchTrades}
+              windowLabel={watchWindow}
+              onSectorTap={onSectorTap}
+            />
+          </>
         )}
       </div>
     );
@@ -378,6 +395,14 @@ export default function FeedScreen({
           onExploreAll={onExploreAll}
         />
       </div>
+
+      {/* 1AM-170: Sector Heatmap renders below Your most active when there's
+          sector activity to show. Auto-hides when no data — no placeholder. */}
+      <SectorActivityHeatmap
+        trades={watchTrades}
+        windowLabel={watchWindow}
+        onSectorTap={onSectorTap}
+      />
     </div>
   );
 }

@@ -475,6 +475,11 @@ function App() {
             // on its own surface, so a tab-switch is enough — the user
             // sees the cross-Congress Most Active section there).
             onExploreAll={() => setActiveTab('browse')}
+            // 1AM-170 (4a): Sector tap → navigate to Explore-tab. Preset
+            // sector-filter wiring deferred to 4b — for v1 the user lands
+            // on Explore where they can re-apply the sector filter via
+            // the existing sector-filter UI.
+            onSectorTap={() => setActiveTab('browse')}
           />
         )}
 
