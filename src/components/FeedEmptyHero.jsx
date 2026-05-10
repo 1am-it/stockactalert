@@ -182,7 +182,7 @@ function getVariantConfig(variant, followingCount, handlers) {
         onClick: onManageFollowing,
       },
       secondaryCta: {
-        label: 'Browse all recent filings',
+        label: 'Explore all recent filings',
         onClick: onBrowseAll,
       },
     };
@@ -204,7 +204,7 @@ function getVariantConfig(variant, followingCount, handlers) {
     sublineMuted: false,
     sublineCheck: true,
     primaryCta: {
-      label: 'Browse all recent filings',
+      label: 'Explore all recent filings',
       onClick: onBrowseAll,
     },
     secondaryCta: {

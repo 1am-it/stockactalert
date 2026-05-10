@@ -177,7 +177,7 @@ export default function FollowedListScreen({
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to Feed"
+          aria-label="Back to Watch"
           style={{
             background: 'transparent',
             border: 'none',

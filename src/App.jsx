@@ -348,7 +348,7 @@ function App() {
   }
 
   const screenTitles = {
-    feed: 'Feed',
+    feed: 'Watch',
     alerts: 'Alerts',
   };
 
