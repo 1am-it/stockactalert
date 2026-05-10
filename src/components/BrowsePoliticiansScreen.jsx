@@ -29,8 +29,15 @@
 //   - No section split for "Already following" — sort stays consistent
 //     with onboarding (alphabetic / activity-based via applyFilters)
 
+import { useMemo } from 'react';
 import PoliticianPickerList from './PoliticianPickerList';
 import { MEMBERS } from '../lib/congress';
+import { useTrades } from '../hooks/useTrades';
+
+// 1AM-171: 90d window for activity-signal aggregation. Hardcoded — Browse
+// Politicians is a directory, not a tunable dashboard. 90d is broad enough
+// to surface recent activity without noise from much-older trades.
+const ACTIVITY_WINDOW_DAYS = 90;
 
 export default function BrowsePoliticiansScreen({
   followedPoliticians,
@@ -39,6 +46,23 @@ export default function BrowsePoliticiansScreen({
 }) {
   const totalMembers = MEMBERS.length;
   const followingCount = followedPoliticians.length;
+
+  // 1AM-171: aggregate trade-count per politician name within 90d window.
+  // Uses name-string as key (same convention as `selected[]` / followed
+  // storage). Politicians with 0 trades simply absent from the Map —
+  // MemberListRow's default of 0 handles that case (no suffix rendered).
+  const { trades } = useTrades();
+  const tradeCountsByName = useMemo(() => {
+    const since = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const counts = new Map();
+    for (const t of trades) {
+      if (t.trade_date && t.trade_date < since) continue;
+      counts.set(t.politician, (counts.get(t.politician) || 0) + 1);
+    }
+    return counts;
+  }, [trades]);
 
   return (
     <div
@@ -108,6 +132,7 @@ export default function BrowsePoliticiansScreen({
           selected={followedPoliticians}
           onToggle={onTogglePolitician}
           showSuggested={false}
+          tradeCountsByName={tradeCountsByName}
         />
       </div>
 

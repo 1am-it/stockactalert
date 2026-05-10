@@ -68,6 +68,11 @@ export default function PoliticianPickerList({
   selected,
   onToggle,
   showSuggested = true,
+  // 1AM-171: optional Map<politicianName, count> for the activity-signal
+  // suffix on each row's meta-line. Empty Map by default — onboarding
+  // doesn't pass it and rows render without the count. Browse Politicians
+  // (BrowsePoliticiansScreen) passes the 90d-windowed count.
+  tradeCountsByName = new Map(),
 }) {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -216,6 +221,7 @@ export default function PoliticianPickerList({
                 member={member}
                 isSelected={selected.includes(member.name)}
                 onToggle={() => handleToggle(member.name)}
+                tradeCount90d={tradeCountsByName.get(member.name) || 0}
               />
             </div>
           ))}
