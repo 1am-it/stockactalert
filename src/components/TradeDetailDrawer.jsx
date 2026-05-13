@@ -230,6 +230,31 @@ export default function TradeDetailDrawer({
     dragStateRef.current = null;
   }, [trade?.id]);
 
+  // 1AM-163: Disclosure Timeline data. Currently mock; swap-point for real
+  // FMP/Quiver historical-price + latest-quote when 1AM-174 lands. Hook
+  // returns null prices when data is unavailable — conditional render below
+  // hides the entire section in that case (per ticket spec: no skeleton,
+  // no error message in drawer, just clean omission).
+  //
+  // 1AM-163 hotfix: hook MUST be called before the `if (!trade) return null`
+  // early return to avoid React error #310 (hook-count mismatch between
+  // renders). Hook itself safely handles null/undefined trade by returning
+  // all-null prices — no behavioural difference, just placement.
+  const {
+    tradePrice,
+    filedPrice,
+    todayPrice,
+    todayTimestamp,
+    loading: pricesLoading,
+    error: pricesError,
+  } = useDisclosurePrices(trade);
+  const showDisclosureTimeline =
+    !pricesLoading &&
+    !pricesError &&
+    tradePrice != null &&
+    filedPrice != null &&
+    todayPrice != null;
+
   if (!trade) return null;
 
   // ── Computed display values ──────────────────────────────────────────────
@@ -283,26 +308,6 @@ export default function TradeDetailDrawer({
   const filedDisplay = filedRelativeRaw
     ? filedRelativeRaw.charAt(0).toUpperCase() + filedRelativeRaw.slice(1)
     : 'Filing date unknown';
-
-  // 1AM-163: Disclosure Timeline data. Currently mock; swap-point for real
-  // FMP/Quiver historical-price + latest-quote when 1AM-174 lands. Hook
-  // returns null prices when data is unavailable — conditional render below
-  // hides the entire section in that case (per ticket spec: no skeleton,
-  // no error message in drawer, just clean omission).
-  const {
-    tradePrice,
-    filedPrice,
-    todayPrice,
-    todayTimestamp,
-    loading: pricesLoading,
-    error: pricesError,
-  } = useDisclosurePrices(trade);
-  const showDisclosureTimeline =
-    !pricesLoading &&
-    !pricesError &&
-    tradePrice != null &&
-    filedPrice != null &&
-    todayPrice != null;
 
   // 1AM-70 phase 6: swipe-down dismiss thresholds.
   // Distance threshold (40% of sheet height) covers slow long swipes;
