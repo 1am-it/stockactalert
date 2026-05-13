@@ -56,10 +56,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Avatar from './Avatar';
+import DisclosureTimeline from './DisclosureTimeline';
 import { findByName } from '../lib/congress';
 import { formatChamberLine } from '../lib/formatChamberLine';
 import { lookupSector } from '../lib/sectors';
 import { formatFiledRelative, formatShortDate } from '../lib/dates';
+import { useDisclosurePrices } from '../hooks/useDisclosurePrices';
 
 // Source-name display map. trade.source is the raw key ('fmp', 'finnhub',
 // etc.); the source attribution line in the Bought-block reads better with
@@ -281,6 +283,26 @@ export default function TradeDetailDrawer({
   const filedDisplay = filedRelativeRaw
     ? filedRelativeRaw.charAt(0).toUpperCase() + filedRelativeRaw.slice(1)
     : 'Filing date unknown';
+
+  // 1AM-163: Disclosure Timeline data. Currently mock; swap-point for real
+  // FMP/Quiver historical-price + latest-quote when 1AM-174 lands. Hook
+  // returns null prices when data is unavailable — conditional render below
+  // hides the entire section in that case (per ticket spec: no skeleton,
+  // no error message in drawer, just clean omission).
+  const {
+    tradePrice,
+    filedPrice,
+    todayPrice,
+    todayTimestamp,
+    loading: pricesLoading,
+    error: pricesError,
+  } = useDisclosurePrices(trade);
+  const showDisclosureTimeline =
+    !pricesLoading &&
+    !pricesError &&
+    tradePrice != null &&
+    filedPrice != null &&
+    todayPrice != null;
 
   // 1AM-70 phase 6: swipe-down dismiss thresholds.
   // Distance threshold (40% of sheet height) covers slow long swipes;
@@ -764,6 +786,47 @@ export default function TradeDetailDrawer({
               View all trades
             </button>
           </div>
+
+          {/* ── Disclosure Timeline section (1AM-163) ─────────────────────── */}
+          {/* Renders only when all three prices are available. Missing data
+              hides the entire section (header + body) per ticket spec — no
+              skeleton, no error message, no placeholder copy. Cleanly omits.
+
+              Mock data via useDisclosurePrices for now; swap-point for real
+              FMP/Quiver historical + latest-quote when 1AM-174 commercial
+              data-source decision lands. Component itself is data-agnostic
+              and ready for the swap with zero changes.
+
+              Section-header styling matches Related filings convention (DM
+              Sans 11px uppercase tracking, #6B7280) so the two sections
+              read as a cohesive metadata pair below the primary Bought-block. */}
+          {showDisclosureTimeline && (
+            <div style={{ marginBottom: 24 }}>
+              <div
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: '#6B7280',
+                  marginBottom: 12,
+                }}
+              >
+                Disclosure Timeline
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <DisclosureTimeline
+                  tradeDate={trade.tradeDate}
+                  tradePrice={tradePrice}
+                  filedDate={trade.filedDate}
+                  filedPrice={filedPrice}
+                  todayPrice={todayPrice}
+                  todayTimestamp={todayTimestamp}
+                />
+              </div>
+            </div>
+          )}
 
           {/* ── Related filings section (1AM-70 phase 5) ─────────────────── */}
           {/* Renders only when there are related trades to show. Empty array
