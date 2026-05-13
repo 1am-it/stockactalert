@@ -11,8 +11,9 @@
 //   - Bought-block card: action label color-matched (Bought green / Sold
 //     red), large ticker color-matched, company name + sector, full amount
 //     range, "Filed Xd after trade" line. Source attribution at the bottom
-//     ("Filed via FMP · Original disclosure not yet linked") — honest gap
-//     marker until 1AM-157 wires the disclosureUrl through the data layer.
+//     with "View original PTR filing →" link when disclosureUrl is present
+//     (1AM-157 — falls back to "Original disclosure not yet linked" when
+//     the upstream feed omits the URL).
 //
 // Phase 3 (action row, 2026-05-09): Follow [FirstName] / ✓ Following
 // primary CTA + outlined "View all trades" secondary navigation to
@@ -511,8 +512,8 @@ export default function TradeDetailDrawer({
 
           {/* ── Bought-block (1AM-70 phase 2) ───────────────────────────── */}
           {/* Card with action label, ticker, company + sector, amount range,
-              filed-info. Source attribution at the bottom as a muted hint
-              until 1AM-157 wires up disclosureUrl. */}
+              filed-info. Source attribution + disclosureUrl at the bottom
+              (1AM-157 — link present when upstream feed provides it). */}
           <div
             style={{
               background: '#F9FAFB',
@@ -656,10 +657,12 @@ export default function TradeDetailDrawer({
               {filedDisplay}
             </div>
 
-            {/* Source attribution + honest disclosure-link gap (1AM-157).
-                Muted micro-text — not a clickable affordance. Once 1AM-157
-                ships disclosureUrl through the data layer, this line gets
-                replaced with a real "View original PTR filing →" link. */}
+            {/* 1AM-157: source attribution + PTR-filing link. When the
+                upstream feed provides a disclosureUrl (House FMP feed
+                returns `link` → PDF on disclosures-clerk.house.gov), render
+                a real external-link affordance. Otherwise fall back to the
+                muted "not yet linked" hint — honest about the gap rather
+                than a broken or generic-search-page affordance. */}
             <div
               style={{
                 fontFamily: "'DM Sans', sans-serif",
@@ -670,8 +673,28 @@ export default function TradeDetailDrawer({
                 lineHeight: 1.4,
               }}
             >
-              Filed via {getSourceDisplayName(trade.source)} · Original
-              disclosure not yet linked
+              Filed via {getSourceDisplayName(trade.source)}
+              {trade.disclosureUrl ? (
+                <>
+                  {' · '}
+                  <a
+                    href={trade.disclosureUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#0D1B2A',
+                      textDecoration: 'underline',
+                      textDecorationColor: '#9CA3AF',
+                      textUnderlineOffset: 2,
+                    }}
+                    aria-label={`View original PTR filing for ${trade.politician}'s ${trade.ticker} ${trade.action.toLowerCase()} (opens in new tab)`}
+                  >
+                    View original PTR filing →
+                  </a>
+                </>
+              ) : (
+                ' · Original disclosure not yet linked'
+              )}
             </div>
           </div>
 
