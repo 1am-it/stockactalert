@@ -32,6 +32,7 @@ import { lookupSector } from '../lib/sectors.js';
  * @property {string} [sector] - e.g. "Technology" — optional; populated by sectors.js lookup when ticker is in our database, empty string otherwise
  * @property {string} [companyName] - e.g. "NVIDIA Corporation" — optional; same provenance as sector
  * @property {'self'|'spouse'|'joint'|'dependent'} owner - Account owner relative to the politician (1AM-65)
+ * @property {string} [disclosureUrl] - Direct URL to the original PTR filing PDF (1AM-157). Empty string when upstream feed doesn't provide one.
  */
 
 // ─── Empty trade template ─────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ export const EMPTY_TRADE = {
   sector: '',
   companyName: '',
   owner: 'self',
+  disclosureUrl: '',
 };
 
 // ─── Source identifiers ───────────────────────────────────────────────────────
@@ -201,6 +203,11 @@ export function normaliseFMPTrade(raw, chamber) {
     companyName,
     // 1AM-65: FMP field name varies — try common variants in order
     owner: normaliseOwner(raw.owner || raw.ownerType || raw.owner_type),
+    // 1AM-157: PTR-filing URL from FMP raw payload. House feed uses `link`
+    // (direct PDF on disclosures-clerk.house.gov); Senate feed convention not
+    // yet verified — fall back through common variants. Empty string when
+    // absent so the drawer's conditional render skips cleanly.
+    disclosureUrl: raw.link || raw.url || raw.disclosureUrl || raw.pdfUrl || '',
   };
 }
 
@@ -227,6 +234,9 @@ export function normaliseUnusualWhalesTrade(raw) {
     sector: raw.sector || '',
     companyName: '',
     owner: normaliseOwner(raw.owner),
+    // 1AM-157: UW exposes a `report_url` on most trades. Empty string fallback
+    // keeps the drawer conditional clean.
+    disclosureUrl: raw.report_url || raw.reportUrl || raw.url || '',
   };
 }
 
