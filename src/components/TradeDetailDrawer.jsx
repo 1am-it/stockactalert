@@ -11,8 +11,9 @@
 //   - Bought-block card: action label color-matched (Bought green / Sold
 //     red), large ticker color-matched, company name + sector, full amount
 //     range, "Filed Xd after trade" line. Source attribution at the bottom
-//     ("Filed via FMP · Original disclosure not yet linked") — honest gap
-//     marker until 1AM-157 wires the disclosureUrl through the data layer.
+//     with "View original PTR filing →" link when disclosureUrl is present
+//     (1AM-157 — falls back to "Original disclosure not yet linked" when
+//     the upstream feed omits the URL).
 //
 // Phase 3 (action row, 2026-05-09): Follow [FirstName] / ✓ Following
 // primary CTA + outlined "View all trades" secondary navigation to
@@ -55,10 +56,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Avatar from './Avatar';
+import DisclosureTimeline from './DisclosureTimeline';
 import { findByName } from '../lib/congress';
 import { formatChamberLine } from '../lib/formatChamberLine';
 import { lookupSector } from '../lib/sectors';
 import { formatFiledRelative, formatShortDate } from '../lib/dates';
+import { useDisclosurePrices } from '../hooks/useDisclosurePrices';
 
 // Source-name display map. trade.source is the raw key ('fmp', 'finnhub',
 // etc.); the source attribution line in the Bought-block reads better with
@@ -226,6 +229,31 @@ export default function TradeDetailDrawer({
     setIsDragging(false);
     dragStateRef.current = null;
   }, [trade?.id]);
+
+  // 1AM-163: Disclosure Timeline data. Currently mock; swap-point for real
+  // FMP/Quiver historical-price + latest-quote when 1AM-174 lands. Hook
+  // returns null prices when data is unavailable — conditional render below
+  // hides the entire section in that case (per ticket spec: no skeleton,
+  // no error message in drawer, just clean omission).
+  //
+  // 1AM-163 hotfix: hook MUST be called before the `if (!trade) return null`
+  // early return to avoid React error #310 (hook-count mismatch between
+  // renders). Hook itself safely handles null/undefined trade by returning
+  // all-null prices — no behavioural difference, just placement.
+  const {
+    tradePrice,
+    filedPrice,
+    todayPrice,
+    todayTimestamp,
+    loading: pricesLoading,
+    error: pricesError,
+  } = useDisclosurePrices(trade);
+  const showDisclosureTimeline =
+    !pricesLoading &&
+    !pricesError &&
+    tradePrice != null &&
+    filedPrice != null &&
+    todayPrice != null;
 
   if (!trade) return null;
 
@@ -511,8 +539,8 @@ export default function TradeDetailDrawer({
 
           {/* ── Bought-block (1AM-70 phase 2) ───────────────────────────── */}
           {/* Card with action label, ticker, company + sector, amount range,
-              filed-info. Source attribution at the bottom as a muted hint
-              until 1AM-157 wires up disclosureUrl. */}
+              filed-info. Source attribution + disclosureUrl at the bottom
+              (1AM-157 — link present when upstream feed provides it). */}
           <div
             style={{
               background: '#F9FAFB',
@@ -656,10 +684,12 @@ export default function TradeDetailDrawer({
               {filedDisplay}
             </div>
 
-            {/* Source attribution + honest disclosure-link gap (1AM-157).
-                Muted micro-text — not a clickable affordance. Once 1AM-157
-                ships disclosureUrl through the data layer, this line gets
-                replaced with a real "View original PTR filing →" link. */}
+            {/* 1AM-157: source attribution + PTR-filing link. When the
+                upstream feed provides a disclosureUrl (House FMP feed
+                returns `link` → PDF on disclosures-clerk.house.gov), render
+                a real external-link affordance. Otherwise fall back to the
+                muted "not yet linked" hint — honest about the gap rather
+                than a broken or generic-search-page affordance. */}
             <div
               style={{
                 fontFamily: "'DM Sans', sans-serif",
@@ -670,8 +700,28 @@ export default function TradeDetailDrawer({
                 lineHeight: 1.4,
               }}
             >
-              Filed via {getSourceDisplayName(trade.source)} · Original
-              disclosure not yet linked
+              Filed via {getSourceDisplayName(trade.source)}
+              {trade.disclosureUrl ? (
+                <>
+                  {' · '}
+                  <a
+                    href={trade.disclosureUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#0D1B2A',
+                      textDecoration: 'underline',
+                      textDecorationColor: '#9CA3AF',
+                      textUnderlineOffset: 2,
+                    }}
+                    aria-label={`View original PTR filing for ${trade.politician}'s ${trade.ticker} ${trade.action.toLowerCase()} (opens in new tab)`}
+                  >
+                    View original PTR filing →
+                  </a>
+                </>
+              ) : (
+                ' · Original disclosure not yet linked'
+              )}
             </div>
           </div>
 
@@ -741,6 +791,47 @@ export default function TradeDetailDrawer({
               View all trades
             </button>
           </div>
+
+          {/* ── Disclosure Timeline section (1AM-163) ─────────────────────── */}
+          {/* Renders only when all three prices are available. Missing data
+              hides the entire section (header + body) per ticket spec — no
+              skeleton, no error message, no placeholder copy. Cleanly omits.
+
+              Mock data via useDisclosurePrices for now; swap-point for real
+              FMP/Quiver historical + latest-quote when 1AM-174 commercial
+              data-source decision lands. Component itself is data-agnostic
+              and ready for the swap with zero changes.
+
+              Section-header styling matches Related filings convention (DM
+              Sans 11px uppercase tracking, #6B7280) so the two sections
+              read as a cohesive metadata pair below the primary Bought-block. */}
+          {showDisclosureTimeline && (
+            <div style={{ marginBottom: 24 }}>
+              <div
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: '#6B7280',
+                  marginBottom: 12,
+                }}
+              >
+                Disclosure Timeline
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <DisclosureTimeline
+                  tradeDate={trade.tradeDate}
+                  tradePrice={tradePrice}
+                  filedDate={trade.filedDate}
+                  filedPrice={filedPrice}
+                  todayPrice={todayPrice}
+                  todayTimestamp={todayTimestamp}
+                />
+              </div>
+            </div>
+          )}
 
           {/* ── Related filings section (1AM-70 phase 5) ─────────────────── */}
           {/* Renders only when there are related trades to show. Empty array
