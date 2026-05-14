@@ -56,6 +56,8 @@ import FollowedListScreen from './components/FollowedListScreen';
 import BrowsePoliticiansScreen from './components/BrowsePoliticiansScreen';
 import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
 import { useTrades } from './hooks/useTrades';
+import { AuthProvider, useAuth } from './lib/AuthProvider';
+import SignInOverlay from './components/SignInOverlay';
 
 // 1AM-67/1AM-68: Legacy name migration
 // When the curated-22 list was replaced by the full Congress directory, two
@@ -127,6 +129,20 @@ function App() {
   // from the gear icon in HeaderBar. Not persisted — same reasoning as
   // detailPolitician.
   const [isShowingSettings, setIsShowingSettings] = useState(false);
+  // 1AM-181: Sign-in overlay state. true = SignInOverlay rendered. State-
+  // overlay pattern consistent with detailPolitician + isShowingSettings.
+  // Not persisted — overlay opens via Sign In CTA, closes via × button or
+  // successful auth (then dismissed automatically by App reactive re-render).
+  const [isShowingSignIn, setIsShowingSignIn] = useState(false);
+
+  // 1AM-181 TEMPORARY (remove when 1AM-184 ships): expose window.signIn()
+  // so we can test the overlay before the Header sign-in CTA exists.
+  // Open browser DevTools console, type signIn(), overlay appears.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.signIn = () => setIsShowingSignIn(true);
+    }
+  }, []);
   // 1AM-28: Feed sub-screen state. null = render the regular FeedScreen;
   // 'followedList' = render FollowedListScreen instead. Same overlay pattern
   // as detailPolitician — not persisted, returns to feed on tab-switch.
@@ -168,6 +184,28 @@ function App() {
   useEffect(() => {
     setJSON(STORAGE_KEYS.ONBOARDING_DONE, onboardingStep === 'done');
   }, [onboardingStep]);
+
+  // 1AM-181: Clean up access_token from URL hash after magic-link callback.
+  // Supabase client (via detectSessionInUrl: true) picks up the token
+  // automatically and establishes the session — we just need to scrub the
+  // URL so the token doesn't linger in browser history or get shared via
+  // copy-paste. Standard routing libraries do this implicitly; in our
+  // state-overlay pattern we do it explicitly.
+  //
+  // Done-when criterium for 1AM-181: "after callback processing, URL no
+  // longer contains auth token". This is the implementation of that.
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('access_token') || hash.includes('error')) {
+      // Wait for Supabase client to consume the hash, then clear it.
+      // 100ms is empirically enough; Supabase's detectSessionInUrl runs
+      // synchronously during client init but onAuthStateChange fires async.
+      const timer = setTimeout(() => {
+        window.history.replaceState(null, '', window.location.pathname);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Persist followed politicians on every change
   useEffect(() => {
@@ -239,6 +277,19 @@ function App() {
 
   // ── Settings overlay (1AM-124) ────────────────────────────────────────────
   // Reached from the gear icon in HeaderBar (top-right of any tab). Renders
+  // ── Sign-in overlay (1AM-181) ──────────────────────────────────────────────
+  // Rendered as an early return BEFORE every other render branch so sign-in
+  // works from any tab (Browse, Watch, Alerts) and from any sub-screen state.
+  // Earlier attempt at putting this conditional in the main render block
+  // (below all early returns) failed because tab-specific returns at
+  // activeTab === 'browse' intercepted the render before reaching it.
+  // SignInOverlay has its own position:fixed full-screen background so
+  // returning it standalone (without TabBar underneath) is acceptable — the
+  // user is in a focused auth flow, not navigating tabs.
+  if (isShowingSignIn) {
+    return <SignInOverlay onClose={() => setIsShowingSignIn(false)} />;
+  }
+
   // above any other tab content. `← Back` in SettingsScreen returns the user
   // to whichever tab they came from — activeTab is preserved underneath.
   // Rendered before detailPolitician so that tapping the gear from a detail
@@ -533,4 +584,14 @@ function App() {
   );
 }
 
-export default App;
+export default function AppWithAuth() {
+  // 1AM-181: AuthProvider wraps the App tree so any component can call
+  // useAuth() without prop-drilling. Session state is read from localStorage
+  // synchronously on mount, so there's no flash of unauthenticated content
+  // for returning users.
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}
