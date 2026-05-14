@@ -1,179 +1,264 @@
 // 1AM-181: SignIn overlay — magic-link auth surface.
 //
+// Custom implementation (replaces earlier @supabase/auth-ui-react approach
+// which is deprecated and incompatible with React 19 — useState=null crash).
+// We call supabase.auth.signInWithOtp() directly. ~40 lines of self-managed
+// form state instead of a 50KB+ third-party UI library.
+//
 // State-overlay component per architectural decision in 1AM-181 comment
 // (consistent with PoliticianDetailScreen + SettingsScreen patterns).
-// NOT a dedicated route — see 1AM-181 architectural decision comment.
-//
-// Uses @supabase/auth-ui-react as the drop-in UI primitive. Custom theme
-// matches StockActAlert design system: Playfair Display + DM Sans,
-// warm white #FAFAF7, navy #0D1B2A.
+// NOT a dedicated route.
 //
 // Magic-link flow (user perspective):
 //   1. User types email, clicks "Send magic link"
-//   2. Supabase sends email via Resend SMTP (configured in dashboard)
-//   3. Email arrives within ~30s with one-time link
-//   4. User clicks link → opens app with #access_token=... in URL hash
-//   5. supabase.auth.detectSessionInUrl picks it up automatically
-//   6. AuthProvider's onAuthStateChange fires → session state updates
-//   7. App re-renders without overlay → user is in
-//   8. App.jsx top-level useEffect cleans the URL hash so token doesn't
-//      linger in browser history or get accidentally shared
-//
-// Success state ("Check your inbox") is rendered by auth-ui-react itself —
-// we don't need a separate state machine here.
+//   2. signInWithOtp() returns — Supabase queues an email via Resend SMTP
+//   3. We render "Check your inbox" confirmation
+//   4. Email arrives within ~30s with one-time link
+//   5. User clicks link → opens app with #access_token=... in URL hash
+//   6. supabase.auth.detectSessionInUrl picks it up automatically
+//   7. AuthProvider's onAuthStateChange fires → session state updates
+//   8. App re-renders without overlay
+//   9. App.jsx top-level useEffect cleans the URL hash
 
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
-// Custom theme — extends Supabase's ThemeSupa with our design tokens.
-// ThemeSupa structure: a "default" object with category subkeys.
-const stockactalertTheme = {
-  default: {
-    colors: {
-      brand: '#0D1B2A',          // navy — primary button bg
-      brandAccent: '#1a2942',    // navy lightened — hover state
-      brandButtonText: '#FAFAF7', // warm white — text on navy button
-      defaultButtonBackground: '#FAFAF7',
-      defaultButtonBackgroundHover: '#F0F0EC',
-      defaultButtonBorder: '#E5E7EB',
-      defaultButtonText: '#0D1B2A',
-      dividerBackground: '#E5E7EB',
-      inputBackground: 'transparent',
-      inputBorder: '#E5E7EB',
-      inputBorderHover: '#9CA3AF',
-      inputBorderFocus: '#0D1B2A',
-      inputText: '#0D1B2A',
-      inputLabelText: '#6B7280',
-      inputPlaceholder: '#9CA3AF',
-      messageText: '#0D1B2A',
-      messageTextDanger: '#DC2626',
-      anchorTextColor: '#0D1B2A',
-      anchorTextHoverColor: '#1a2942',
-    },
-    fonts: {
-      bodyFontFamily: `'DM Sans', system-ui, sans-serif`,
-      buttonFontFamily: `'DM Sans', system-ui, sans-serif`,
-      inputFontFamily: `'DM Sans', system-ui, sans-serif`,
-      labelFontFamily: `'DM Sans', system-ui, sans-serif`,
-    },
-    radii: {
-      borderRadiusButton: '8px',
-      buttonBorderRadius: '8px',
-      inputBorderRadius: '8px',
-    },
-  },
+// Form status state machine: 'idle' → 'sending' → 'sent' | 'error'.
+// On error the user can fix the email and resubmit, returning to 'sending'.
+const STATUS = {
+  IDLE: 'idle',
+  SENDING: 'sending',
+  SENT: 'sent',
+  ERROR: 'error',
 };
 
 export default function SignInOverlay({ onClose }) {
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState(STATUS.IDLE);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!email || status === STATUS.SENDING) return;
+
+    setStatus(STATUS.SENDING);
+    setErrorMessage('');
+
+    // signInWithOtp triggers email via Supabase Auth → Resend SMTP.
+    // emailRedirectTo must be on the redirect-URL whitelist in Supabase
+    // Auth → URL Configuration. We've added stockactalert.com, www.,
+    // *.vercel.app, and localhost:5173 already.
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      setStatus(STATUS.ERROR);
+      setErrorMessage(error.message || 'Something went wrong. Please try again.');
+    } else {
+      setStatus(STATUS.SENT);
+    }
+  }
+
+  // Inline styles — keeps the component self-contained, no CSS module needed.
+  // Design tokens: Playfair Display + DM Sans, navy #0D1B2A, warm white
+  // #FAFAF7, error #DC2626.
+  const overlayStyle = {
+    position: 'fixed',
+    inset: 0,
+    background: '#FAFAF7',
+    zIndex: 1000,
+    display: 'flex',
+    flexDirection: 'column',
+    overflowY: 'auto',
+  };
+
+  const closeButtonStyle = {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    background: 'transparent',
+    border: 'none',
+    fontSize: 24,
+    color: '#6B7280',
+    cursor: 'pointer',
+    padding: 8,
+    lineHeight: 1,
+  };
+
+  const containerStyle = {
+    maxWidth: 420,
+    margin: '0 auto',
+    padding: '80px 24px 40px',
+    width: '100%',
+    flex: 1,
+  };
+
+  const titleStyle = {
+    fontFamily: `'Playfair Display', Georgia, serif`,
+    fontSize: 32,
+    fontWeight: 700,
+    color: '#0D1B2A',
+    margin: '0 0 12px',
+    letterSpacing: '-0.01em',
+  };
+
+  const subtitleStyle = {
+    fontFamily: `'DM Sans', system-ui, sans-serif`,
+    fontSize: 15,
+    color: '#6B7280',
+    margin: '0 0 32px',
+    lineHeight: 1.5,
+  };
+
+  const labelStyle = {
+    fontFamily: `'DM Sans', system-ui, sans-serif`,
+    fontSize: 13,
+    fontWeight: 500,
+    color: '#6B7280',
+    display: 'block',
+    marginBottom: 8,
+  };
+
+  const inputStyle = {
+    fontFamily: `'DM Sans', system-ui, sans-serif`,
+    fontSize: 16,
+    color: '#0D1B2A',
+    background: 'transparent',
+    border: '1px solid #E5E7EB',
+    borderRadius: 8,
+    padding: '12px 14px',
+    width: '100%',
+    boxSizing: 'border-box',
+    outline: 'none',
+    transition: 'border-color 0.15s',
+  };
+
+  const buttonStyle = {
+    fontFamily: `'DM Sans', system-ui, sans-serif`,
+    fontSize: 15,
+    fontWeight: 500,
+    color: '#FAFAF7',
+    background: '#0D1B2A',
+    border: 'none',
+    borderRadius: 8,
+    padding: '12px 20px',
+    width: '100%',
+    cursor: status === STATUS.SENDING ? 'wait' : 'pointer',
+    marginTop: 16,
+    opacity: status === STATUS.SENDING ? 0.7 : 1,
+    transition: 'opacity 0.15s',
+  };
+
+  const errorStyle = {
+    fontFamily: `'DM Sans', system-ui, sans-serif`,
+    fontSize: 13,
+    color: '#DC2626',
+    marginTop: 12,
+    marginBottom: 0,
+  };
+
+  const sentStyle = {
+    fontFamily: `'DM Sans', system-ui, sans-serif`,
+    fontSize: 15,
+    color: '#0D1B2A',
+    background: '#F0F0EC',
+    border: '1px solid #E5E7EB',
+    borderRadius: 8,
+    padding: '16px 18px',
+    margin: '0 0 24px',
+    lineHeight: 1.5,
+  };
+
+  const footerStyle = {
+    fontFamily: `'DM Sans', system-ui, sans-serif`,
+    fontSize: 11,
+    color: '#9CA3AF',
+    margin: '40px 0 0',
+    lineHeight: 1.5,
+  };
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: '#FAFAF7',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        overflowY: 'auto',
-      }}
-    >
-      {/* Close button — consistent with PoliticianDetailScreen pattern.
-          User can dismiss sign-in and continue with localStorage-only
-          (per Lovable architectural advice: auth is optional). */}
+    <div style={overlayStyle}>
       <button
         type="button"
         onClick={onClose}
         aria-label="Close sign in"
-        style={{
-          position: 'absolute',
-          top: 20,
-          right: 20,
-          background: 'transparent',
-          border: 'none',
-          fontSize: 24,
-          color: '#6B7280',
-          cursor: 'pointer',
-          padding: 8,
-          lineHeight: 1,
-        }}
+        style={closeButtonStyle}
       >
         ×
       </button>
 
-      <div
-        style={{
-          maxWidth: 420,
-          margin: '0 auto',
-          padding: '80px 24px 40px',
-          width: '100%',
-          flex: 1,
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: `'Playfair Display', Georgia, serif`,
-            fontSize: 32,
-            fontWeight: 700,
-            color: '#0D1B2A',
-            margin: '0 0 12px',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          Sign in
-        </h1>
-        <p
-          style={{
-            fontFamily: `'DM Sans', system-ui, sans-serif`,
-            fontSize: 15,
-            color: '#6B7280',
-            margin: '0 0 32px',
-            lineHeight: 1.5,
-          }}
-        >
+      <div style={containerStyle}>
+        <h1 style={titleStyle}>Sign in</h1>
+        <p style={subtitleStyle}>
           Sync your followed politicians across devices. We'll email you a
           one-time link to sign in — no password needed.
         </p>
 
-        <Auth
-          supabaseClient={supabase}
-          appearance={{
-            theme: ThemeSupa,
-            variables: stockactalertTheme,
-          }}
-          providers={[]}
-          view="magic_link"
-          showLinks={false}
-          // 1AM-181: redirectTo lands the magic-link callback on whatever
-          // origin the user signed in from (production www, preview deploy,
-          // or localhost). Supabase Auth → URL Configuration must whitelist
-          // each origin's `/**` pattern — already configured.
-          redirectTo={window.location.origin}
-          localization={{
-            variables: {
-              magic_link: {
-                email_input_label: 'Email address',
-                email_input_placeholder: 'you@example.com',
-                button_label: 'Send magic link',
-                loading_button_label: 'Sending magic link...',
-                link_text: '',
-                confirmation_text: 'Check your email for the magic link',
-              },
-            },
-          }}
-        />
+        {status === STATUS.SENT ? (
+          <>
+            <div style={sentStyle}>
+              <strong>Check your inbox.</strong> We sent a magic link to{' '}
+              <span style={{ color: '#0D1B2A' }}>{email}</span>. Click the link
+              in the email to finish signing in.
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setStatus(STATUS.IDLE);
+                setEmail('');
+              }}
+              style={{
+                ...buttonStyle,
+                background: 'transparent',
+                color: '#0D1B2A',
+                border: '1px solid #E5E7EB',
+                marginTop: 0,
+              }}
+            >
+              Use a different email
+            </button>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <label htmlFor="signin-email" style={labelStyle}>
+              Email address
+            </label>
+            <input
+              id="signin-email"
+              type="email"
+              required
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              disabled={status === STATUS.SENDING}
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = '#0D1B2A')}
+              onBlur={(e) => (e.target.style.borderColor = '#E5E7EB')}
+            />
 
-        <p
-          style={{
-            fontFamily: `'DM Sans', system-ui, sans-serif`,
-            fontSize: 11,
-            color: '#9CA3AF',
-            margin: '40px 0 0',
-            lineHeight: 1.5,
-          }}
-        >
+            <button
+              type="submit"
+              disabled={status === STATUS.SENDING || !email}
+              style={buttonStyle}
+            >
+              {status === STATUS.SENDING ? 'Sending magic link...' : 'Send magic link'}
+            </button>
+
+            {status === STATUS.ERROR && (
+              <p style={errorStyle}>{errorMessage}</p>
+            )}
+          </form>
+        )}
+
+        <p style={footerStyle}>
           By signing in, you agree to our Terms of Service and Privacy Policy
-          (coming in 1AM-31.3).
+          (coming in 1AM-182).
         </p>
       </div>
     </div>
