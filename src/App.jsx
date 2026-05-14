@@ -277,6 +277,19 @@ function App() {
 
   // ── Settings overlay (1AM-124) ────────────────────────────────────────────
   // Reached from the gear icon in HeaderBar (top-right of any tab). Renders
+  // ── Sign-in overlay (1AM-181) ──────────────────────────────────────────────
+  // Rendered as an early return BEFORE every other render branch so sign-in
+  // works from any tab (Browse, Watch, Alerts) and from any sub-screen state.
+  // Earlier attempt at putting this conditional in the main render block
+  // (below all early returns) failed because tab-specific returns at
+  // activeTab === 'browse' intercepted the render before reaching it.
+  // SignInOverlay has its own position:fixed full-screen background so
+  // returning it standalone (without TabBar underneath) is acceptable — the
+  // user is in a focused auth flow, not navigating tabs.
+  if (isShowingSignIn) {
+    return <SignInOverlay onClose={() => setIsShowingSignIn(false)} />;
+  }
+
   // above any other tab content. `← Back` in SettingsScreen returns the user
   // to whichever tab they came from — activeTab is preserved underneath.
   // Rendered before detailPolitician so that tapping the gear from a detail
@@ -564,15 +577,6 @@ function App() {
           </div>
         )}
       </div>
-
-      {/* 1AM-181: Sign-in overlay. State-overlay pattern — opens on
-          isShowingSignIn=true (set from a future Sign In CTA, planned in
-          1AM-31.5). Closes via × button or automatic dismissal when auth
-          succeeds (AuthProvider's session updates → SignInOverlay's parent
-          re-renders without the overlay condition meeting). */}
-      {isShowingSignIn && (
-        <SignInOverlay onClose={() => setIsShowingSignIn(false)} />
-      )}
 
       {/* TabBar */}
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
