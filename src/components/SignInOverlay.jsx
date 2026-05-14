@@ -193,6 +193,31 @@ export default function SignInOverlay({ onClose }) {
       </button>
 
       <div style={containerStyle}>
+        {/* 1AM-181: Explicit back-link inside the 420px container. The × top-
+            right closes the same way but sits at the screen edge on wider
+            viewports — easy to miss. This in-container link is always visible
+            next to the form. */}
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            fontFamily: `'DM Sans', system-ui, sans-serif`,
+            fontSize: 14,
+            fontWeight: 500,
+            color: '#6B7280',
+            background: 'transparent',
+            border: 'none',
+            padding: '4px 0',
+            margin: '0 0 32px',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          ← Back to app
+        </button>
+
         <h1 style={titleStyle}>Sign in</h1>
         <p style={subtitleStyle}>
           Sync your followed politicians across devices. We'll email you a
