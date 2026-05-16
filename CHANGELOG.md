@@ -1020,7 +1020,10 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/1am-it/stockactalert/compare/v0.25.0...v0.26.0
+[0.25.0]: https://github.com/1am-it/stockactalert/compare/v0.24.0...v0.25.0
+[0.24.0]: https://github.com/1am-it/stockactalert/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/1am-it/stockactalert/compare/v0.22.2...v0.23.0
 [0.22.2]: https://github.com/1am-it/stockactalert/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/1am-it/stockactalert/compare/v0.22.0...v0.22.1
