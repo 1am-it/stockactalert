@@ -82,4 +82,19 @@ export const STORAGE_KEYS = {
   // aggregation, Sector Heatmap). Explore-tab has its own filter state
   // and is not affected by this key.
   WATCH_WINDOW: 'watchWindow',
+  // 1AM-183: device-fingerprint for user-switch detection. Stores the
+  // last user.id that touched user-bound localStorage keys on this
+  // device. Used by userState.handleAuthChange to detect when a
+  // different user signs in (e.g. user A signs out → user B signs in
+  // on same device); if lastUserId !== currentUser.id, all Tier 1 and
+  // Tier 2a keys are wiped before the new user's state is loaded.
+  //
+  // CRITICAL: this key is NOT cleared by sign-out. It's a device-state
+  // marker, not session-state. Sign-out is an auth-event, this key
+  // tracks "who last used this device's localStorage". The two are
+  // intentionally decoupled — see userState.js for the invariant.
+  //
+  // Only userState.js should read/write this key; App.jsx and other
+  // callers must not touch it directly.
+  LAST_USER_ID: 'lastUserId',
 };

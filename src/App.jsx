@@ -54,9 +54,11 @@ import OnboardingPickPoliticians from './components/OnboardingPickPoliticians';
 // FeedScreen empty-state. Renders as a feed sub-screen (not a separate tab).
 import FollowedListScreen from './components/FollowedListScreen';
 import BrowsePoliticiansScreen from './components/BrowsePoliticiansScreen';
-import { getJSON, setJSON, STORAGE_KEYS } from './lib/storage';
+import { STORAGE_KEYS } from './lib/storage';
+import { readUserState, writeUserState } from './lib/userState';
+import { useAuth } from './lib/useAuth';
 import { useTrades } from './hooks/useTrades';
-import { AuthProvider, useAuth } from './lib/AuthProvider';
+import { AuthProvider } from './lib/AuthProvider';
 import SignInOverlay from './components/SignInOverlay';
 
 // 1AM-67/1AM-68: Legacy name migration
@@ -90,16 +92,16 @@ function App() {
   // not on Welcome onboarding screen. The CTA in DiscoveryFeedScreen advances
   // to 'welcome' which then walks the original onboarding chain.
   const [onboardingStep, setOnboardingStep] = useState(() =>
-    getJSON(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'discovery'
+    readUserState(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'discovery'
   );
   const [followedPoliticians, setFollowedPoliticians] = useState(() =>
-    migrateFollowedNames(getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, []))
+    migrateFollowedNames(readUserState(STORAGE_KEYS.FOLLOWED_POLITICIANS, []))
   );
   // 1AM-69: muted-alerts preference, persisted but currently no-op for actual
   // delivery (alert system wired later in 1AM-71). Same migration aliases as
   // followedPoliticians so legacy stored names map to current directory.
   const [mutedPoliticians, setMutedPoliticians] = useState(() =>
-    migrateFollowedNames(getJSON(STORAGE_KEYS.MUTED_POLITICIANS, []))
+    migrateFollowedNames(readUserState(STORAGE_KEYS.MUTED_POLITICIANS, []))
   );
   // Whitelist of valid tab IDs — guards against stale or corrupted localStorage
   // values (e.g. after a tab is renamed or removed in a future version).
@@ -112,11 +114,11 @@ function App() {
   // with a saved valid tab are unaffected — saved tab always wins.
   const VALID_TABS = ['feed', 'browse', 'alerts'];
   const [activeTab, setActiveTab] = useState(() => {
-    const saved = getJSON(STORAGE_KEYS.ACTIVE_TAB, null);
+    const saved = readUserState(STORAGE_KEYS.ACTIVE_TAB, null);
     if (VALID_TABS.includes(saved)) return saved;
     // No saved tab: route based on whether user follows anyone.
     const initialFollows = migrateFollowedNames(
-      getJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, [])
+      readUserState(STORAGE_KEYS.FOLLOWED_POLITICIANS, [])
     );
     return initialFollows.length > 0 ? 'feed' : 'browse';
   });
@@ -154,7 +156,7 @@ function App() {
   // Whitelist guards against stale or malformed localStorage values.
   const VALID_FOLLOWED_SORT = ['most-active', 'alphabetical', 'recently-added'];
   const [followedListSort, setFollowedListSort] = useState(() => {
-    const saved = getJSON(STORAGE_KEYS.FOLLOWED_LIST_SORT, null);
+    const saved = readUserState(STORAGE_KEYS.FOLLOWED_LIST_SORT, null);
     return VALID_FOLLOWED_SORT.includes(saved) ? saved : 'most-active';
   });
   // 1AM-168: persist time-window selection on Watch-tab. Single source of
@@ -162,7 +164,7 @@ function App() {
   // malformed values from older builds.
   const VALID_WATCH_WINDOWS = ['24h', '7d', '30d', '90d'];
   const [watchWindow, setWatchWindow] = useState(() => {
-    const saved = getJSON(STORAGE_KEYS.WATCH_WINDOW, null);
+    const saved = readUserState(STORAGE_KEYS.WATCH_WINDOW, null);
     return VALID_WATCH_WINDOWS.includes(saved) ? saved : '30d';
   });
   // 1AM-124: isBrowsingAll state removed — Browse-tab is now a top-level
@@ -180,9 +182,55 @@ function App() {
   // "Last update N min ago" and tap-to-refresh from the same hook call.
   const { trades, lastUpdatedAt, refetch } = useTrades();
 
+  // 1AM-183: User-change re-hydration.
+  //
+  // When a user signs in, AuthProvider awaits userState.handleAuthChange()
+  // BEFORE committing the new session to React state. That means by the
+  // time this useEffect fires (in response to user.id changing via
+  // useAuth), localStorage has already been reconciled with server-side
+  // state by userState — either via "migrate up" (first sign-in) or
+  // "sync down" (subsequent sign-in / second-device).
+  //
+  // The lazy-init useState calls above only read localStorage ONCE on
+  // mount. Without this effect, App.jsx's React state would diverge from
+  // localStorage after every server-sync (showing stale follows until
+  // the user manually refreshes the page).
+  //
+  // Re-hydrates Tier 1 + Tier 2a state only. Tier 2b (activeTab,
+  // watchWindow) is intentionally NOT re-hydrated — those are device-
+  // prefs and don't change across users on the same device.
+  const { user } = useAuth();
+  const [lastSeenUserId, setLastSeenUserId] = useState(null);
+  useEffect(() => {
+    const newUserId = user?.id ?? null;
+    if (newUserId === lastSeenUserId) return;
+
+    setOnboardingStep(
+      readUserState(STORAGE_KEYS.ONBOARDING_DONE, false) ? 'done' : 'discovery'
+    );
+    setFollowedPoliticians(
+      migrateFollowedNames(readUserState(STORAGE_KEYS.FOLLOWED_POLITICIANS, []))
+    );
+    setMutedPoliticians(
+      migrateFollowedNames(readUserState(STORAGE_KEYS.MUTED_POLITICIANS, []))
+    );
+    const savedSort = readUserState(STORAGE_KEYS.FOLLOWED_LIST_SORT, null);
+    if (
+      savedSort === 'most-active' ||
+      savedSort === 'alphabetical' ||
+      savedSort === 'recently-added'
+    ) {
+      setFollowedListSort(savedSort);
+    } else {
+      setFollowedListSort('most-active');
+    }
+
+    setLastSeenUserId(newUserId);
+  }, [user?.id, lastSeenUserId]);
+
   // Persist onboarding completion whenever step transitions to/from 'done'
   useEffect(() => {
-    setJSON(STORAGE_KEYS.ONBOARDING_DONE, onboardingStep === 'done');
+    writeUserState(STORAGE_KEYS.ONBOARDING_DONE, onboardingStep === 'done');
   }, [onboardingStep]);
 
   // 1AM-181: Clean up access_token from URL hash after magic-link callback.
@@ -209,28 +257,28 @@ function App() {
 
   // Persist followed politicians on every change
   useEffect(() => {
-    setJSON(STORAGE_KEYS.FOLLOWED_POLITICIANS, followedPoliticians);
+    writeUserState(STORAGE_KEYS.FOLLOWED_POLITICIANS, followedPoliticians);
   }, [followedPoliticians]);
 
   // 1AM-69: Persist muted politicians on every change
   useEffect(() => {
-    setJSON(STORAGE_KEYS.MUTED_POLITICIANS, mutedPoliticians);
+    writeUserState(STORAGE_KEYS.MUTED_POLITICIANS, mutedPoliticians);
   }, [mutedPoliticians]);
 
   // 1AM-60: Persist active tab on every change so reopening the app lands
   // on the same tab the user last visited.
   useEffect(() => {
-    setJSON(STORAGE_KEYS.ACTIVE_TAB, activeTab);
+    writeUserState(STORAGE_KEYS.ACTIVE_TAB, activeTab);
   }, [activeTab]);
 
   // 1AM-28: Persist FollowedListScreen sort preference on every change.
   useEffect(() => {
-    setJSON(STORAGE_KEYS.FOLLOWED_LIST_SORT, followedListSort);
+    writeUserState(STORAGE_KEYS.FOLLOWED_LIST_SORT, followedListSort);
   }, [followedListSort]);
 
   // 1AM-168: Persist Watch-tab window selection on every change.
   useEffect(() => {
-    setJSON(STORAGE_KEYS.WATCH_WINDOW, watchWindow);
+    writeUserState(STORAGE_KEYS.WATCH_WINDOW, watchWindow);
   }, [watchWindow]);
 
   const togglePolitician = (name) => {
@@ -550,8 +598,8 @@ function App() {
                 width: 48,
                 height: 48,
                 borderRadius: '50%',
-                background: '#0D1B2A18',
-                border: '2px solid #0D1B2A30',
+                background: `${current.color}18`,
+                border: `2px solid ${current.color}30`,
                 margin: '0 auto 12px',
                 display: 'flex',
                 alignItems: 'center',
@@ -569,7 +617,7 @@ function App() {
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              Alerts — coming soon
+              {current.title} — coming soon
             </div>
             <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
               This screen is built in a later ticket
