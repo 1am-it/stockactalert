@@ -13,7 +13,7 @@
 //
 // 1  — user-data, syncs to Supabase
 //      FOLLOWED_POLITICIANS (→ public.follows)
-//      ONBOARDING_DONE      (→ public.user_profiles.onboarding_completed_at)
+//      ONBOARDING_DONE      (→ public.user_profiles.onboarding_completed)
 //
 // 2a — user-pref, device-local, wiped on user-switch, NOT synced
 //      MUTED_POLITICIANS   (TODO: sync target TBD — see 1AM-71 for alert
@@ -199,15 +199,15 @@ async function mirrorWriteToSupabase(key, value, userId) {
     // a no-op (it's already false) or a bug.
     if (value !== true) return;
 
-    // Server-side monotone guard via .is('onboarding_completed_at', null):
+    // Server-side monotone guard via .eq('onboarding_completed', false):
     // only update rows where the timestamp is currently null. If another
     // device already marked onboarding complete, we don't clobber the
     // earlier timestamp.
     const { error } = await supabase
       .from('user_profiles')
-      .update({ onboarding_completed_at: new Date().toISOString() })
-      .eq('id', userId)
-      .is('onboarding_completed_at', null);
+      .update({ onboarding_completed: true })
+      .eq('user_id', userId)
+      .eq('onboarding_completed', false);
 
     if (error) {
       console.error('[userState] supabase onboarding write failed', {
@@ -312,8 +312,8 @@ export async function handleAuthChange(user) {
 async function checkAndMigrate(user) {
   const { data: profile, error: profileError } = await supabase
     .from('user_profiles')
-    .select('onboarding_completed_at')
-    .eq('id', user.id)
+    .select('onboarding_completed')
+    .eq('user_id', user.id)
     .single();
 
   if (profileError) {
@@ -324,7 +324,7 @@ async function checkAndMigrate(user) {
     return;
   }
 
-  const serverOnboardingComplete = profile?.onboarding_completed_at != null;
+  const serverOnboardingComplete = profile?.onboarding_completed === true;
 
   if (!serverOnboardingComplete) {
     // First sign-in for this user across all devices. Migrate
@@ -360,9 +360,9 @@ async function checkAndMigrate(user) {
     if (localOnboarding) {
       const { error: onboardingError } = await supabase
         .from('user_profiles')
-        .update({ onboarding_completed_at: new Date().toISOString() })
-        .eq('id', user.id)
-        .is('onboarding_completed_at', null);
+        .update({ onboarding_completed: true })
+        .eq('user_id', user.id)
+        .eq('onboarding_completed', false);
 
       if (onboardingError) {
         console.error('[userState] migration onboarding update failed', {
@@ -402,13 +402,13 @@ async function syncUserStateFromServer(user) {
   }
 
   // Pull onboarding state — this is the read-mismatch repair path.
-  // If server has onboarding_completed_at set but local has
+  // If server has onboarding_completed=true but local has
   // ONBOARDING_DONE=false (e.g. localStorage wiped, incognito on device
   // 2), this write fixes the mismatch by syncing local up to server.
   const { data: profile, error: profileError } = await supabase
     .from('user_profiles')
-    .select('onboarding_completed_at')
-    .eq('id', user.id)
+    .select('onboarding_completed')
+    .eq('user_id', user.id)
     .single();
 
   if (profileError) {
@@ -419,7 +419,7 @@ async function syncUserStateFromServer(user) {
     return;
   }
 
-  const serverOnboardingComplete = profile?.onboarding_completed_at != null;
+  const serverOnboardingComplete = profile?.onboarding_completed === true;
   setJSON(STORAGE_KEYS.ONBOARDING_DONE, serverOnboardingComplete);
 }
 
