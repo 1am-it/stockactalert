@@ -598,8 +598,8 @@ function App() {
                 width: 48,
                 height: 48,
                 borderRadius: '50%',
-                background: `${current.color}18`,
-                border: `2px solid ${current.color}30`,
+                background: '#0D1B2A18',
+                border: '2px solid #0D1B2A30',
                 margin: '0 auto 12px',
                 display: 'flex',
                 alignItems: 'center',
@@ -617,7 +617,7 @@ function App() {
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              {current.title} — coming soon
+              Alerts — coming soon
             </div>
             <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
               This screen is built in a later ticket
