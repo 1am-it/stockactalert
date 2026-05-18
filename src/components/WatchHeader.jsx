@@ -35,13 +35,15 @@
 // Props:
 //   followingCount         — number, count for the people-pill badge
 //   onManageFollowingClick — callback when people-pill is tapped
-//   onSettingsClick        — callback when gear icon is tapped
+//   onSignInClick          — callback when anon user taps "Sign in" link (1AM-184)
+//   onSettingsClick        — callback when signed-in user taps avatar (1AM-184)
 //   watchWindow            — '24h' | '7d' | '30d' | '90d', current window
 //   onWindowChange         — callback(window) when a chip is tapped
 //   lastUpdatedAt          — number|null, ms epoch timestamp from useTrades
 //   onRefresh              — callback when clock-icon is tapped (refresh)
 
 import { formatRelativeTime } from '../lib/relativeTime';
+import UserMenuButton from './UserMenuButton';
 
 const WINDOWS = [
   { value: '24h', label: '24h' },
@@ -53,6 +55,7 @@ const WINDOWS = [
 export default function WatchHeader({
   followingCount = 0,
   onManageFollowingClick,
+  onSignInClick,
   onSettingsClick,
   watchWindow = '30d',
   onWindowChange,
@@ -68,7 +71,7 @@ export default function WatchHeader({
 
   return (
     <div style={{ marginBottom: 16 }}>
-      {/* Top row: title + subtitle (left), people-pill + gear (right). */}
+      {/* Top row: title + subtitle (left), people-pill + user-menu (right). */}
       <div
         style={{
           display: 'flex',
@@ -103,7 +106,7 @@ export default function WatchHeader({
           </div>
         </div>
 
-        {/* Right cluster: people-pill (with badge) + gear. Both 36px circles. */}
+        {/* Right cluster: people-pill (with badge) + user-menu. Both 36px circles. */}
         <div
           style={{
             display: 'flex',
@@ -181,41 +184,10 @@ export default function WatchHeader({
             )}
           </button>
 
-          <button
-            onClick={onSettingsClick}
-            aria-label="Open settings"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: '1px solid #E5E7EB',
-              background: '#FFFFFF',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              transition: 'background 0.15s ease, border-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#F9FAFB';
-              e.currentTarget.style.borderColor = '#D1D5DB';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#FFFFFF';
-              e.currentTarget.style.borderColor = '#E5E7EB';
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="3" stroke="#6B7280" strokeWidth="2" />
-              <path
-                d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-                stroke="#6B7280"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
+          <UserMenuButton
+            onSignInClick={onSignInClick}
+            onSettingsClick={onSettingsClick}
+          />
         </div>
       </div>
 

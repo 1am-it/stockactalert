@@ -137,14 +137,10 @@ function App() {
   // successful auth (then dismissed automatically by App reactive re-render).
   const [isShowingSignIn, setIsShowingSignIn] = useState(false);
 
-  // 1AM-181 TEMPORARY (remove when 1AM-184 ships): expose window.signIn()
-  // so we can test the overlay before the Header sign-in CTA exists.
-  // Open browser DevTools console, type signIn(), overlay appears.
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.signIn = () => setIsShowingSignIn(true);
-    }
-  }, []);
+  // 1AM-181 + 1AM-184: window.signIn() TEMPORARY workaround removed.
+  // Sign-in is now reached via the "Sign in" link in HeaderBar / WatchHeader
+  // (via UserMenuButton). The DevTools-console workaround was the only
+  // entry-point before this ticket and is now obsolete.
   // 1AM-28: Feed sub-screen state. null = render the regular FeedScreen;
   // 'followedList' = render FollowedListScreen instead. Same overlay pattern
   // as detailPolitician — not persisted, returns to feed on tab-switch.
@@ -492,6 +488,7 @@ function App() {
           // drawer's "View all trades" navigates to PoliticianDetailScreen
           // by setting detailPolitician, which our existing route renders.
           onBack={() => setActiveTab('feed')}
+          onSignInClick={() => setIsShowingSignIn(true)}
           onSettingsClick={() => setIsShowingSettings(true)}
           followedPoliticians={followedPoliticians}
           onTogglePolitician={togglePolitician}
@@ -515,11 +512,15 @@ function App() {
         {/* 1AM-168: Watch-tab gets WatchHeader (window-selector + Last
             update + Following-pill). Alerts-tab keeps the simpler HeaderBar
             for now. Browse-tab renders its own header internally and is
-            handled by the early-return path above. */}
+            handled by the early-return path above.
+            1AM-184: both headers now expose UserMenuButton via two new
+            callbacks — onSignInClick (anon users → SignInOverlay) and
+            onSettingsClick (signed-in users → SettingsScreen). */}
         {activeTab === 'feed' ? (
           <WatchHeader
             followingCount={followedPoliticians.length}
             onManageFollowingClick={() => setFeedSubScreen('followedList')}
+            onSignInClick={() => setIsShowingSignIn(true)}
             onSettingsClick={() => setIsShowingSettings(true)}
             watchWindow={watchWindow}
             onWindowChange={setWatchWindow}
@@ -529,6 +530,7 @@ function App() {
         ) : (
           <HeaderBar
             title={currentTitle}
+            onSignInClick={() => setIsShowingSignIn(true)}
             onSettingsClick={() => setIsShowingSettings(true)}
           />
         )}
