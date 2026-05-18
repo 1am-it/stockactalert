@@ -11,6 +11,47 @@ _No unreleased changes yet._
 
 ---
 
+## [0.27.0] — 2026-05-18
+
+Auth-epic [1AM-31](https://linear.app/1am-it/issue/1AM-31) sub-ticket [1AM-184](https://linear.app/1am-it/issue/1AM-184) — Sign-in CTA in the app header + Settings drawer with account info, sign-out, and legal links. Closes the user-facing gap from [1AM-183](https://linear.app/1am-it/issue/1AM-183): anonymous users now see a clear "Sign in" entry-point on every tab, and signed-in users see an avatar with their email-prefix initials that opens a real Settings surface. The temporary `window.signIn()` DevTools workaround from [1AM-181](https://linear.app/1am-it/issue/1AM-181) is removed — auth is fully UI-reachable. The 1AM-124 gear-icon flow is retired in the same change; the previous `SettingsScreen` placeholder is upgraded to host the new account content, and the Credits acknowledgement card from [1AM-146](https://linear.app/1am-it/issue/1AM-146) is preserved at the bottom. MINOR bump: new public component (`UserMenuButton`), new exposed app-version constant, and a meaningful new user-facing surface (the Settings screen), though the actual sign-in flow shipped earlier in [1AM-181](https://linear.app/1am-it/issue/1AM-181).
+
+### Added
+
+- **`UserMenuButton` component (1AM-184)** — auth-aware element rendered top-right in both `HeaderBar` and `WatchHeader`, replacing the prior gear-icon. Three internal render states driven by `useAuth()`: `loading` renders a 36×36 transparent placeholder of avatar-dimensions to prevent layout shift during initial session-restore (signed-in users see zero jitter; anon users see one state transition placeholder → text-link); `signed-out` renders a "Sign in" text-link in DM Sans 13px navy, calls `onSignInClick`; `signed-in` renders a 36×36 navy avatar circle with email-prefix initials (first 1-2 chars of local-part uppercased — `martinus@example.com` → `MA`, `m@example.com` → `M`, falls back to `?` if email missing), calls `onSettingsClick`. Component is intentionally pure-presentational — App.jsx owns overlay state, this component only fires callbacks.
+- **`src/lib/version.js` — exposed app version constant (1AM-184)** — single source of truth for the version string shown in the Settings screen. Manually bumped as part of the release ritual (OPS-2), independent of `package.json` (stays at `0.0.0` for legacy reasons) and `CHANGELOG.md` (canonical history but in markdown). A vite-plugin-driven inject from CHANGELOG was considered but rejected for v1 — extra dependency for low value. The manual step lives inside the existing release flow so the bump cadence is unchanged.
+- **`SettingsScreen` Account section (1AM-184)** — visible when signed-in: truncated email with full-email `title` attribute fallback, "Member since [Month Year]" sub-line computed from `user.created_at` via `toLocaleDateString('en-US', { month: 'long', year: 'numeric' })`, and a non-destructive red text-button "Sign out" that calls `supabase.auth.signOut()`. In-place error surfacing (no toast) if sign-out fails — user can retry or close manually. `onAuthStateChange` fires `SIGNED_OUT` on success; `AuthProvider` clears the session; `App.jsx` re-renders the header back to anon state automatically; `onBack` is called to close the screen.
+- **`SettingsScreen` Legal section (1AM-184)** — Privacy Policy and Terms of Service links pointing at `/privacy` and `/terms` (target `_blank`). Routes themselves are pending [1AM-182](https://linear.app/1am-it/issue/1AM-182); links are pre-wired so when that ticket ships, no further header/drawer work is needed.
+- **App version in Settings (1AM-184)** — small muted-gray centered line above the Credits card, sourced from `APP_VERSION` constant. First visible app-version surface in the product.
+
+### Changed
+
+- **`HeaderBar` + `WatchHeader` — gear-icon replaced by `UserMenuButton` (1AM-184)** — both shared headers now accept two new callbacks (`onSignInClick` for anon users, `onSettingsClick` for signed-in users) and render the auth-aware `UserMenuButton` in place of the previous always-on gear button. The 1AM-124 gear-flow into `SettingsScreen` is reachable only via the avatar tap now; anonymous users have no Settings entry-point in v1 (Credits/Legal content is reachable only when signed-in; anon-user Credits access is deferred to a follow-up). Inline SVG gear icon removed from both files — net line count decreases despite the new prop wiring.
+- **`SettingsScreen` upgraded from placeholder to real Settings (1AM-184)** — the 1AM-124 "Settings — coming soon" placeholder card removed; replaced by Account section (when signed-in) + Legal section (always) + app version line + Credits card (preserved from 1AM-146 at the bottom). Component renamed in intent only — file path and consumer wiring unchanged.
+- **`BrowseAllFilingsScreen` — passes through `onSignInClick` to its internally-rendered `HeaderBar` (1AM-184)** — Browse-tab no longer renders the App-level header wrapper, so the Sign-in callback has to flow through this screen. One new prop pass-through, no behaviour change beyond exposing the auth CTA on Explore-tab.
+
+### Removed
+
+- **`window.signIn()` DevTools workaround (1AM-181 → 1AM-184)** — the TEMPORARY `useEffect` in `App.jsx` that exposed `window.signIn = () => setIsShowingSignIn(true)` is removed. With the header CTA now live, this console-only entry-point is obsolete. Verified: `window.signIn` returns `undefined` post-deploy.
+
+### Smoke-tested
+
+- Anon header shows "Sign in" text-link top-right on all three tabs (Watch / Explore / Alerts).
+- Tap "Sign in" → `SignInOverlay` opens.
+- Cold reload: no header jitter during session-restore (placeholder dimension match).
+- Signed-in header shows navy avatar circle with email-prefix initials.
+- Tap avatar → `SettingsScreen` opens.
+- Account section shows email + "Member since [Month Year]".
+- "Sign out" tap → "Signing out…" → screen closes → header switches back to anon state.
+- Legal links open `/privacy` and `/terms` in new tab (target pages pending 1AM-182, expected fallback).
+- App version `v0.27.0` visible above Credits card.
+- `window.signIn` is `undefined` in browser console.
+
+### Known issue / follow-up
+
+- **Sign-in via magic-link is blocked for external email addresses** until Resend domain verification is complete. Resend operates in sandbox-mode without a verified domain, restricting outgoing mail to the Resend-account-email only. Smoke-test on 2026-05-18 confirmed end-to-end flow works with the sandbox-allowed recipient, but external recipients hit a 500 with the upstream message `550 You can only send testing emails to your own email address`. Tracked as a separate infra ticket — this is a config concern, not a 1AM-184 code defect. Blocker for [1AM-45](https://linear.app/1am-it/issue/1AM-45) (first user-validation round).
+
+---
+
 ## [0.26.0] — 2026-05-16
 
 Auth-epic [1AM-31](https://linear.app/1am-it/issue/1AM-31) sub-ticket [1AM-183](https://linear.app/1am-it/issue/1AM-183) — the localStorage → Supabase data-migration layer — plus the [1AM-186](https://linear.app/1am-it/issue/1AM-186) Alerts-placeholder crash discovered during [1AM-181](https://linear.app/1am-it/issue/1AM-181) tab-coverage testing. With this release, signed-in users have their `followedPoliticians` and onboarding-completion state mirrored to `public.follows` and `public.user_profiles` automatically; data accumulated as an anonymous user migrates UP to the server on first sign-in, and second-device sign-ins sync server-side state DOWN to localStorage. MINOR bump: new abstraction layer (`src/lib/userState.js`) with three explicit storage tiers, new `useAuth` re-export per spec, and the first end-to-end auth-aware data path through the app — but no user-visible UX surface yet (the Sign-in CTA in the header still ships with [1AM-184](https://linear.app/1am-it/issue/1AM-184)).
@@ -1020,7 +1061,11 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/1am-it/stockactalert/compare/v0.26.0...v0.27.0
+[0.26.0]: https://github.com/1am-it/stockactalert/compare/v0.25.0...v0.26.0
+[0.25.0]: https://github.com/1am-it/stockactalert/compare/v0.24.0...v0.25.0
+[0.24.0]: https://github.com/1am-it/stockactalert/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/1am-it/stockactalert/compare/v0.22.2...v0.23.0
 [0.22.2]: https://github.com/1am-it/stockactalert/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/1am-it/stockactalert/compare/v0.22.0...v0.22.1

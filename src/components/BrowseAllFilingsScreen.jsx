@@ -64,8 +64,10 @@
 //                      App.jsx but no longer reachable via UI link. Kept for
 //                      potential future use (e.g. programmatic "go back to
 //                      feed" calls from empty-state CTAs).
-//   onSettingsClick  — 1AM-124: opens SettingsScreen overlay via the gear
-//                      icon in HeaderBar.
+//   onSignInClick    — 1AM-184: opens SignInOverlay when anon user taps the
+//                      "Sign in" text-link in HeaderBar (via UserMenuButton).
+//   onSettingsClick  — 1AM-124 / 1AM-184: opens SettingsScreen when a signed-in
+//                      user taps the avatar in HeaderBar (via UserMenuButton).
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TradeCard from './TradeCard';
@@ -200,6 +202,7 @@ function parseAmountMidpoint(amountStr) {
 export default function BrowseAllFilingsScreen({
   // eslint-disable-next-line no-unused-vars
   onBack,
+  onSignInClick,
   onSettingsClick,
   // 1AM-70 phase 3: drawer plumbing. followedPoliticians + onTogglePolitician
   // came back after 1AM-151 dropped them — the drawer's Follow CTA needs to
@@ -538,6 +541,7 @@ export default function BrowseAllFilingsScreen({
         <HeaderBar
           title="Recent Filings"
           subtitle="last 30 days"
+          onSignInClick={onSignInClick}
           onSettingsClick={onSettingsClick}
         />
 
