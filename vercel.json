@@ -4,5 +4,11 @@
       "path": "/api/cron/fetch-trades",
       "schedule": "0 9 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/|assets/|.*\\.).*)",
+      "destination": "/index.html"
+    }
   ]
 }
