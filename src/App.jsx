@@ -634,7 +634,32 @@ function App() {
   );
 }
 
+// 1AM-182: lightweight path-aware mount for static legal pages.
+// React-router would be overkill for two static pages — checking
+// window.location.pathname once at mount is enough. SPA fallback in
+// Vercel routes all paths to index.html so /privacy and /terms land
+// here, get matched, and render without the rest of the app booting.
+// AuthProvider is intentionally NOT wrapped around these pages: legal
+// content is pure static and anon-reachable, no session-bootstrap needed.
+import PrivacyPage from './components/PrivacyPage';
+import TermsPage from './components/TermsPage';
+
+function getStaticPagePath() {
+  if (typeof window === 'undefined') return null;
+  const path = window.location.pathname.replace(/\/+$/, '');
+  if (path === '/privacy') return 'privacy';
+  if (path === '/terms') return 'terms';
+  return null;
+}
+
 export default function AppWithAuth() {
+  // 1AM-182: static legal pages short-circuit the full app boot.
+  // Reached either via direct URL or via in-app links from SignInOverlay
+  // / SettingsScreen / PrivacyPage cross-link.
+  const staticPage = getStaticPagePath();
+  if (staticPage === 'privacy') return <PrivacyPage />;
+  if (staticPage === 'terms') return <TermsPage />;
+
   // 1AM-181: AuthProvider wraps the App tree so any component can call
   // useAuth() without prop-drilling. Session state is read from localStorage
   // synchronously on mount, so there's no flash of unauthenticated content
