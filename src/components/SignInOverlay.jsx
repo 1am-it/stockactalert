@@ -282,8 +282,25 @@ export default function SignInOverlay({ onClose }) {
         )}
 
         <p style={footerStyle}>
-          By signing in, you agree to our Terms of Service and Privacy Policy
-          (coming in 1AM-182).
+          By signing in, you agree to our{' '}
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#0D1B2A', textDecoration: 'underline' }}
+          >
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#0D1B2A', textDecoration: 'underline' }}
+          >
+            Privacy Policy
+          </a>
+          .
         </p>
       </div>
     </div>
