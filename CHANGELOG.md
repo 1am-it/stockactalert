@@ -11,6 +11,40 @@ _No unreleased changes yet._
 
 ---
 
+## [0.27.1] — 2026-05-20
+
+Auth-epic [1AM-31](https://linear.app/1am-it/issue/1AM-31) sub-ticket [1AM-182](https://linear.app/1am-it/issue/1AM-182) — Privacy Policy and Terms of Service pages, plus SPA-fallback routing config that makes direct URLs work for the first time. The `/privacy` and `/terms` links wired up in v0.27.0 ([1AM-184](https://linear.app/1am-it/issue/1AM-184)) now resolve to actual content instead of 404s. Same release adds the legal disclaimer with real links to the sign-in overlay, closing the GDPR/CCPA pre-launch compliance gap before [1AM-45](https://linear.app/1am-it/issue/1AM-45) (first user-validation round) can ship. PATCH bump per OPS-8 precedent (`v0.7.1` custom domain) — legal/infra work with user-facing impact, no new feature in product sense.
+
+### Added
+
+- **`/privacy` page (1AM-182)** — GDPR-compliant Privacy Policy at the path. Lists data controller (1AM, Breda NL, KvK 91236088), data we collect (email, followed politicians, sign-in timestamps), GDPR Art. 15-20 rights with one-month/30-day response timeline per EDPB guidance, processors (Supabase + Resend) without overclaiming compliance status, FMP attribution, no-tracking-cookies + no-data-sale (CCPA) statements. v1 pre-launch content, template-based, not yet lawyer-reviewed.
+- **`/terms` page (1AM-182)** — Terms of Service at the path. Includes hard "not financial advice" disclaimer (primary risk-mitigation clause, echoes the [1AM-43](https://linear.app/1am-it/issue/1AM-43) Won't Fix stance), STOCK Act 45-day lag disclosure, 18+ age requirement with parental-consent exception, acceptable-use rules (no scraping/reverse-engineering), best-effort service availability (no SLA), limitation of liability with Dutch consumer-law carve-out, account-termination conditions, and Dutch governing law.
+- **`StaticPageLayout` component (1AM-182)** — shared visual shell for static legal pages. Warm-white full-page surface (`#FAFAF7`), Playfair Display for the title, DM Sans for body, max-width 720px content column, back-link to `/`, "Last updated" line at the bottom. Exports section helpers (`H2`, `P`, `UL`, `Strong`) so page files focus on content, not styling. Two callers today; if more legal/static pages are added later, the shell is the seam.
+- **SPA-fallback rewrites in `vercel.json` (1AM-182)** — `/((?!api/|assets/|.*\\.).*)` regex routes all non-API, non-asset paths to `/index.html`. Without this Vercel served raw 404s for `/privacy` and `/terms` (Vite-SPA never gets a chance to render). The cron config from earlier work is preserved in the same JSON. Direct URLs, magic-link callbacks, and any future client-side route all work after this change.
+
+### Changed
+
+- **`SignInOverlay` disclaimer with real links (1AM-182)** — the placeholder footer text "By signing in, you agree to our Terms of Service and Privacy Policy (coming in 1AM-182)" is replaced by the real version with anchor links to `/terms` and `/privacy`, both opening in new tabs. Closes the in-app gap where v0.27.0 wired the links from `SettingsScreen` but the sign-in surface still showed placeholder text.
+- **`App.jsx` path-aware mount in `AppWithAuth` (1AM-182)** — top-level early-return on `window.location.pathname === '/privacy'` or `/terms`, returning `<PrivacyPage>` or `<TermsPage>` before `AuthProvider` wraps the main app tree. Legal pages are pure static and anon-reachable, so session-bootstrap is intentionally skipped for them. Trailing-slash tolerant (`/privacy/` works too). React Router was considered and rejected — overkill for two static pages, and a fresh dependency that would refactor the existing single-page conditional-render architecture.
+
+### Smoke-tested
+
+- Direct URL `/privacy` renders the policy with no header/tabs/app-shell.
+- Direct URL `/terms` renders the terms with no header/tabs/app-shell.
+- Trailing-slash variant (`/privacy/`) also resolves correctly.
+- Other paths (`/foo`, root `/`) boot the normal app.
+- Disclaimer text in `SignInOverlay` shows real underlined links; both open the right page in a new tab.
+- `SettingsScreen` Legal section links resolve to real pages (no more fallback to SPA root).
+- Cross-page "← Back to StockActAlert" link returns to `/`.
+- API routes (`/api/trades`) still respond — rewrite regex correctly excludes `api/`.
+
+### Known follow-ups
+
+- **Supabase storage region disclosure** — Privacy Policy currently says "the exact storage region of your data will be verified and disclosed here before public launch". Needs to be updated with the actual Supabase region before [1AM-45](https://linear.app/1am-it/issue/1AM-45) user-validation round ships. Look up in Supabase Dashboard → Project Settings → General → Region. Not a blocker for this release; explicitly flagged in the policy text itself.
+- **Lawyer review pending** — per [1AM-182](https://linear.app/1am-it/issue/1AM-182) risk section, template-based content is acceptable for pre-launch with limited test-users. Full Dutch internet/IP-jurist review is part of pre-public-launch work alongside [1AM-115](https://linear.app/1am-it/issue/1AM-115) (EIGA legal review).
+
+---
+
 ## [0.27.0] — 2026-05-18
 
 Auth-epic [1AM-31](https://linear.app/1am-it/issue/1AM-31) sub-ticket [1AM-184](https://linear.app/1am-it/issue/1AM-184) — Sign-in CTA in the app header + Settings drawer with account info, sign-out, and legal links. Closes the user-facing gap from [1AM-183](https://linear.app/1am-it/issue/1AM-183): anonymous users now see a clear "Sign in" entry-point on every tab, and signed-in users see an avatar with their email-prefix initials that opens a real Settings surface. The temporary `window.signIn()` DevTools workaround from [1AM-181](https://linear.app/1am-it/issue/1AM-181) is removed — auth is fully UI-reachable. The 1AM-124 gear-icon flow is retired in the same change; the previous `SettingsScreen` placeholder is upgraded to host the new account content, and the Credits acknowledgement card from [1AM-146](https://linear.app/1am-it/issue/1AM-146) is preserved at the bottom. MINOR bump: new public component (`UserMenuButton`), new exposed app-version constant, and a meaningful new user-facing surface (the Settings screen), though the actual sign-in flow shipped earlier in [1AM-181](https://linear.app/1am-it/issue/1AM-181).
@@ -1061,7 +1095,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/1am-it/stockactalert/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/1am-it/stockactalert/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/1am-it/stockactalert/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/1am-it/stockactalert/compare/v0.24.0...v0.25.0
