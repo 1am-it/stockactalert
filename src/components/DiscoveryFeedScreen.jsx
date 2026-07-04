@@ -123,6 +123,57 @@ export default function DiscoveryFeedScreen({ onStartOnboarding }) {
           </button>
         </div>
 
+        {/* ── Trust band ─────────────────────────────────────────────────── */}
+        {/* 1AM-45 follow-up: anonymous visitors arriving from a cold share
+            (Reddit/X) have no context for what "STOCK Act filing" means.
+            This band explains the legal basis before they hit raw data. */}
+        <div
+          style={{
+            background: '#F3F4F6',
+            borderRadius: 12,
+            padding: '20px 22px',
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              fontWeight: 700,
+              color: '#6B7280',
+              letterSpacing: '0.07em',
+              textTransform: 'uppercase',
+              marginBottom: 6,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            What you're looking at
+          </div>
+          <h2
+            style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: 17,
+              fontWeight: 800,
+              color: '#0D1B2A',
+              margin: '0 0 8px',
+            }}
+          >
+            Mandatory disclosure, not speculation
+          </h2>
+          <p
+            style={{
+              fontSize: 12.5,
+              color: '#6B7280',
+              margin: 0,
+              lineHeight: 1.5,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Since the STOCK Act (2012), every member of Congress must report a stock trade
+            within 45 days of buying or selling. This page shows those filings the moment
+            they come in — unedited, unfiltered.
+          </p>
+        </div>
+
         {/* ── Section header ─────────────────────────────────────────────── */}
         <div
           style={{
