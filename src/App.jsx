@@ -58,8 +58,11 @@ import { STORAGE_KEYS } from './lib/storage';
 import { readUserState, writeUserState } from './lib/userState';
 import { useAuth } from './lib/useAuth';
 import { useTrades } from './hooks/useTrades';
+import { useAlerts } from './hooks/useAlerts';
 import { AuthProvider } from './lib/AuthProvider';
 import SignInOverlay from './components/SignInOverlay';
+// 1AM-126 fase B: AlertsScreen replaces the "coming soon" placeholder.
+import AlertsScreen from './components/AlertsScreen';
 
 // 1AM-67/1AM-68: Legacy name migration
 // When the curated-22 list was replaced by the full Congress directory, two
@@ -177,6 +180,19 @@ function App() {
   // 1AM-168: lastUpdatedAt + refetch added so WatchHeader can render
   // "Last update N min ago" and tap-to-refresh from the same hook call.
   const { trades, lastUpdatedAt, refetch } = useTrades();
+
+  // 1AM-126: Alerts state lifted to App level (not called inside AlertsScreen)
+  // so the TabBar unread badge and the Alerts-tab list share one localStorage-
+  // backed readIds instance — two independent useAlerts() calls would each
+  // read readAlertIds once on mount and go stale relative to each other as
+  // soon as one of them calls markRead.
+  const {
+    alerts: alertsList,
+    unreadCount: unreadAlertsCount,
+    readIds: readAlertIds,
+    markAllRead: markAllAlertsRead,
+    markRead: markAlertRead,
+  } = useAlerts(trades, followedPoliticians);
 
   // 1AM-183: User-change re-hydration.
   //
@@ -364,6 +380,7 @@ function App() {
         />
         <TabBar
           activeTab={activeTab}
+          unreadAlertsCount={unreadAlertsCount}
           onTabChange={(tab) => {
             // Tab-tap closes the detail overlay AND switches tabs
             setDetailPolitician(null);
@@ -425,6 +442,7 @@ function App() {
         />
         <TabBar
           activeTab={activeTab}
+          unreadAlertsCount={unreadAlertsCount}
           onTabChange={(tab) => {
             // Tab-tap closes the sub-screen AND switches tabs
             setFeedSubScreen(null);
@@ -449,6 +467,7 @@ function App() {
         />
         <TabBar
           activeTab={activeTab}
+          unreadAlertsCount={unreadAlertsCount}
           onTabChange={(tab) => {
             setFeedSubScreen(null);
             setActiveTab(tab);
@@ -494,7 +513,7 @@ function App() {
           onTogglePolitician={togglePolitician}
           onPoliticianClick={setDetailPolitician}
         />
-        <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <TabBar activeTab={activeTab} unreadAlertsCount={unreadAlertsCount} onTabChange={setActiveTab} />
       </div>
     );
   }
@@ -585,51 +604,29 @@ function App() {
         )}
 
         {activeTab === 'alerts' && (
-          // Placeholder — content built in 1AM-126.
-          <div
-            style={{
-              padding: '20px',
-              background: '#FFFFFF',
-              borderRadius: '16px',
-              border: '1px solid #E5E7EB',
-              textAlign: 'center',
+          <AlertsScreen
+            followedPoliticians={followedPoliticians}
+            alerts={alertsList}
+            unreadCount={unreadAlertsCount}
+            readIds={readAlertIds}
+            markAllRead={markAllAlertsRead}
+            markRead={markAlertRead}
+            onShowPoliticianDetail={setDetailPolitician}
+            // Cross-tab navigation: Alerts-tab's empty state needs to land on
+            // FollowedListScreen, which only renders when activeTab === 'feed'
+            // (see the feedSubScreen === 'followedList' route above) — so
+            // switch tabs AND set the sub-screen, unlike WatchHeader's
+            // onManageFollowingClick which is already on the feed tab.
+            onManageFollowing={() => {
+              setActiveTab('feed');
+              setFeedSubScreen('followedList');
             }}
-          >
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: '#0D1B2A18',
-                border: '2px solid #0D1B2A30',
-                margin: '0 auto 12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
-              }}
-            >
-              🔔
-            </div>
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: '#0D1B2A',
-                fontFamily: "'DM Sans', sans-serif",
-              }}
-            >
-              Alerts — coming soon
-            </div>
-            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
-              This screen is built in a later ticket
-            </div>
-          </div>
+          />
         )}
       </div>
 
       {/* TabBar */}
-      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabBar activeTab={activeTab} unreadAlertsCount={unreadAlertsCount} onTabChange={setActiveTab} />
     </div>
   );
 }

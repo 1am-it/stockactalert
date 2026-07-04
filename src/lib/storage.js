@@ -97,4 +97,10 @@ export const STORAGE_KEYS = {
   // Only userState.js should read/write this key; App.jsx and other
   // callers must not touch it directly.
   LAST_USER_ID: 'lastUserId',
+  // 1AM-126: device-local read-state for the Alerts tab. Stores an array of
+  // alert ids (`${trade.id}:new_trade` / `${trade.id}:late_filing`) the user
+  // has already seen. Not synced to Supabase and not wiped on user-switch —
+  // alerts are derived client-side from trades + followedPoliticians on
+  // every load, so there's no server-side alert record to reconcile against.
+  READ_ALERT_IDS: 'readAlertIds',
 };
