@@ -11,6 +11,34 @@ _No unreleased changes yet._
 
 ---
 
+## [0.28.0] — 2026-07-04
+
+IA-redesign follow-up [1AM-124](https://linear.app/1am-it/issue/1AM-124) sub-ticket [1AM-126](https://linear.app/1am-it/issue/1AM-126) — Alerts-tab implementation. Replaces the "Alerts — coming soon" placeholder with a functional tab: `useAlerts` derives NEW_TRADE and LATE_FILING alerts client-side from the same `trades` + `followedPoliticians` state already lifted at App level (no new fetch, no new backend endpoint). Read/unread state is device-local (`readAlertIds` in localStorage), surfaced both as the alert list itself and as an unread-count badge on the Alerts tab icon. MINOR bump: new hook, new component, new user-facing tab surface.
+
+### Added
+
+- **`useAlerts` hook (1AM-126)** (`src/hooks/useAlerts.js`) — derives alerts from `trades` + `followedPoliticians`, matching on `trade.politician` the same way `FeedScreen` already does. Each followed trade produces a `NEW_TRADE` alert, plus a `LATE_FILING` alert when `isLateFiling(filedDate, tradeDate)` is true (reusing the existing `src/lib/dates.js` helper, 30-day threshold). Alerts carry distinct ids (`${trade.id}:new_trade` / `:late_filing`) so read-state is tracked per alert, not per trade. Exports `{ alerts, unreadCount, readIds, markAllRead, markRead }`. The pure alert-generation logic is exported separately as `computeAlerts` so it's unit-testable without rendering the hook (project has no jsdom/testing-library setup yet) — see `src/hooks/__tests__/useAlerts.test.js` (10 cases: follow filtering, NEW_TRADE, LATE_FILING threshold edge case, ordering).
+- **`AlertsScreen` component (1AM-126)** (`src/components/AlertsScreen.jsx`) — renders the alert list with a bell/clock icon per alert type, unread dot, and a "Mark all read" action. Two empty states: zero follows ("Follow politicians to get alerts", CTA into `FollowedListScreen`) and follows-with-no-alerts ("No alerts yet"). Tapping a row marks it read and opens the politician detail page.
+- **`STORAGE_KEYS.READ_ALERT_IDS` (1AM-126)** (`src/lib/storage.js`) — device-local, not synced to Supabase and not wiped on user-switch, since alerts are recomputed client-side on every load rather than backed by a server record.
+- **`TabBar` unread-alerts badge (1AM-126)** — optional `unreadAlertsCount` prop renders a small coral count-pill on the Alerts icon, same visual language as `HeaderBar`'s existing follow-count badge. Omitted when 0 to avoid a confusing "0" pill.
+
+### Changed
+
+- **`App.jsx` (1AM-126)** — `useAlerts(trades, followedPoliticians)` is called once at App level (not inside `AlertsScreen`) and its `alerts` / `unreadCount` / `readIds` / `markAllRead` / `markRead` are passed down as props to both `AlertsScreen` and every `TabBar` call site. Calling the hook twice (once for the badge, once for the list) would have given each instance its own `readIds` snapshot from localStorage, going stale relative to each other the moment one of them called `markRead`.
+
+### Smoke-tested
+
+- Lint clean, all 33 vitest cases pass (23 pre-existing + 10 new).
+- All changed/new files compile cleanly through Vite's dev transform (no syntax errors).
+- Browser: with 2 followed politicians but `trades` empty (local dev has no working `/api/trades` backend — separate, pre-existing environment limitation, not caused by this change), the Alerts tab correctly rendered the "No alerts yet" empty state rather than the zero-follows state, and the TabBar badge correctly showed nothing at `unreadCount === 0`. No crashes.
+
+### Known follow-ups
+
+- **Live-data verification pending** — actual `NEW_TRADE`/`LATE_FILING` row rendering, the "Mark all read" interaction, and a non-zero unread badge have not been visually verified, since local dev has no working Supabase-backed `/api/trades` in this environment. Needs a pass with real trade data (local env fix or a preview deploy) before this is fully release-confident.
+- **`readAlertIds` unbounded growth** — ids for trades that scroll out of the fetched window are never pruned from localStorage. Low risk at current data volumes; revisit if it becomes measurable.
+
+---
+
 ## [0.27.1] — 2026-05-20
 
 Auth-epic [1AM-31](https://linear.app/1am-it/issue/1AM-31) sub-ticket [1AM-182](https://linear.app/1am-it/issue/1AM-182) — Privacy Policy and Terms of Service pages, plus SPA-fallback routing config that makes direct URLs work for the first time. The `/privacy` and `/terms` links wired up in v0.27.0 ([1AM-184](https://linear.app/1am-it/issue/1AM-184)) now resolve to actual content instead of 404s. Same release adds the legal disclaimer with real links to the sign-in overlay, closing the GDPR/CCPA pre-launch compliance gap before [1AM-45](https://linear.app/1am-it/issue/1AM-45) (first user-validation round) can ship. PATCH bump per OPS-8 precedent (`v0.7.1` custom domain) — legal/infra work with user-facing impact, no new feature in product sense.

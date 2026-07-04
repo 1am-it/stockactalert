@@ -83,7 +83,10 @@ const TABS = [
   },
 ];
 
-export default function TabBar({ activeTab = 'feed', onTabChange }) {
+// 1AM-126: unreadAlertsCount renders a small navy badge on the Alerts tab
+// icon, same visual language as HeaderBar's follow-count badge. Omitted (0
+// or undefined) renders no badge — avoids a confusing "0" pill.
+export default function TabBar({ activeTab = 'feed', onTabChange, unreadAlertsCount = 0 }) {
   return (
     <div
       style={{
@@ -108,6 +111,7 @@ export default function TabBar({ activeTab = 'feed', onTabChange }) {
             key={tab.id}
             onClick={() => onTabChange?.(tab.id)}
             style={{
+              position: 'relative',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -127,6 +131,32 @@ export default function TabBar({ activeTab = 'feed', onTabChange }) {
               e.currentTarget.style.background = 'none';
             }}
           >
+            {tab.id === 'alerts' && unreadAlertsCount > 0 && (
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 8,
+                  minWidth: 16,
+                  height: 16,
+                  padding: '0 4px',
+                  borderRadius: 8,
+                  background: '#D85A30',
+                  color: '#FAFAF7',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  fontFamily: "'DM Sans', sans-serif",
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  boxSizing: 'border-box',
+                }}
+              >
+                {unreadAlertsCount > 99 ? '99+' : unreadAlertsCount}
+              </span>
+            )}
             {tab.icon(active)}
             <span
               style={{
