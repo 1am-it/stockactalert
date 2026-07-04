@@ -3,7 +3,9 @@
 // Derives NEW_TRADE and LATE_FILING alerts client-side from already-fetched
 // `trades` + `followedPoliticians` — no separate fetch, same follow-filter
 // pattern FeedScreen uses (match on trade.politician against the followed
-// name list).
+// name list). `mutedPoliticians` is applied the same way FeedScreen applies
+// it (src/components/FeedScreen.jsx:155) — mute preserves the follow
+// relationship but suppresses visibility, alerts included.
 //
 // One followed trade can produce up to two alerts: a NEW_TRADE alert always,
 // plus a LATE_FILING alert when isLateFiling(filedDate, tradeDate) is true.
@@ -38,16 +40,19 @@ export const ALERT_TYPES = {
  *
  * @param {Array} trades — trade objects (Trade shape from src/data/schema.js)
  * @param {string[]} followedPoliticians — politician names the user follows
+ * @param {string[]} mutedPoliticians — followed politicians the user has muted
  * @returns {Array} alerts, in the same order as `trades`
  */
-export function computeAlerts(trades = [], followedPoliticians = []) {
+export function computeAlerts(trades = [], followedPoliticians = [], mutedPoliticians = []) {
   if (!Array.isArray(trades) || trades.length === 0) return [];
   const followedSet = new Set(followedPoliticians);
   if (followedSet.size === 0) return [];
+  const mutedSet = new Set(mutedPoliticians);
 
   const result = [];
   for (const trade of trades) {
     if (!trade?.politician || !followedSet.has(trade.politician)) continue;
+    if (mutedSet.has(trade.politician)) continue;
 
     result.push({
       id: `${trade.id}:new_trade`,
@@ -75,8 +80,9 @@ export function computeAlerts(trades = [], followedPoliticians = []) {
 /**
  * @param {Array} trades — trade objects (Trade shape from src/data/schema.js)
  * @param {string[]} followedPoliticians — politician names the user follows
+ * @param {string[]} mutedPoliticians — followed politicians the user has muted
  */
-export function useAlerts(trades = [], followedPoliticians = []) {
+export function useAlerts(trades = [], followedPoliticians = [], mutedPoliticians = []) {
   const [readIds, setReadIds] = useState(
     () => new Set(getJSON(STORAGE_KEYS.READ_ALERT_IDS, []))
   );
@@ -86,8 +92,8 @@ export function useAlerts(trades = [], followedPoliticians = []) {
   }, [readIds]);
 
   const alerts = useMemo(
-    () => computeAlerts(trades, followedPoliticians),
-    [trades, followedPoliticians]
+    () => computeAlerts(trades, followedPoliticians, mutedPoliticians),
+    [trades, followedPoliticians, mutedPoliticians]
   );
 
   const unreadCount = useMemo(

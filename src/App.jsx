@@ -192,7 +192,7 @@ function App() {
     readIds: readAlertIds,
     markAllRead: markAllAlertsRead,
     markRead: markAlertRead,
-  } = useAlerts(trades, followedPoliticians);
+  } = useAlerts(trades, followedPoliticians, mutedPoliticians);
 
   // 1AM-183: User-change re-hydration.
   //

@@ -1,4 +1,4 @@
-// src/hooks/__tests__/useAlerts.test.js — 1AM-126 fase A
+// src/hooks/__tests__/useAlerts.test.js — 1AM-126 fase A + mute follow-up
 //
 // Tests computeAlerts (the pure logic extracted from useAlerts) since the
 // project has no jsdom/testing-library setup to render the hook directly.
@@ -85,6 +85,41 @@ describe('computeAlerts — LATE_FILING', () => {
 
     expect(alerts).toHaveLength(1);
     expect(alerts[0].type).toBe(ALERT_TYPES.NEW_TRADE);
+  });
+});
+
+describe('computeAlerts — muted politicians', () => {
+  it('excludes alerts for a followed but muted politician', () => {
+    const trade = makeTrade();
+    expect(
+      computeAlerts([trade], ['Nancy Pelosi'], ['Nancy Pelosi'])
+    ).toEqual([]);
+  });
+
+  it('excludes both NEW_TRADE and LATE_FILING for a muted, late-filed trade', () => {
+    const trade = makeTrade({ tradeDate: '2026-01-01', filedDate: '2026-02-15' });
+    expect(
+      computeAlerts([trade], ['Nancy Pelosi'], ['Nancy Pelosi'])
+    ).toEqual([]);
+  });
+
+  it('does not affect alerts for other followed, unmuted politicians', () => {
+    const pelosi = makeTrade({ id: 'p1', politician: 'Nancy Pelosi' });
+    const tuberville = makeTrade({ id: 't1', politician: 'Tommy Tuberville' });
+
+    const alerts = computeAlerts(
+      [pelosi, tuberville],
+      ['Nancy Pelosi', 'Tommy Tuberville'],
+      ['Nancy Pelosi']
+    );
+
+    expect(alerts.map((a) => a.id)).toEqual(['t1:new_trade']);
+  });
+
+  it('defaults to no muting when mutedPoliticians is omitted', () => {
+    const trade = makeTrade();
+    const alerts = computeAlerts([trade], ['Nancy Pelosi']);
+    expect(alerts).toHaveLength(1);
   });
 });
 
