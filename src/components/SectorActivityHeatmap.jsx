@@ -32,9 +32,10 @@
 //     its own bar would dilute the signal without adding actionable info.
 //   - Long sector names truncated with ellipsis (max ~16 chars) — Consumer
 //     Discretionary becomes "Consumer Discr…" same way Net Positions does.
-//   - Tap-to-filter: stub implementation in v1, just calls onSectorTap with
-//     the sector string. Wiring to Browse-tab pre-set filter happens in a
-//     follow-up ticket.
+//   - Tap-to-filter: calls onSectorTap with the sector string. App.jsx wires
+//     this to a transient hand-off (pendingExploreFilter) that pre-sets
+//     Explore-tab's sector filter + maps the current watch-window to
+//     Explore's closest time-period chip (1AM-172).
 //
 // Props:
 //   trades         — array of normalised Trade objects (already filtered to
@@ -187,6 +188,7 @@ export default function SectorActivityHeatmap({
             sells={s.sells}
             total={s.total}
             maxTotal={maxTotal}
+            windowCopy={WINDOW_LABEL_COPY[windowLabel] || 'last 30d'}
             onTap={onSectorTap ? () => onSectorTap(s.sector) : undefined}
           />
         ))}
@@ -196,7 +198,7 @@ export default function SectorActivityHeatmap({
 }
 
 // ── Single sector bar row ────────────────────────────────────────────────────
-function SectorBar({ sector, buys, sells, total, maxTotal, onTap }) {
+function SectorBar({ sector, buys, sells, total, maxTotal, windowCopy, onTap }) {
   const widthPct = Math.max(4, Math.round((total / maxTotal) * 100));
   const buyPctOfBar = total > 0 ? (buys / total) * 100 : 0;
 
@@ -279,7 +281,7 @@ function SectorBar({ sector, buys, sells, total, maxTotal, onTap }) {
     return (
       <button
         onClick={onTap}
-        aria-label={`Filter by ${sector} sector`}
+        aria-label={`Filter Explore by ${sector} — ${buys} buys, ${sells} sells in ${windowCopy}`}
         style={{
           width: '100%',
           background: 'transparent',

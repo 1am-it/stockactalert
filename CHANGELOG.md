@@ -11,6 +11,24 @@ _No unreleased changes yet._
 
 ---
 
+## [0.28.3] — 2026-07-05
+
+Sprint 4 [1AM-172](https://linear.app/1am-it/issue/1AM-172) — Phase 4b of the Sector Activity Heatmap (1AM-166 epic): tapping a sector bar on Watch now navigates to Explore pre-filtered on that sector and time window, instead of just switching tabs. PATCH bump: additive interaction on an existing surface, no new screen.
+
+### Added
+
+- **Watch → Explore sector tap-to-filter hand-off (1AM-172)** — `App.jsx` holds a new transient `pendingExploreFilter` state (`{ sector, window }`, in-memory only, not persisted). `SectorActivityHeatmap`'s `onSectorTap` now sets it (using the current Watch-tab window) and switches to Explore; `BrowseAllFilingsScreen` applies it on mount via a new `pendingFilter`/`onConsumePendingFilter` prop pair, then clears the App-level state so it doesn't reapply on a later, unrelated visit. Reuses the sector-filter chip/pill UI that already existed from [1AM-70](https://linear.app/1am-it/issue/1AM-70) phase 4 — no new FilterBar UI needed.
+- **Watch-window → Explore-time-period mapping** — Watch's `24h`/`7d`/`30d`/`90d` windows map to Explore's `past7d`/`past30d`/`past90d` chips; `24h` has no exact match on Explore (narrowest chip is 7d) and falls back to `past7d`.
+- **`SectorActivityHeatmap` aria-label** updated to match the ticket's spec exactly: "Filter Explore by [Sector] — [N] buys, [M] sells in [window]" (was a shorter generic label).
+
+### Smoke-tested
+
+- Lint: exactly one new finding, a `react-hooks/set-state-in-effect` warning on the new hand-off-consuming effect — same pattern already present twice elsewhere in the codebase (`App.jsx`'s user-switch effect, this same file's `filtersKey` effect), not a new category of issue.
+- All 37 existing vitest cases pass, no regressions.
+- **Not end-to-end visually verified** — the sector-tap flow needs real trade data with sector info on the Watch tab to have a sector bar to tap at all, and local dev's `/api/trades` is broken (pre-existing, unrelated environment limitation — returns raw JS source instead of JSON). Confirmed no console/page errors on the screens that do render without live data. Recommend a preview-deploy or production spot-check before considering this fully release-confident.
+
+---
+
 ## [0.28.2] — 2026-07-05
 
 1AM-45 tester-feedback follow-up [1AM-259](https://linear.app/1am-it/issue/1AM-259) — short STOCK Act callout in onboarding, shown before the politician picker. PATCH bump: content addition to an existing screen, not a new surface.
@@ -1160,7 +1178,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.2...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.3...HEAD
+[0.28.3]: https://github.com/1am-it/stockactalert/compare/v0.28.2...v0.28.3
 [0.28.2]: https://github.com/1am-it/stockactalert/compare/v0.28.1...v0.28.2
 [0.28.1]: https://github.com/1am-it/stockactalert/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/1am-it/stockactalert/compare/v0.27.1...v0.28.0

@@ -171,6 +171,12 @@ function App() {
   // `Show all` button on FeedScreen now switches activeTab to 'browse'
   // instead of triggering the overlay.
 
+  // 1AM-172: transient hand-off state for Watch → Explore sector tap-to-
+  // filter. In-memory only (no URL params, no localStorage) — this is a
+  // one-shot signal, not linkable/resumable state. Set by onSectorTap
+  // below, consumed and cleared by BrowseAllFilingsScreen on mount.
+  const [pendingExploreFilter, setPendingExploreFilter] = useState(null);
+
   // 1AM-69: trades shared between FeedScreen and PoliticianDetailScreen.
   // Lifted to App level so the detail page can compute stats/holdings/history
   // from the same dataset the feed uses, without re-fetching FMP.
@@ -512,6 +518,9 @@ function App() {
           followedPoliticians={followedPoliticians}
           onTogglePolitician={togglePolitician}
           onPoliticianClick={setDetailPolitician}
+          // 1AM-172: Watch → Explore sector tap-to-filter hand-off.
+          pendingFilter={pendingExploreFilter}
+          onConsumePendingFilter={() => setPendingExploreFilter(null)}
         />
         <TabBar activeTab={activeTab} unreadAlertsCount={unreadAlertsCount} onTabChange={setActiveTab} />
       </div>
@@ -595,11 +604,14 @@ function App() {
             // on its own surface, so a tab-switch is enough — the user
             // sees the cross-Congress Most Active section there).
             onExploreAll={() => setActiveTab('browse')}
-            // 1AM-170 (4a): Sector tap → navigate to Explore-tab. Preset
-            // sector-filter wiring deferred to 4b — for v1 the user lands
-            // on Explore where they can re-apply the sector filter via
-            // the existing sector-filter UI.
-            onSectorTap={() => setActiveTab('browse')}
+            // 1AM-172 (4b): Sector tap → set the pending hand-off (sector +
+            // current Watch window) then navigate to Explore-tab, which
+            // applies it on mount. Replaces the 1AM-170 (4a) stub that only
+            // switched tabs.
+            onSectorTap={(sectorName) => {
+              setPendingExploreFilter({ sector: sectorName, window: watchWindow });
+              setActiveTab('browse');
+            }}
           />
         )}
 
