@@ -12,4 +12,4 @@
 // for v1 — extra dependency for low value. The manual step lives inside
 // the existing release flow so the bump cadence is unchanged.
 
-export const APP_VERSION = 'v0.28.3';
+export const APP_VERSION = 'v0.28.4';
