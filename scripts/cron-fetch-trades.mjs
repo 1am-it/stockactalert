@@ -26,7 +26,10 @@ import {
   mapToRow,
   upsertTrades,
   getArchiveCount,
+  logCronRun,
 } from './lib/archive-helpers.mjs';
+
+const JOB_NAME = 'fetch-trades';
 
 // ── Structured logging ───────────────────────────────────────────────────────
 // Prefix every line with ISO timestamp so GitHub Actions output is correlatable
@@ -71,6 +74,7 @@ async function main() {
   // Total failure: both chambers down. Don't write anything; signal failure.
   if (!senateOk && !houseOk) {
     error('Both FMP chambers failed; no data fetched. Exiting with code 1.');
+    await logCronRun(supabase, JOB_NAME, 'failure', `senate: ${senateResult.error}; house: ${houseResult.error}`);
     process.exit(1);
   }
 
@@ -93,6 +97,7 @@ async function main() {
 
   if (allRows.length === 0) {
     info('No rows to insert (FMP returned empty). Exiting with code 0.');
+    await logCronRun(supabase, JOB_NAME, senateOk && houseOk ? 'success' : 'partial', 'FMP returned no new trades');
     return;
   }
 
@@ -108,6 +113,7 @@ async function main() {
     upsertResult = await upsertTrades(supabase, allRows);
   } catch (err) {
     error(`Supabase write failed: ${err.message}`);
+    await logCronRun(supabase, JOB_NAME, 'failure', `Supabase upsert failed: ${err.message}`);
     process.exit(1);
   }
 
@@ -133,6 +139,13 @@ async function main() {
       } succeeded. Will retry next run.`
     );
   }
+
+  await logCronRun(
+    supabase,
+    JOB_NAME,
+    senateOk && houseOk ? 'success' : 'partial',
+    `${upsertResult.inserted} inserted, ${upsertResult.skipped} skipped`
+  );
 
   info('Cron completed successfully');
 }
