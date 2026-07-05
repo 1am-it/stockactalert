@@ -31,6 +31,25 @@ import nameOverridesData from '../data/name-overrides.json' with { type: 'json' 
  */
 export const MEMBERS = Object.freeze(congressData);
 
+// 1AM-133: extracted from TradeDetailDrawer.jsx, which had a duplicate of
+// TradeCard's inline initials logic. Third consumer (BrowseAllFilingsScreen's
+// by-politician aggregate rows) crossed the "extract to lib" threshold this
+// codebase already documents for two-consumer duplication.
+/**
+ * Initials from a politicus name, e.g. "April Delaney" → "AD".
+ * @param {string} name
+ * @returns {string}
+ */
+export function getInitials(name) {
+  if (!name) return '??';
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 // ── Manual name overrides (1AM-109) ─────────────────────────────────────────
 // Pre-compute a normalised-key → bioguideId map from name-overrides.json so
 // findByName can short-circuit on stubborn upstream names (e.g. "Pelosi, Nancy"
