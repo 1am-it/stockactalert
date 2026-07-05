@@ -11,6 +11,23 @@ _No unreleased changes yet._
 
 ---
 
+## [0.28.2] — 2026-07-05
+
+1AM-45 tester-feedback follow-up [1AM-259](https://linear.app/1am-it/issue/1AM-259) — short STOCK Act callout in onboarding, shown before the politician picker. PATCH bump: content addition to an existing screen, not a new surface.
+
+### Added
+
+- **STOCK Act callout in `OnboardingPickPoliticians.jsx` (1AM-259)** — amber-bordered callout card between the intro copy and the "we don't rank by returns" line: "Under the STOCK Act, members of Congress must disclose stock trades within 45 days of the trade — this app shows what they did and whether they filed on time." Addresses tester feedback that new users didn't know what "STOCK Act" meant before hitting their first trade card. Reuses the same amber (`#D97706`) as `AlertsScreen`'s late-filing clock icon — that color already means "time/disclosure-rule context" elsewhere in the app, so this establishes the same visual vocabulary before the user ever sees a trade. Deep-dive explanation (amount ranges, "why 45 days") stays out of scope here — that's [1AM-110](https://linear.app/1am-it/issue/1AM-110)'s job on trade-detail + Settings; the two tickets were confirmed as complementary, not overlapping, before either shipped.
+- Three copy/layout options (plain inline line, callout card, folded into the intro sentence) were mocked up and reviewed before picking the callout — chosen because it's the only variant that visually separates the STOCK Act fact from "more skippable grey text," which is what the tester feedback specifically flagged.
+
+### Smoke-tested
+
+- Lint clean on the changed file (`npx eslint src/components/OnboardingPickPoliticians.jsx`).
+- All 37 existing vitest cases pass, no regressions.
+- Visually verified via a local Playwright run against the dev server: navigated Discovery → "Select politicians →" → onboarding picker, screenshotted the result, confirmed the callout renders with correct copy, icon, and spacing, and confirmed zero console/page errors.
+
+---
+
 ## [0.28.1] — 2026-07-05
 
 Two small ops/copy fixes bundled into one release: [1AM-78](https://linear.app/1am-it/issue/1AM-78) infrastructure-monitoring health endpoint, and [1AM-45](https://linear.app/1am-it/issue/1AM-45) tester-feedback follow-up [1AM-258](https://linear.app/1am-it/issue/1AM-258) — plain-language copy for the Alerts-tab "late filing" label. PATCH bump: neither is a new user-facing feature (health endpoint is ops-only, no UI; the other is a copy-only fix).
@@ -1143,7 +1160,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.1...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.2...HEAD
+[0.28.2]: https://github.com/1am-it/stockactalert/compare/v0.28.1...v0.28.2
 [0.28.1]: https://github.com/1am-it/stockactalert/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/1am-it/stockactalert/compare/v0.27.1...v0.28.0
 [0.27.1]: https://github.com/1am-it/stockactalert/compare/v0.27.0...v0.27.1
