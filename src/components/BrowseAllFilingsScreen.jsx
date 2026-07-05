@@ -446,6 +446,28 @@ export default function BrowseAllFilingsScreen({
       .slice(0, 3);
   }, [selectedTrade, allFetchedTrades]);
 
+  // 1AM-162: ticker-scoped complement to relatedTrades (sector-scoped) above.
+  // Same rationale for sourcing from allFetchedTrades (discovery affordance,
+  // not filter-scoped) and the same shape (up to 3, tradeDate DESC, current
+  // trade excluded) — see the block comment above relatedTrades for the
+  // Temporal-Dead-Zone reason this lives after allFetchedTrades. No dedupe
+  // on politician: repeated same-ticker trades from one politician are a
+  // concentration signal, not redundancy.
+  const sameTickerTrades = useMemo(() => {
+    if (!selectedTrade) return [];
+    return allFetchedTrades
+      .filter((t) => {
+        if (t.id === selectedTrade.id) return false;
+        return t.ticker === selectedTrade.ticker;
+      })
+      .sort((a, b) => {
+        if (b.tradeDate < a.tradeDate) return -1;
+        if (b.tradeDate > a.tradeDate) return 1;
+        return 0;
+      })
+      .slice(0, 3);
+  }, [selectedTrade, allFetchedTrades]);
+
   // Client-side chamber + action + amount filters layered on top of the
   // fetched set, then sorted per sortOrder.
   const visibleTrades = useMemo(() => {
@@ -1122,6 +1144,7 @@ export default function BrowseAllFilingsScreen({
           setSelectedTrade(null);
         }}
         relatedTrades={relatedTrades}
+        sameTickerTrades={sameTickerTrades}
         onRelatedTradeClick={(trade) => {
           // 1AM-70 phase 5: drawer content swap. Setting selectedTrade to
           // a different trade triggers the drawer to re-render with the

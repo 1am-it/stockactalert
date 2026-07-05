@@ -11,6 +11,24 @@ _No unreleased changes yet._
 
 ---
 
+## [0.28.6] — 2026-07-05
+
+Sprint 4 [1AM-162](https://linear.app/1am-it/issue/1AM-162) — adds a ticker-scoped "Other trades in [TICKER]" section to the trade-detail drawer, complementing the existing sector-scoped "Related filings" section. PATCH bump: additive discovery affordance on an existing surface.
+
+### Added
+
+- **`sameTickerTrades` useMemo in `BrowseAllFilingsScreen.jsx` (1AM-162)** — same shape as the existing sector-scoped `relatedTrades`: up to 3 other trades on the same ticker, sorted `tradeDate` descending, current trade excluded, sourced from `allFetchedTrades` (not filter-scoped `visibleTrades`) so active Browse filters don't hide same-ticker trades that would otherwise qualify.
+- **"Other trades in [TICKER]" section in `TradeDetailDrawer.jsx` (1AM-162)** — rendered above the existing "Related filings in [Sector]" section (a same-ticker match is a more specific signal than a same-sector match). Same auto-hide-when-empty behavior, same tap-to-hot-swap via the existing `onRelatedTradeClick` callback, no dedup on politician (repeated same-ticker trades from one politician are a concentration signal, not noise).
+- **Extracted `RelatedTradeRow` component** — the row rendering (avatar + ticker + action + amount + date) was duplicated between the two sections; pulled out into one shared component instead of copy-pasting ~70 lines a second time.
+
+### Smoke-tested
+
+- Lint: no new findings (same 5 pre-existing entries as [1AM-172](https://linear.app/1am-it/issue/1AM-172)/[1AM-110](https://linear.app/1am-it/issue/1AM-110)).
+- All 37 existing vitest cases pass, no regressions.
+- **Not end-to-end visually verified** — same reason as prior Sprint 4 tickets: needs real trade data with repeat tickers, and local dev's `/api/trades` is broken. Recommend a preview-deploy or production spot-check, specifically for a ticker with 2+ trades from different politicians.
+
+---
+
 ## [0.28.5] — 2026-07-05
 
 Sprint 4 [1AM-110](https://linear.app/1am-it/issue/1AM-110) — migrates the three `OnboardingDataExplainer` content blocks (removed from onboarding in v0.13.1) to context-relevant surfaces: Settings for the STOCK Act explanation, trade-detail for the timing/ranges disclaimers. PATCH bump: passive reference content, no new screen.
@@ -1211,7 +1229,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.5...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.6...HEAD
+[0.28.6]: https://github.com/1am-it/stockactalert/compare/v0.28.5...v0.28.6
 [0.28.5]: https://github.com/1am-it/stockactalert/compare/v0.28.4...v0.28.5
 [0.28.4]: https://github.com/1am-it/stockactalert/compare/v0.28.3...v0.28.4
 [0.28.3]: https://github.com/1am-it/stockactalert/compare/v0.28.2...v0.28.3
