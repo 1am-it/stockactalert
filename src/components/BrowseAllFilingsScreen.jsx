@@ -853,6 +853,33 @@ export default function BrowseAllFilingsScreen({
               </span>
             )}
             <FreshnessIndicatorPill lastUpdatedAt={lastUpdatedAt} />
+            {/* 1AM-156: "Reset filters" was previously reachable only from
+                the "No filings match" empty-state. Gated purely on
+                hasActiveFilter (not on the pills row above) so it's also
+                reachable when only chamber or time-period differ from
+                default — neither is pillified, so the pills row can be
+                hidden while hasActiveFilter is still true. Underlined-text
+                treatment (not a pill) — it's a meta-action, not a filter. */}
+            {hasActiveFilter && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                style={{
+                  marginLeft: 'auto',
+                  background: 'transparent',
+                  border: 'none',
+                  padding: 0,
+                  fontSize: 12,
+                  color: '#6B7280',
+                  textDecoration: 'underline',
+                  textDecorationColor: '#9CA3AF',
+                  fontFamily: "'DM Sans', sans-serif",
+                  cursor: 'pointer',
+                }}
+              >
+                Clear all
+              </button>
+            )}
           </div>
         )}
 

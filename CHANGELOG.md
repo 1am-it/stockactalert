@@ -11,6 +11,22 @@ _No unreleased changes yet._
 
 ---
 
+## [0.28.4] — 2026-07-05
+
+Sprint 4 [1AM-156](https://linear.app/1am-it/issue/1AM-156) — "Reset filters" is now reachable from the results-visible state on Browse, not only from the "No filings match" empty-state. PATCH bump: UX affordance fix on an existing surface.
+
+### Added
+
+- **"Clear all" link on Browse's result-count row (1AM-156)** — renders whenever `hasActiveFilter` is true, regardless of how many results are showing. Deliberately gated on `hasActiveFilter` rather than on the active-filter-pills row's own visibility condition: chamber and time-period aren't pillified, so a user who only changes one of those would have `hasActiveFilter === true` with the pills row still hidden — the old empty-state-only reset had no equivalent for that case either. Styled as an underlined text link (matching the existing "More filters →" link), not a `FilterPill`, per the ticket's explicit requirement that a reset is a meta-action, not a filter.
+
+### Smoke-tested
+
+- Lint clean on the changed file (no new findings beyond the two pre-existing `react-hooks/set-state-in-effect` entries from [1AM-172](https://linear.app/1am-it/issue/1AM-172)).
+- All 37 existing vitest cases pass, no regressions.
+- **Not visually verified** — the new link lives in the same `!loading && !error` block as the result-count strip, which never renders in local dev because of the same pre-existing broken `/api/trades` noted in [1AM-172](https://linear.app/1am-it/issue/1AM-172). Recommend a preview-deploy or production spot-check.
+
+---
+
 ## [0.28.3] — 2026-07-05
 
 Sprint 4 [1AM-172](https://linear.app/1am-it/issue/1AM-172) — Phase 4b of the Sector Activity Heatmap (1AM-166 epic): tapping a sector bar on Watch now navigates to Explore pre-filtered on that sector and time window, instead of just switching tabs. PATCH bump: additive interaction on an existing surface, no new screen.
@@ -1178,7 +1194,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.3...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.4...HEAD
+[0.28.4]: https://github.com/1am-it/stockactalert/compare/v0.28.3...v0.28.4
 [0.28.3]: https://github.com/1am-it/stockactalert/compare/v0.28.2...v0.28.3
 [0.28.2]: https://github.com/1am-it/stockactalert/compare/v0.28.1...v0.28.2
 [0.28.1]: https://github.com/1am-it/stockactalert/compare/v0.28.0...v0.28.1
