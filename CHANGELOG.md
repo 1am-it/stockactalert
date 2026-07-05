@@ -11,6 +11,22 @@ _No unreleased changes yet._
 
 ---
 
+## [0.29.0] — 2026-07-05
+
+Sprint 4 [1AM-133](https://linear.app/1am-it/issue/1AM-133) phase 1 — Browse's Recent Trades gets a view-mode toggle: "Trades" (existing chronological list, unchanged) and "By politician" (new aggregated view). MINOR bump: new interactive surface, new component. "By ticker" is phase 2, deliberately deferred — no mockup exists for it yet, per the ticket's own recommended approach.
+
+### Added
+
+- **View-mode toggle in `BrowseAllFilingsScreen.jsx` (1AM-133)** — segmented control above the trade list. "By politician" aggregates the current *filter-aware* `visibleTrades` (respects chamber/action/time-period/search/amount filters — unlike the sector/ticker "Related trades" sections, which are intentionally filter-independent) into one row per politician: trade count, cumulative amount (sum of range midpoints, displayed as a magnitude estimate — see `formatDollarsShort`), party, and a Follow toggle. Default sort: most trades first. Tap a row → navigates to `PoliticianDetailScreen` via the existing `onPoliticianClick` plumbing (reuses the established "tap row → detail page" pattern rather than an inline accordion).
+- **`getInitials` extracted to `src/lib/congress.js`** — was duplicated between `TradeCard.jsx` (inline) and `TradeDetailDrawer.jsx` (local function); this ticket's new `PoliticianAggregateRow` is a third consumer, crossing this codebase's own documented "extract at third consumer" threshold. `TradeDetailDrawer.jsx` now imports the shared version instead of its local copy.
+
+### Smoke-tested
+
+- Lint clean (no new findings). `npm run build` succeeds. All 37 vitest cases pass.
+- **Visually verified with real production data** for the first time this sprint, via [1AM-261](https://linear.app/1am-it/issue/1AM-261)'s new local dev API middleware: both view modes render correctly against 50 real filings — Trades mode unchanged, By-politician mode correctly aggregates and sorts (e.g. "30 trades · $405K" for the most-active politician down to "1 trade · $8K"), Follow toggles work, no console errors.
+
+---
+
 ## [0.28.6] — 2026-07-05
 
 Sprint 4 [1AM-162](https://linear.app/1am-it/issue/1AM-162) — adds a ticker-scoped "Other trades in [TICKER]" section to the trade-detail drawer, complementing the existing sector-scoped "Related filings" section. PATCH bump: additive discovery affordance on an existing surface.
@@ -1229,7 +1245,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.6...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/1am-it/stockactalert/compare/v0.28.6...v0.29.0
 [0.28.6]: https://github.com/1am-it/stockactalert/compare/v0.28.5...v0.28.6
 [0.28.5]: https://github.com/1am-it/stockactalert/compare/v0.28.4...v0.28.5
 [0.28.4]: https://github.com/1am-it/stockactalert/compare/v0.28.3...v0.28.4

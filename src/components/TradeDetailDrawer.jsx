@@ -64,7 +64,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Avatar from './Avatar';
 import DisclosureTimeline from './DisclosureTimeline';
-import { findByName } from '../lib/congress';
+import { findByName, getInitials } from '../lib/congress';
 import { formatChamberLine } from '../lib/formatChamberLine';
 import { lookupSector } from '../lib/sectors';
 import { formatFiledRelative, formatShortDate } from '../lib/dates';
@@ -84,21 +84,6 @@ const SOURCE_DISPLAY_NAMES = {
 function getSourceDisplayName(source) {
   if (!source) return 'unknown source';
   return SOURCE_DISPLAY_NAMES[source.toLowerCase()] || source;
-}
-
-// Initials from politicus name, e.g. "April Delaney" → "AD". Same logic as
-// TradeCard (1AM-65) — duplicated rather than extracted to a lib because the
-// transformation is two lines and only two consumers, both of which would
-// need to import the helper. Future cleanup ticket can extract if a third
-// consumer appears.
-function getInitials(name) {
-  if (!name) return '??';
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
 }
 
 // Compact amount range for the Related filings rows (1AM-70 phase 5).

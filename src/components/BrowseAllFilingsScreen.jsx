@@ -72,7 +72,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TradeCard from './TradeCard';
 import TradeDetailDrawer from './TradeDetailDrawer';
+import Avatar from './Avatar';
 import { lookupSector } from '../lib/sectors';
+import { findByName, getInitials } from '../lib/congress';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
 import FilterSheet from './FilterSheet';
@@ -209,6 +211,51 @@ function parseAmountMidpoint(amountStr) {
   return (parseSingle(parts[0]) + parseSingle(parts[1])) / 2;
 }
 
+// 1AM-133: magnitude-only dollar formatter for the by-politician aggregate
+// row's cumulative amount. Deliberately not a precise sum display — the
+// underlying number is already itself a sum of range-midpoint *estimates*
+// (parseAmountMidpoint), so a falsely-precise "$847,500" would overstate
+// confidence. "$850K"-style rounding matches that estimate's actual accuracy.
+function formatDollarsShort(num) {
+  if (!num) return '$0';
+  if (num >= 1_000_000) {
+    const millions = num / 1_000_000;
+    return `$${millions >= 10 ? Math.round(millions) : millions.toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (num >= 1_000) return `$${Math.round(num / 1_000)}K`;
+  return `$${Math.round(num)}`;
+}
+
+// 1AM-133: aggregates a trade list into one row per politician — count,
+// cumulative amount (sum of range midpoints), most-recent trade date, and
+// party (for the avatar ring). Sourced from visibleTrades (the filter-aware
+// list), NOT allFetchedTrades — unlike the sector/ticker "Related" sections,
+// this aggregation must respect active Browse filters (chamber/action/
+// time-period/search/amount) per the ticket's explicit requirement: a
+// by-politician view that ignored filters would silently disagree with the
+// Trades view showing right above the toggle.
+function aggregatePoliticiansByTrade(tradeList) {
+  const buckets = new Map();
+  for (const t of tradeList) {
+    const key = t.politician;
+    if (!key) continue;
+    const existing = buckets.get(key) || {
+      politician: key,
+      party: t.party,
+      count: 0,
+      cumulative: 0,
+      lastTradeDate: t.tradeDate,
+    };
+    existing.count += 1;
+    existing.cumulative += parseAmountMidpoint(t.amount);
+    if (t.tradeDate > existing.lastTradeDate) existing.lastTradeDate = t.tradeDate;
+    buckets.set(key, existing);
+  }
+  // Default sort for v1: most-active first (highest trade count). Per-mode
+  // custom sort options are explicitly out of scope for this ticket.
+  return Array.from(buckets.values()).sort((a, b) => b.count - a.count);
+}
+
 export default function BrowseAllFilingsScreen({
   // eslint-disable-next-line no-unused-vars
   onBack,
@@ -245,6 +292,14 @@ export default function BrowseAllFilingsScreen({
   const [timePeriod, setTimePeriod] = useState('past30d');
   // 1AM-112: sort order. Default 'newest' matches API order.
   const [sortOrder, setSortOrder] = useState('newest');
+
+  // 1AM-133: Recent Trades view-mode toggle. 'trades' = chronological list
+  // (current default behaviour, unchanged). 'by-politician' = aggregated
+  // rows. Not persisted across sessions — Browse is a stateless utility per
+  // ticket scope ("start simple, add if user-feedback asks"). "By ticker"
+  // is deliberately not built yet — no mockup exists for it (see ticket);
+  // phased as a follow-up once "By politician" validates the toggle pattern.
+  const [viewMode, setViewMode] = useState('trades');
 
   // 1AM-154: minimum-amount filter. Default 'any' = no threshold applied.
   // Filter logic in `visibleTrades` useMemo. Pill renders in active-filter
@@ -520,6 +575,14 @@ export default function BrowseAllFilingsScreen({
     }
     return filtered;
   }, [allFetchedTrades, chamberFilter, actionFilter, amountFilter, sectorFilter, sortOrder]);
+
+  // 1AM-133: by-politician aggregation, only computed when that view-mode is
+  // active — no point re-aggregating on every filter change while the user
+  // is looking at the flat Trades list.
+  const politicianAggregates = useMemo(() => {
+    if (viewMode !== 'by-politician') return [];
+    return aggregatePoliticiansByTrade(visibleTrades);
+  }, [viewMode, visibleTrades]);
 
   // 1AM-114: fetch the next page of trades and append them to extraTrades.
   // Offset is the count of already-fetched backend rows (NOT the visible
@@ -905,6 +968,71 @@ export default function BrowseAllFilingsScreen({
           </div>
         )}
 
+        {/* ── View-mode toggle (1AM-133) ──────────────────────────────────── */}
+        {/* "By ticker" deliberately not built yet (see ticket) — toggle is
+            two-way for now, extend to three when that mode lands. */}
+        {!loading && !error && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+            {[
+              { value: 'trades', label: 'Trades' },
+              { value: 'by-politician', label: 'By politician' },
+            ].map((opt) => {
+              const active = viewMode === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setViewMode(opt.value)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 999,
+                    border: `1px solid ${active ? '#0D1B2A' : '#E5E7EB'}`,
+                    background: active ? '#0D1B2A' : '#FFFFFF',
+                    color: active ? '#FAFAF7' : '#374151',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    fontFamily: "'DM Sans', sans-serif",
+                    cursor: 'pointer',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── By-politician aggregate view (1AM-133) ──────────────────────── */}
+        {!loading && !error && viewMode === 'by-politician' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {politicianAggregates.length === 0 && (
+              <div
+                style={{
+                  padding: '32px 16px',
+                  textAlign: 'center',
+                  color: '#9CA3AF',
+                  fontSize: 13,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                No filings match the current filters.
+              </div>
+            )}
+            {politicianAggregates.map((agg) => (
+              <PoliticianAggregateRow
+                key={agg.politician}
+                aggregate={agg}
+                isFollowing={followedPoliticians.includes(agg.politician)}
+                onToggleFollow={() => onTogglePolitician(agg.politician)}
+                onClick={() => onPoliticianClick(agg.politician)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── Loading / error / empty / list (Trades mode) ─────────────────── */}
+        {viewMode === 'trades' && (
+        <>
         {/* ── Loading / error / empty / list ──────────────────────────────── */}
         {loading && (
           <div
@@ -1082,6 +1210,8 @@ export default function BrowseAllFilingsScreen({
             )}
           </div>
         )}
+        </>
+        )}
       </div>
 
       {/* ── Filter sheet (1AM-124 fase 8) ──────────────────────────────── */}
@@ -1159,6 +1289,93 @@ export default function BrowseAllFilingsScreen({
         }}
       />
     </div>
+  );
+}
+
+// 1AM-133: one row per politician in the "By politician" view-mode. Avatar +
+// name + trade count + cumulative amount (magnitude estimate, see
+// formatDollarsShort) + a Follow toggle. Tap anywhere outside the Follow
+// pill navigates to PoliticianDetailScreen via the existing onPoliticianClick
+// plumbing — reuses the app's established "tap row → detail page" pattern
+// rather than an inline accordion, which the ticket left as an implementation
+// choice ("expand inline OR navigate to detail page, TBD").
+function PoliticianAggregateRow({ aggregate, isFollowing, onToggleFollow, onClick }) {
+  const matches = findByName(aggregate.politician);
+  const bioguideId = matches.length > 0 ? matches[0].bioguideId : null;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 14px',
+        background: '#FFFFFF',
+        border: '1px solid #E5E7EB',
+        borderRadius: 14,
+        cursor: 'pointer',
+        fontFamily: "'DM Sans', sans-serif",
+        textAlign: 'left',
+        width: '100%',
+      }}
+    >
+      <Avatar
+        bioguideId={bioguideId}
+        size="sm"
+        initials={getInitials(aggregate.politician)}
+        party={aggregate.party}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontWeight: 600,
+            fontSize: 14,
+            color: '#0D1B2A',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {aggregate.politician}
+        </div>
+        <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+          {aggregate.count} {aggregate.count === 1 ? 'trade' : 'trades'} ·{' '}
+          {formatDollarsShort(aggregate.cumulative)}
+        </div>
+      </div>
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={(e) => {
+          // Follow toggle must not also trigger the row's own onClick
+          // (navigate to detail) — same stopPropagation pattern used by
+          // TradeCard's inline Follow pill.
+          e.stopPropagation();
+          onToggleFollow();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.stopPropagation();
+            e.preventDefault();
+            onToggleFollow();
+          }
+        }}
+        style={{
+          flexShrink: 0,
+          fontSize: 11,
+          fontWeight: 600,
+          padding: '4px 10px',
+          borderRadius: 999,
+          background: isFollowing ? 'rgba(5, 150, 105, 0.1)' : '#F3F4F6',
+          color: isFollowing ? '#059669' : '#6B7280',
+          cursor: 'pointer',
+        }}
+      >
+        {isFollowing ? 'Following ✓' : 'Follow'}
+      </span>
+    </button>
   );
 }
 
