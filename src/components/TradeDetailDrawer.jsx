@@ -35,6 +35,13 @@
 // row → onRelatedTradeClick hot-swaps drawer content (no dismiss/re-
 // open). Section returns null entirely when relatedTrades is empty.
 //
+// 1AM-162 (2026-07-05): "Other trades in [TICKER]" section added above
+// Related filings — same row shape (now shared via RelatedTradeRow), same
+// allFetchedTrades sourcing, same auto-hide-when-empty behaviour. Answers a
+// different question than the sector section: "who else traded THIS
+// ticker" vs "who else is active in this sector". Rendered first because
+// a same-ticker match is a more specific signal than a same-sector match.
+//
 // Phase 6 (swipe-down gesture, 2026-05-09): mobile-only swipe-down
 // dismiss via touch handlers on the grab handle. Combined threshold —
 // either >40% of sheet height OR velocity > 0.5px/ms over the last
@@ -146,6 +153,91 @@ function abbreviateAmount(amountStr) {
   return amountStr; // graceful fallback
 }
 
+// 1AM-162: shared row for both "Related filings in [Sector]" and "Other
+// trades in [TICKER]" — same shape (avatar + ticker + action + amount +
+// date), same tap-to-hot-swap behaviour, same owner-info omission (per
+// 1AM-70 phase 5 design Q&A: politicus identity is avatar-only in these
+// rows; owner detail doesn't fit row-density on a 375px viewport).
+function RelatedTradeRow({ trade: rt, onClick }) {
+  const isBuy = rt.action === 'buy';
+  const actionColor = isBuy ? '#059669' : '#DC2626';
+  const actionLabel = isBuy ? '▲ BUY' : '▼ SELL';
+  // 1AM-146: resolve photo per related-row. Spouse/dependent rows skip the
+  // photo (initials only); self/joint rows show the politicus photo
+  // (mede-actor of the joint transaction).
+  const rtOwner = rt.owner || 'self';
+  const rtMatches = ['self', 'joint'].includes(rtOwner)
+    ? findByName(rt.politician)
+    : [];
+  const rtBioguideId = rtMatches.length > 0 ? rtMatches[0].bioguideId : null;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        background: '#FFFFFF',
+        border: '1px solid #F3F4F6',
+        borderRadius: 10,
+        cursor: 'pointer',
+        fontFamily: "'DM Sans', sans-serif",
+        textAlign: 'left',
+        transition: 'background 0.15s ease, border-color 0.15s ease',
+        width: '100%',
+      }}
+    >
+      <Avatar
+        bioguideId={rtBioguideId}
+        size="sm"
+        initials={getInitials(rt.politician)}
+        party={rt.party}
+      />
+      <span
+        style={{
+          fontWeight: 600,
+          fontSize: 14,
+          color: '#0D1B2A',
+          minWidth: 0,
+        }}
+      >
+        {rt.ticker}
+      </span>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: actionColor,
+          letterSpacing: '0.04em',
+        }}
+      >
+        {actionLabel}
+      </span>
+      <span
+        style={{
+          fontSize: 12,
+          color: '#6B7280',
+        }}
+      >
+        {abbreviateAmount(rt.amount)}
+      </span>
+      <span
+        style={{
+          fontSize: 12,
+          color: '#9CA3AF',
+          marginLeft: 'auto',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {formatShortDate(rt.tradeDate)}
+      </span>
+    </button>
+  );
+}
+
 export default function TradeDetailDrawer({
   trade,
   onClose,
@@ -154,6 +246,7 @@ export default function TradeDetailDrawer({
   onViewProfile,
   onSectorClick,
   relatedTrades = [],
+  sameTickerTrades = [],
   onRelatedTradeClick,
 }) {
   // Ref to the scrollable content area. Phase 6 reads scrollTop to gate
@@ -887,6 +980,45 @@ export default function TradeDetailDrawer({
               Redundancy is accepted by design — if the same politicus
               appears in all 3 rows that's a discovery signal ("active in
               this sector"), not noise to dedupe. */}
+          {/* ── Other trades in [TICKER] section (1AM-162) ───────────────── */}
+          {/* Ticker-scoped complement to Related filings below — answers
+              "who else traded THIS ticker" vs sector's "who else is active
+              in this sector". Rendered first (above sector-section): a
+              same-ticker match is a more specific, stronger signal than a
+              same-sector match, per design Q&A 2026-05-09. Same auto-hide,
+              same allFetchedTrades sourcing, same hot-swap tap behaviour,
+              same no-dedupe-on-politicus rationale as Related filings —
+              see that section's comment below for the shared reasoning. */}
+          {sameTickerTrades.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: '#6B7280',
+                  marginBottom: 12,
+                }}
+              >
+                Other trades in {trade.ticker}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {sameTickerTrades.map((rt) => (
+                  <RelatedTradeRow
+                    key={rt.id}
+                    trade={rt}
+                    onClick={() =>
+                      typeof onRelatedTradeClick === 'function' &&
+                      onRelatedTradeClick(rt)
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {relatedTrades.length > 0 && (
             <div style={{ marginBottom: 24 }}>
               <div
@@ -903,88 +1035,16 @@ export default function TradeDetailDrawer({
                 Related filings{sectorName ? ` in ${sectorName}` : ''}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {relatedTrades.map((rt) => {
-                  const isBuy = rt.action === 'buy';
-                  const actionColor = isBuy ? '#059669' : '#DC2626';
-                  const actionLabel = isBuy ? '▲ BUY' : '▼ SELL';
-                  // 1AM-146: resolve photo per related-row. Spouse/dependent
-                  // rows skip the photo (initials only); self/joint rows show
-                  // the politicus photo (mede-actor of the joint transaction).
-                  const rtOwner = rt.owner || 'self';
-                  const rtMatches = ['self', 'joint'].includes(rtOwner)
-                    ? findByName(rt.politician)
-                    : [];
-                  const rtBioguideId =
-                    rtMatches.length > 0 ? rtMatches[0].bioguideId : null;
-                  return (
-                    <button
-                      key={rt.id}
-                      type="button"
-                      onClick={() =>
-                        typeof onRelatedTradeClick === 'function' &&
-                        onRelatedTradeClick(rt)
-                      }
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '10px 12px',
-                        background: '#FFFFFF',
-                        border: '1px solid #F3F4F6',
-                        borderRadius: 10,
-                        cursor: 'pointer',
-                        fontFamily: "'DM Sans', sans-serif",
-                        textAlign: 'left',
-                        transition: 'background 0.15s ease, border-color 0.15s ease',
-                      }}
-                    >
-                      <Avatar
-                        bioguideId={rtBioguideId}
-                        size="sm"
-                        initials={getInitials(rt.politician)}
-                        party={rt.party}
-                      />
-                      <span
-                        style={{
-                          fontWeight: 600,
-                          fontSize: 14,
-                          color: '#0D1B2A',
-                          minWidth: 0,
-                        }}
-                      >
-                        {rt.ticker}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: actionColor,
-                          letterSpacing: '0.04em',
-                        }}
-                      >
-                        {actionLabel}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: '#6B7280',
-                        }}
-                      >
-                        {abbreviateAmount(rt.amount)}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: '#9CA3AF',
-                          marginLeft: 'auto',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {formatShortDate(rt.tradeDate)}
-                      </span>
-                    </button>
-                  );
-                })}
+                {relatedTrades.map((rt) => (
+                  <RelatedTradeRow
+                    key={rt.id}
+                    trade={rt}
+                    onClick={() =>
+                      typeof onRelatedTradeClick === 'function' &&
+                      onRelatedTradeClick(rt)
+                    }
+                  />
+                ))}
               </div>
             </div>
           )}
