@@ -11,6 +11,26 @@ _No unreleased changes yet._
 
 ---
 
+## [0.28.1] — 2026-07-05
+
+Two small ops/copy fixes bundled into one release: [1AM-78](https://linear.app/1am-it/issue/1AM-78) infrastructure-monitoring health endpoint, and [1AM-45](https://linear.app/1am-it/issue/1AM-45) tester-feedback follow-up [1AM-258](https://linear.app/1am-it/issue/1AM-258) — plain-language copy for the Alerts-tab "late filing" label. PATCH bump: neither is a new user-facing feature (health endpoint is ops-only, no UI; the other is a copy-only fix).
+
+### Added
+
+- **`/api/health` endpoint (1AM-78)** (`api/health.js`) — Vercel Edge Function reporting Supabase connectivity plus the last `fetch-trades` cron run's status/staleness (read from new `cron_runs` table, `supabase/migrations/20260704120000_1AM-78_cron_runs.sql` + grants follow-up `20260705070139_1AM-78_cron_runs_grants.sql`). Returns `200 {"status":"ok"}` when healthy, `503 {"status":"degraded"}` otherwise. Lets a silently-stopped cron be caught before stale data is noticed by hand. Deliberately omits push-dispatch metrics — that pipeline ([1AM-72](https://linear.app/1am-it/issue/1AM-72)) doesn't exist yet.
+- **`logCronRun()` helper (1AM-78)** (`scripts/lib/archive-helpers.mjs`) — best-effort insert into `cron_runs` after each `cron-fetch-trades.mjs` run (success/partial/failure), consumed by `/api/health`.
+
+### Fixed
+
+- **`AlertsScreen.jsx` late-filing alert copy (1AM-258)** — the label line ("Late filing · TICKER") is replaced with the trade date ("May 1 · TICKER"), matching the plain-language date + delta pattern `TradeCard` already uses (1AM-114), instead of the bare "late filing" term. Also fixes a pre-existing duplicate-word bug in the detail line: `formatFiledRelative()` already returns a string prefixed with "filed" (e.g. "filed 4 days later"), but the old code additionally prepended "Filed ", rendering "Filed filed 4 days later". Now renders "Filed 4 days later".
+
+### Smoke-tested
+
+- **1AM-78**: `/api/health` invoked locally against the real Supabase project — 200 OK, `checks.database` and `checks.fetchTradesCron` both correct. Migrations applied to remote (including the grants hotfix, needed to fix a 42501 permission error identical to the one solved for other tables in 1AM-183).
+- **1AM-258**: Lint clean on the changed file (`npx eslint src/components/AlertsScreen.jsx`). All 37 existing vitest cases pass, no regressions. Not visually verified in-browser — local dev has no working `/api/trades` backend (pre-existing, unrelated environment limitation), so no live late-filing alert could be rendered locally. Change reuses already-verified `TradeCard` date helpers (`formatShortDate`, `formatFiledRelative`), so risk is low, but flagging for a preview-deploy spot-check before/soon after release.
+
+---
+
 ## [0.28.0] — 2026-07-04
 
 IA-redesign follow-up [1AM-124](https://linear.app/1am-it/issue/1AM-124) sub-ticket [1AM-126](https://linear.app/1am-it/issue/1AM-126) — Alerts-tab implementation. Replaces the "Alerts — coming soon" placeholder with a functional tab: `useAlerts` derives NEW_TRADE and LATE_FILING alerts client-side from the same `trades` + `followedPoliticians` state already lifted at App level (no new fetch, no new backend endpoint). Read/unread state is device-local (`readAlertIds` in localStorage), surfaced both as the alert list itself and as an unread-count badge on the Alerts tab icon. MINOR bump: new hook, new component, new user-facing tab surface.
@@ -1123,7 +1143,9 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.1...HEAD
+[0.28.1]: https://github.com/1am-it/stockactalert/compare/v0.28.0...v0.28.1
+[0.28.0]: https://github.com/1am-it/stockactalert/compare/v0.27.1...v0.28.0
 [0.27.1]: https://github.com/1am-it/stockactalert/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/1am-it/stockactalert/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/1am-it/stockactalert/compare/v0.25.0...v0.26.0

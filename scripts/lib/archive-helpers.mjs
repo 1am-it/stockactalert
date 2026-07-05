@@ -224,3 +224,21 @@ export async function getArchiveCount(supabase) {
 
   return count;
 }
+
+// ── Cron run logging ──────────────────────────────────────────────────────────
+
+/**
+ * 1AM-78: record this run in `cron_runs` so /api/health can report a real
+ * last-run timestamp. Best-effort — a logging failure must never fail the
+ * cron job itself, so errors are swallowed (caller already logs to stdout).
+ *
+ * @param {'success'|'partial'|'failure'} status
+ * @param {string} [detail]
+ */
+export async function logCronRun(supabase, jobName, status, detail) {
+  try {
+    await supabase.from('cron_runs').insert({ job_name: jobName, status, detail });
+  } catch {
+    // best-effort only — see docstring
+  }
+}

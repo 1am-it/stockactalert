@@ -109,8 +109,15 @@ function AlertRow({ alert, unread, onClick }) {
   const isLateFiling = alert.type === ALERT_TYPES.LATE_FILING;
   const { trade } = alert;
 
+  // 1AM-258: avoid the "late filing" jargon label. Match the plain-language
+  // date + delta pattern TradeCard already uses (1AM-114) — "May 1" on the
+  // label line, "Filed 4 days later" on the message line — instead of a bare
+  // "Late filing" tag that assumes the reader already knows what a filing is.
+  const filedRelative = formatFiledRelative(trade.filedDate, trade.tradeDate);
   const message = isLateFiling
-    ? `Filed ${formatFiledRelative(trade.filedDate, trade.tradeDate) || 'late'}`
+    ? filedRelative
+      ? filedRelative.charAt(0).toUpperCase() + filedRelative.slice(1)
+      : 'Filed late'
     : `${trade.action === 'Purchase' ? 'Bought' : 'Sold'} · ${trade.amount}`;
 
   return (
@@ -152,7 +159,7 @@ function AlertRow({ alert, unread, onClick }) {
           {unread && <UnreadDot />}
         </div>
         <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>
-          {isLateFiling ? 'Late filing' : 'New trade'} · {alert.ticker}
+          {isLateFiling ? formatShortDate(trade.tradeDate) || 'Trade' : 'New trade'} · {alert.ticker}
         </div>
         <div style={{ fontSize: 11, color: isLateFiling ? '#D97706' : '#9CA3AF' }}>
           {message}
