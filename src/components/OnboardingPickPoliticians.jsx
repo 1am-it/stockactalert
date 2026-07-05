@@ -20,6 +20,16 @@
 // Selection contract: parent App.jsx owns `followedPoliticians` as an array
 // of `name` strings, and `onToggle(name)` adds/removes. Unchanged from
 // pre-1AM-160 monolithic version.
+//
+// 1AM-259: added the STOCK Act callout below the intro copy. Tester feedback
+// (1AM-45) found new users didn't know what "STOCK Act" meant before hitting
+// their first trade card, and that plain inline text blended into the
+// surrounding grey copy enough to be skipped. The callout uses the same
+// amber (#D97706) as AlertsScreen's late-filing indicator — that color
+// already means "time/disclosure-rule context" elsewhere in the app, so
+// this builds the same vocabulary before the user ever sees a trade.
+// Deep-dive explanation (amount ranges, "why 45 days") stays out of scope
+// here — that's 1AM-110's job on trade-detail + Settings.
 
 import PoliticianPickerList from './PoliticianPickerList';
 
@@ -64,6 +74,27 @@ export default function OnboardingPickPoliticians({
         <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 4 }}>
           Pick at least one to get started. You can always change this later.
         </p>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            alignItems: 'flex-start',
+            background: 'rgba(217, 119, 6, 0.08)',
+            border: '1px solid rgba(217, 119, 6, 0.25)',
+            borderRadius: 10,
+            padding: '12px 14px',
+            marginBottom: 16,
+          }}
+        >
+          <ClockIcon />
+          <p style={{ margin: 0, fontSize: 12.5, color: '#0D1B2A', lineHeight: 1.55 }}>
+            Under the STOCK Act, members of Congress must disclose stock
+            trades within 45 days of the trade — this app shows what they
+            did and whether they filed on time.
+          </p>
+        </div>
+
         <p
           style={{
             fontSize: 13,
@@ -136,5 +167,24 @@ export default function OnboardingPickPoliticians({
         </button>
       </div>
     </div>
+  );
+}
+
+// 1AM-259: same shape as AlertsScreen's late-filing clock icon — reused
+// inline here rather than imported, matching this codebase's convention of
+// each screen owning its small icon components.
+function ClockIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      style={{ flexShrink: 0, marginTop: 2 }}
+    >
+      <circle cx="12" cy="12" r="8.5" stroke="#D97706" strokeWidth="2" />
+      <path d="M12 7.5V12l3 2" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
