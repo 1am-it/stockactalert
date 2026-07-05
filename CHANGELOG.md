@@ -13,7 +13,12 @@ _No unreleased changes yet._
 
 ## [0.28.1] — 2026-07-05
 
-1AM-45 tester-feedback follow-up [1AM-258](https://linear.app/1am-it/issue/1AM-258) — plain-language copy for the Alerts-tab "late filing" label. First-round user-validation feedback flagged "late filing" as jargon a new user doesn't parse. PATCH bump: copy-only fix, no new feature.
+Two small ops/copy fixes bundled into one release: [1AM-78](https://linear.app/1am-it/issue/1AM-78) infrastructure-monitoring health endpoint, and [1AM-45](https://linear.app/1am-it/issue/1AM-45) tester-feedback follow-up [1AM-258](https://linear.app/1am-it/issue/1AM-258) — plain-language copy for the Alerts-tab "late filing" label. PATCH bump: neither is a new user-facing feature (health endpoint is ops-only, no UI; the other is a copy-only fix).
+
+### Added
+
+- **`/api/health` endpoint (1AM-78)** (`api/health.js`) — Vercel Edge Function reporting Supabase connectivity plus the last `fetch-trades` cron run's status/staleness (read from new `cron_runs` table, `supabase/migrations/20260704120000_1AM-78_cron_runs.sql` + grants follow-up `20260705070139_1AM-78_cron_runs_grants.sql`). Returns `200 {"status":"ok"}` when healthy, `503 {"status":"degraded"}` otherwise. Lets a silently-stopped cron be caught before stale data is noticed by hand. Deliberately omits push-dispatch metrics — that pipeline ([1AM-72](https://linear.app/1am-it/issue/1AM-72)) doesn't exist yet.
+- **`logCronRun()` helper (1AM-78)** (`scripts/lib/archive-helpers.mjs`) — best-effort insert into `cron_runs` after each `cron-fetch-trades.mjs` run (success/partial/failure), consumed by `/api/health`.
 
 ### Fixed
 
@@ -21,9 +26,8 @@ _No unreleased changes yet._
 
 ### Smoke-tested
 
-- Lint clean on the changed file (`npx eslint src/components/AlertsScreen.jsx`).
-- All 37 existing vitest cases pass, no regressions.
-- Not visually verified in-browser — local dev has no working `/api/trades` backend (pre-existing, unrelated environment limitation), so no live late-filing alert could be rendered locally. Change reuses already-verified `TradeCard` date helpers (`formatShortDate`, `formatFiledRelative`), so risk is low, but flagging for a preview-deploy spot-check before/soon after release.
+- **1AM-78**: `/api/health` invoked locally against the real Supabase project — 200 OK, `checks.database` and `checks.fetchTradesCron` both correct. Migrations applied to remote (including the grants hotfix, needed to fix a 42501 permission error identical to the one solved for other tables in 1AM-183).
+- **1AM-258**: Lint clean on the changed file (`npx eslint src/components/AlertsScreen.jsx`). All 37 existing vitest cases pass, no regressions. Not visually verified in-browser — local dev has no working `/api/trades` backend (pre-existing, unrelated environment limitation), so no live late-filing alert could be rendered locally. Change reuses already-verified `TradeCard` date helpers (`formatShortDate`, `formatFiledRelative`), so risk is low, but flagging for a preview-deploy spot-check before/soon after release.
 
 ---
 
