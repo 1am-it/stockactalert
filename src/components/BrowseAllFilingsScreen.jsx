@@ -128,6 +128,16 @@ const TIME_PERIOD_DAYS = {
   past90d: 90,
 };
 
+// 1AM-172: maps Watch-tab's windowLabel values to the closest Browse-tab
+// timePeriod. '24h' has no exact match (Browse's narrowest chip is 7d) —
+// 'past7d' is the closest window that still includes today's activity.
+const WATCH_WINDOW_TO_TIME_PERIOD = {
+  '24h': 'past7d',
+  '7d': 'past7d',
+  '30d': 'past30d',
+  '90d': 'past90d',
+};
+
 function computeSince(timePeriod) {
   // 1AM-152: 'all' early-return removed alongside the dropped option.
   // Defensive: if an unknown timePeriod string ever reaches here (legacy
@@ -214,6 +224,13 @@ export default function BrowseAllFilingsScreen({
   followedPoliticians = [],
   onTogglePolitician = () => {},
   onPoliticianClick = () => {},
+  // 1AM-172: cross-tab hand-off from Watch-tab's SectorActivityHeatmap.
+  // { sector, window } when the user tapped a sector bar, or null on a
+  // normal tab visit. Consumed once via the effect below, then cleared at
+  // the App level (onConsumePendingFilter) so it doesn't reapply on a
+  // later, unrelated visit to this screen.
+  pendingFilter = null,
+  onConsumePendingFilter = () => {},
 }) {
   // Local UI state — not persisted across sessions per ticket scope ("Browse
   // is a stateless utility for v1").
@@ -246,6 +263,18 @@ export default function BrowseAllFilingsScreen({
   // Cleared via the active-filter pill × — only entry-point to clear, per
   // design Q&A 2026-05-09 (no hidden state, pill must be the affordance).
   const [sectorFilter, setSectorFilter] = useState(null);
+
+  // 1AM-172: apply the Watch-tab sector-tap hand-off, if present. Watch's
+  // windowLabel ('24h'|'7d'|'30d'|'90d') doesn't have an exact match for
+  // '24h' on Browse (TIME_PERIOD_OPTIONS is 7d/30d/90d only) — falls back
+  // to 'past7d', the closest window that still includes "today".
+  useEffect(() => {
+    if (!pendingFilter) return;
+    setSectorFilter(pendingFilter.sector);
+    setTimePeriod(WATCH_WINDOW_TO_TIME_PERIOD[pendingFilter.window] || 'past30d');
+    onConsumePendingFilter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFilter]);
 
   // 1AM-70 phase 5 hotfix: relatedTrades useMemo moved BELOW allFetchedTrades
   // declaration to avoid Temporal Dead Zone ReferenceError. The original
