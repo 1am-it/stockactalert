@@ -279,6 +279,51 @@ export default function SettingsScreen({ onBack }) {
           </div>
         </section>
 
+        {/* ── About this data (1AM-110) ───────────────────────────────────── */}
+        {/* Migrated from the removed OnboardingDataExplainer (1AM-18, deleted
+            in v0.13.1 once Discovery shipped real filings pre-onboarding).
+            Passive reference — reachable when curious, not forced reading.
+            The onboarding STOCK Act one-liner (1AM-259) covers the "why does
+            this app exist" orientation moment; this card is the deeper
+            reference for someone who wants the actual legal/timing context. */}
+        <section
+          style={{
+            padding: '16px 20px',
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #E5E7EB',
+            marginBottom: 16,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#6B7280',
+              marginBottom: 10,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            About this data
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: '#374151',
+              lineHeight: 1.5,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            StockActAlert tracks trades disclosed under the <strong>STOCK Act</strong>{' '}
+            (Stop Trading on Congressional Knowledge Act) — a federal law requiring
+            members of Congress to report stock transactions within 45 days.
+            Amounts are reported as ranges, not exact figures, and disclosures can
+            take time to appear after the trade itself.
+          </div>
+        </section>
+
         {/* ── App version ─────────────────────────────────────────────────── */}
         <div
           style={{

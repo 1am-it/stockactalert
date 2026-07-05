@@ -668,6 +668,21 @@ export default function TradeDetailDrawer({
             >
               {trade.amount || '—'}
             </div>
+            {/* 1AM-110: migrated from the removed OnboardingDataExplainer —
+                explains why amounts read like a range instead of an exact
+                figure, right where the question actually arises. */}
+            <div
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 11,
+                color: '#9CA3AF',
+                marginBottom: 14,
+                lineHeight: 1.4,
+              }}
+            >
+              Reported as a range under federal disclosure rules, not an
+              exact amount.
+            </div>
 
             {/* Filed-relative line. Capitalised once at the start (manual,
                 not via text-transform: capitalize which would title-case
@@ -682,6 +697,20 @@ export default function TradeDetailDrawer({
               }}
             >
               {filedDisplay}
+            </div>
+            {/* 1AM-110: migrated from the removed OnboardingDataExplainer —
+                sets the timing expectation that this isn't a one-shot daily
+                fetch, right next to the filed-date line where it's relevant. */}
+            <div
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 11,
+                color: '#9CA3AF',
+                marginBottom: 12,
+                lineHeight: 1.4,
+              }}
+            >
+              Filing data refreshes multiple times a day.
             </div>
 
             {/* 1AM-157: source attribution + PTR-filing link. When the
