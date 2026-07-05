@@ -256,6 +256,40 @@ function aggregatePoliticiansByTrade(tradeList) {
   return Array.from(buckets.values()).sort((a, b) => b.count - a.count);
 }
 
+// 1AM-133 phase 2: ticker-scoped complement to aggregatePoliticiansByTrade
+// above. Same shape (count, cumulative sum-of-midpoints, sort by count
+// desc), plus a distinct-politician count. Cumulative amount is a PLAIN sum
+// — no net buy/sell direction, no +/- sign — matching the by-politician
+// row exactly. A signed "net sentiment" figure was considered (the first
+// Lovable mockup pass added a "+" prefix) and deliberately rejected: it
+// would make By-ticker a different *kind* of row than By-politician (one
+// row answers "how much money", the other would answer "which direction"),
+// require a new green/red convention on just this one row, and isn't
+// something asked for — only introduce it if users later ask for
+// per-ticker sentiment as its own feature.
+function aggregateTickersByTrade(tradeList) {
+  const buckets = new Map();
+  for (const t of tradeList) {
+    const key = t.ticker;
+    if (!key) continue;
+    const existing = buckets.get(key) || {
+      ticker: key,
+      companyName: t.companyName,
+      count: 0,
+      cumulative: 0,
+      politicians: new Set(),
+    };
+    existing.count += 1;
+    existing.cumulative += parseAmountMidpoint(t.amount);
+    existing.politicians.add(t.politician);
+    if (!existing.companyName && t.companyName) existing.companyName = t.companyName;
+    buckets.set(key, existing);
+  }
+  return Array.from(buckets.values())
+    .map((agg) => ({ ...agg, politicianCount: agg.politicians.size }))
+    .sort((a, b) => b.count - a.count);
+}
+
 export default function BrowseAllFilingsScreen({
   // eslint-disable-next-line no-unused-vars
   onBack,
@@ -294,11 +328,9 @@ export default function BrowseAllFilingsScreen({
   const [sortOrder, setSortOrder] = useState('newest');
 
   // 1AM-133: Recent Trades view-mode toggle. 'trades' = chronological list
-  // (current default behaviour, unchanged). 'by-politician' = aggregated
-  // rows. Not persisted across sessions — Browse is a stateless utility per
-  // ticket scope ("start simple, add if user-feedback asks"). "By ticker"
-  // is deliberately not built yet — no mockup exists for it (see ticket);
-  // phased as a follow-up once "By politician" validates the toggle pattern.
+  // (current default behaviour, unchanged). 'by-politician' / 'by-ticker' =
+  // aggregated rows. Not persisted across sessions — Browse is a stateless
+  // utility per ticket scope ("start simple, add if user-feedback asks").
   const [viewMode, setViewMode] = useState('trades');
 
   // 1AM-154: minimum-amount filter. Default 'any' = no threshold applied.
@@ -582,6 +614,12 @@ export default function BrowseAllFilingsScreen({
   const politicianAggregates = useMemo(() => {
     if (viewMode !== 'by-politician') return [];
     return aggregatePoliticiansByTrade(visibleTrades);
+  }, [viewMode, visibleTrades]);
+
+  // 1AM-133 phase 2: by-ticker aggregation, same lazy-compute pattern.
+  const tickerAggregates = useMemo(() => {
+    if (viewMode !== 'by-ticker') return [];
+    return aggregateTickersByTrade(visibleTrades);
   }, [viewMode, visibleTrades]);
 
   // 1AM-114: fetch the next page of trades and append them to extraTrades.
@@ -969,13 +1007,12 @@ export default function BrowseAllFilingsScreen({
         )}
 
         {/* ── View-mode toggle (1AM-133) ──────────────────────────────────── */}
-        {/* "By ticker" deliberately not built yet (see ticket) — toggle is
-            two-way for now, extend to three when that mode lands. */}
         {!loading && !error && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
             {[
               { value: 'trades', label: 'Trades' },
               { value: 'by-politician', label: 'By politician' },
+              { value: 'by-ticker', label: 'By ticker' },
             ].map((opt) => {
               const active = viewMode === opt.value;
               return (
@@ -1025,6 +1062,42 @@ export default function BrowseAllFilingsScreen({
                 isFollowing={followedPoliticians.includes(agg.politician)}
                 onToggleFollow={() => onTogglePolitician(agg.politician)}
                 onClick={() => onPoliticianClick(agg.politician)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── By-ticker aggregate view (1AM-133 phase 2) ──────────────────── */}
+        {/* Tap behaviour = variant A (chosen over an inline accordion,
+            2026-07-05): switch back to Trades mode with the search
+            pre-filled on that ticker, reusing the existing search/debounce
+            flow rather than a second interaction pattern. There's no
+            ticker-detail screen to navigate to (unlike politicians), so
+            "drill into the filtered flat list" is the equivalent action. */}
+        {!loading && !error && viewMode === 'by-ticker' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {tickerAggregates.length === 0 && (
+              <div
+                style={{
+                  padding: '32px 16px',
+                  textAlign: 'center',
+                  color: '#9CA3AF',
+                  fontSize: 13,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                No filings match the current filters.
+              </div>
+            )}
+            {tickerAggregates.map((agg) => (
+              <TickerAggregateRow
+                key={agg.ticker}
+                aggregate={agg}
+                onClick={() => {
+                  setSearchInput(agg.ticker);
+                  setIsSearchInputMode(false);
+                  setViewMode('trades');
+                }}
               />
             ))}
           </div>
@@ -1374,6 +1447,63 @@ function PoliticianAggregateRow({ aggregate, isFollowing, onToggleFollow, onClic
         }}
       >
         {isFollowing ? 'Following ✓' : 'Follow'}
+      </span>
+    </button>
+  );
+}
+
+// 1AM-133 phase 2: one row per ticker in the "By ticker" view-mode. Deliberately
+// lighter than PoliticianAggregateRow — no avatar (a ticker isn't a person),
+// no Follow toggle (tickers have no follow/watch feature in this app yet).
+// Amount is a plain sum, no +/- sign or colour — see aggregateTickersByTrade's
+// comment for why a signed "net sentiment" figure was rejected.
+function TickerAggregateRow({ aggregate, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        padding: '12px 14px',
+        background: '#FFFFFF',
+        border: '1px solid #E5E7EB',
+        borderRadius: 14,
+        cursor: 'pointer',
+        fontFamily: "'DM Sans', sans-serif",
+        textAlign: 'left',
+        width: '100%',
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 15, color: '#0D1B2A' }}>
+            {aggregate.ticker}
+          </span>
+          {aggregate.companyName && (
+            <span
+              style={{
+                fontSize: 13,
+                color: '#6B7280',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {aggregate.companyName}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+          {aggregate.count} {aggregate.count === 1 ? 'trade' : 'trades'} ·{' '}
+          {aggregate.politicianCount}{' '}
+          {aggregate.politicianCount === 1 ? 'politician' : 'politicians'}
+        </div>
+      </div>
+      <span style={{ flexShrink: 0, fontWeight: 600, fontSize: 15, color: '#0D1B2A' }}>
+        {formatDollarsShort(aggregate.cumulative)}
       </span>
     </button>
   );

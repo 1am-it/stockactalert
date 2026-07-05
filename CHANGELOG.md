@@ -11,6 +11,22 @@ _No unreleased changes yet._
 
 ---
 
+## [0.29.1] — 2026-07-05
+
+Sprint 4 [1AM-133](https://linear.app/1am-it/issue/1AM-133) phase 2 (final) — adds "By ticker" as a third Recent Trades view-mode, alongside "Trades" and "By politician". PATCH bump: extends an already-shipped toggle with one more option, smaller in scope than phase 1's new surface.
+
+### Added
+
+- **"By ticker" view-mode in `BrowseAllFilingsScreen.jsx` (1AM-133)** — `aggregateTickersByTrade` groups the filter-aware `visibleTrades` by ticker: trade count, distinct-politician count, and a cumulative amount (plain sum of range midpoints — deliberately no +/- sign or buy/sell-direction colour; an early Lovable mockup pass added a "+" prefix suggesting net sentiment, rejected in favor of matching the by-politician row's plain-sum convention exactly, per Lovable's own follow-up recommendation).
+- **`TickerAggregateRow` component** — lighter than `PoliticianAggregateRow`: no avatar (a ticker isn't a person), no Follow toggle (tickers have no follow/watch feature in this app). Tap behavior (variant A, chosen over an inline accordion): switches back to "Trades" mode with the search pre-filled on that ticker, reusing the existing search/debounce state rather than introducing a second interaction pattern — there's no ticker-detail screen to navigate to, unlike politicians.
+
+### Smoke-tested
+
+- Lint clean (same 4 pre-existing findings as phase 1, no new ones). All 37 vitest cases pass. `npm run build` succeeds.
+- **Visually verified with real production data**, via the [1AM-261](https://linear.app/1am-it/issue/1AM-261) dev middleware: By-ticker mode renders correctly grouped/sorted (e.g. IBM "2 trades · 2 politicians · $41K"); tapping a row (tested with GOOGL) correctly switches to Trades mode with the ticker pre-filled as a removable search pill, filtering to exactly the matching filings. No console errors.
+
+---
+
 ## [0.29.0] — 2026-07-05
 
 Sprint 4 [1AM-133](https://linear.app/1am-it/issue/1AM-133) phase 1 — Browse's Recent Trades gets a view-mode toggle: "Trades" (existing chronological list, unchanged) and "By politician" (new aggregated view). MINOR bump: new interactive surface, new component. "By ticker" is phase 2, deliberately deferred — no mockup exists for it yet, per the ticket's own recommended approach.
@@ -1245,7 +1261,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.29.1...HEAD
+[0.29.1]: https://github.com/1am-it/stockactalert/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/1am-it/stockactalert/compare/v0.28.6...v0.29.0
 [0.28.6]: https://github.com/1am-it/stockactalert/compare/v0.28.5...v0.28.6
 [0.28.5]: https://github.com/1am-it/stockactalert/compare/v0.28.4...v0.28.5
