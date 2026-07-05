@@ -11,6 +11,23 @@ _No unreleased changes yet._
 
 ---
 
+## [0.28.5] — 2026-07-05
+
+Sprint 4 [1AM-110](https://linear.app/1am-it/issue/1AM-110) — migrates the three `OnboardingDataExplainer` content blocks (removed from onboarding in v0.13.1) to context-relevant surfaces: Settings for the STOCK Act explanation, trade-detail for the timing/ranges disclaimers. PATCH bump: passive reference content, no new screen.
+
+### Added
+
+- **"About this data" card in `SettingsScreen.jsx` (1AM-110)** — explains what the STOCK Act is and that amounts are reported as ranges. Passive reference, reachable when curious, not forced reading — complements [1AM-259](https://linear.app/1am-it/issue/1AM-259)'s onboarding one-liner (orientation moment) rather than duplicating it; this card is the deeper reference.
+- **Two micro-captions in `TradeDetailDrawer.jsx` (1AM-110)** — "Reported as a range under federal disclosure rules, not an exact amount" below the Amount value, and "Filing data refreshes multiple times a day" below the filed-relative line. Placed where the question actually arises rather than upfront.
+
+### Smoke-tested
+
+- Lint clean on both changed files (the one finding in `TradeDetailDrawer.jsx` is a pre-existing, unrelated drag-state-reset effect).
+- All 37 existing vitest cases pass, no regressions.
+- **Not visually verified** — the Settings card is only reachable when signed in (no magic-link inbox available in this environment), and the trade-detail captions depend on the same broken local `/api/trades` noted in [1AM-172](https://linear.app/1am-it/issue/1AM-172)/[1AM-156](https://linear.app/1am-it/issue/1AM-156). Recommend a preview-deploy or production spot-check.
+
+---
+
 ## [0.28.4] — 2026-07-05
 
 Sprint 4 [1AM-156](https://linear.app/1am-it/issue/1AM-156) — "Reset filters" is now reachable from the results-visible state on Browse, not only from the "No filings match" empty-state. PATCH bump: UX affordance fix on an existing surface.
@@ -1194,7 +1211,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.4...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.28.5...HEAD
+[0.28.5]: https://github.com/1am-it/stockactalert/compare/v0.28.4...v0.28.5
 [0.28.4]: https://github.com/1am-it/stockactalert/compare/v0.28.3...v0.28.4
 [0.28.3]: https://github.com/1am-it/stockactalert/compare/v0.28.2...v0.28.3
 [0.28.2]: https://github.com/1am-it/stockactalert/compare/v0.28.1...v0.28.2
