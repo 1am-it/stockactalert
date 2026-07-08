@@ -66,6 +66,8 @@ import SectorActivityHeatmap from './SectorActivityHeatmap';
 import { useTrades } from '../hooks/useTrades';
 import { aggregateMostActivePoliticians } from '../lib/politicianAggregation';
 import { findByName } from '../lib/congress';
+import { parseAmountMidpoint } from '../lib/amountParse';
+import { formatShortDate } from '../lib/dates';
 
 // 1AM-145: thresholds for empty-state variant selection.
 // 0           → 'empty-zero' (Pick a few politicians to follow)
@@ -154,6 +156,23 @@ export default function FeedScreen({
   )
     .filter((t) => !mutedPoliticians.includes(t.politician))
     .filter((t) => !t.tradeDate || t.tradeDate >= sinceISO);
+
+  // 1AM-260: "most notable trade" re-engagement highlight. Sourced from
+  // visibleTrades (already followed + muted + window-filtered — the same
+  // scope as the TradeCards below), not watchTrades (which skips the mute
+  // filter — fine for Most Active/Sector Heatmap's existing scope, wrong for
+  // a highlight the user is meant to look at). Criterion is largest amount
+  // (range-midpoint estimate) for v1 — a single, simple signal, not a
+  // compound score. Real multi-factor "signal scoring" is 1AM-84's job, an
+  // entire epic of its own; this is a lightweight discovery hook, not a
+  // preview of that engine.
+  const notableTrade = useMemo(() => {
+    if (visibleTrades.length === 0) return null;
+    return visibleTrades.reduce((biggest, t) => {
+      if (!biggest) return t;
+      return parseAmountMidpoint(t.amount) > parseAmountMidpoint(biggest.amount) ? t : biggest;
+    }, null);
+  }, [visibleTrades]);
 
   // 1AM-145: empty-state variant selection.
   //   - 0 follows                                    → 'empty-zero' (regardless of trades)
@@ -357,6 +376,15 @@ export default function FeedScreen({
             scoped to followed-politicians + window — no toggle needed.
           - The "Show all" alternative path lives on Explore-tab. */}
 
+      {/* 1AM-260: notable-trade highlight, above the flat list — the
+          re-engagement hook is meant to be the first thing seen. */}
+      {notableTrade && (
+        <NotableTradeHighlight
+          trade={notableTrade}
+          onClick={() => onShowPoliticianDetail?.(notableTrade.politician)}
+        />
+      )}
+
       {/* Render trades — already filtered by followed + muted + window above. */}
       {visibleTrades.map((trade) => (
         <TradeCard
@@ -443,6 +471,70 @@ function YourMostActiveCard({
       cardSubtitle={cardSubtitle}
       onExploreAll={onExploreAll}
     />
+  );
+}
+
+// ── 1AM-260: notable-trade highlight ────────────────────────────────────────
+// Single-trade re-engagement hook — surfaces the largest trade among the
+// current followed + window scope, so there's always a reason to look even
+// when nothing else changed. Deliberately a plain factual card (eyebrow +
+// politician + ticker + action + amount + date), not an editorial claim —
+// matches the app's neutral-language convention (no "hot", no "!", no
+// ranking language beyond "largest").
+function NotableTradeHighlight({ trade, onClick }) {
+  const isBuy = trade.action === 'Purchase';
+  const actionColor = isBuy ? '#059669' : '#DC2626';
+  const actionLabel = isBuy ? '▲ Bought' : '▼ Sold';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        background: '#FFFFFF',
+        border: '1px solid #E8E5D8',
+        borderRadius: 14,
+        padding: '16px 18px',
+        marginBottom: 20,
+        cursor: 'pointer',
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: '#9CA3AF',
+          marginBottom: 8,
+        }}
+      >
+        Largest trade this window
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontWeight: 600, fontSize: 15, color: '#0D1B2A' }}>
+          {trade.politician}
+        </span>
+        <span style={{ fontWeight: 700, fontSize: 16, color: '#0D1B2A' }}>
+          {trade.ticker}
+        </span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+        <span style={{ fontSize: 13, color: '#6B7280' }}>
+          {trade.amount || '—'}
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: actionColor }}>
+          {actionLabel}
+        </span>
+      </div>
+      <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
+        {formatShortDate(trade.tradeDate) || trade.tradeDate}
+      </div>
+    </button>
   );
 }
 
