@@ -11,6 +11,22 @@ _No unreleased changes yet._
 
 ---
 
+## [0.29.2] — 2026-07-08
+
+[1AM-260](https://linear.app/1am-it/issue/1AM-260) — adds a "most notable trade" re-engagement highlight to the top of the Watch tab, from the 1AM-45 tester-feedback synthesis. PATCH bump: additive card on an existing surface, no new screen.
+
+### Added
+
+- **Notable-trade highlight in `FeedScreen.jsx` (1AM-260)** — surfaces the largest trade (range-midpoint estimate) among the current followed + window scope, above the flat trade list. Deliberately a single, simple criterion (largest amount) rather than a compound score — real multi-factor "signal scoring" is [1AM-84](https://linear.app/1am-it/issue/1AM-84)'s epic-scale job; this is a lightweight discovery hook, not a preview of that engine. Plain factual card (eyebrow + politician + ticker + action + amount + date), matching the app's neutral-language convention. Tap → navigates to the politician's detail page, reusing the existing `onShowPoliticianDetail` pattern.
+- **`parseAmountMidpoint` extracted to `src/lib/amountParse.js`** — was duplicated between `BrowseAllFilingsScreen.jsx` and `PoliticianDetailScreen.jsx` (both comments already flagged it "should be DRY-ed... when next touched"). This ticket's highlight is a third consumer, crossing this codebase's documented extraction threshold. Both files now import the shared version.
+
+### Smoke-tested
+
+- Lint clean (exact same 34-problem baseline as before this change — no new findings). All 37 vitest cases pass. `npm run build` succeeds.
+- **Visually verified with real production data**, via the 1AM-261 dev middleware: highlight correctly identified a $50,001–$100,000 LLY trade as largest among smaller $1,001–$15,000 trades in the same window, with correct politician name, buy/sell badge, and date. No console errors.
+
+---
+
 ## [0.29.1] — 2026-07-05
 
 Sprint 4 [1AM-133](https://linear.app/1am-it/issue/1AM-133) phase 2 (final) — adds "By ticker" as a third Recent Trades view-mode, alongside "Trades" and "By politician". PATCH bump: extends an already-shipped toggle with one more option, smaller in scope than phase 1's new surface.
@@ -1261,7 +1277,8 @@ This release ships nine fases together as one coordinated UX shift; downstream t
 
 ---
 
-[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.29.1...HEAD
+[Unreleased]: https://github.com/1am-it/stockactalert/compare/v0.29.2...HEAD
+[0.29.2]: https://github.com/1am-it/stockactalert/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/1am-it/stockactalert/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/1am-it/stockactalert/compare/v0.28.6...v0.29.0
 [0.28.6]: https://github.com/1am-it/stockactalert/compare/v0.28.5...v0.28.6

@@ -75,6 +75,7 @@ import TradeDetailDrawer from './TradeDetailDrawer';
 import Avatar from './Avatar';
 import { lookupSector } from '../lib/sectors';
 import { findByName, getInitials } from '../lib/congress';
+import { parseAmountMidpoint } from '../lib/amountParse';
 import SingleChipGroup from './SingleChipGroup';
 import HeaderBar from './HeaderBar';
 import FilterSheet from './FilterSheet';
@@ -190,26 +191,6 @@ const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'largest', label: 'Largest amount' },
 ];
-
-// Inline copy of the amount-midpoint parser used in PoliticianDetailScreen.
-// Duplicated here to keep this delivery scope-tight; should be DRY-ed into
-// src/lib/amountParse.js when next touched.
-function parseAmountMidpoint(amountStr) {
-  if (!amountStr || typeof amountStr !== 'string') return 0;
-  const cleaned = amountStr.replace(/[$,]/g, '').replace(/–|—/g, '-');
-  const parts = cleaned.split('-').map((s) => s.trim());
-  const parseSingle = (s) => {
-    if (!s) return 0;
-    const trimmed = s.trim().toUpperCase();
-    const num = parseFloat(trimmed);
-    if (isNaN(num)) return 0;
-    if (trimmed.includes('M')) return num * 1_000_000;
-    if (trimmed.includes('K')) return num * 1_000;
-    return num;
-  };
-  if (parts.length !== 2) return parseSingle(parts[0]);
-  return (parseSingle(parts[0]) + parseSingle(parts[1])) / 2;
-}
 
 // 1AM-133: magnitude-only dollar formatter for the by-politician aggregate
 // row's cumulative amount. Deliberately not a precise sum display — the

@@ -35,34 +35,7 @@ import { fullStateName } from '../lib/states';
 import { ACTIONS } from '../data/schema';
 import { useTradesByPolitician } from '../hooks/useTradesByPolitician';
 import { lookupSector } from '../lib/sectors';
-
-// Range-string → numeric midpoint estimate. Best effort; FMP amounts come
-// in formats like "$50K - $100K" or "$1M - $5M" or sometimes "$1,001 - $15,000".
-// Returns 0 when unparseable so cumulative math doesn't silently break.
-function parseAmountMidpoint(amountStr) {
-  if (!amountStr || typeof amountStr !== 'string') return 0;
-  // Strip $ and commas, normalise dash variants
-  const cleaned = amountStr.replace(/[$,]/g, '').replace(/–|—/g, '-');
-  const parts = cleaned.split('-').map((s) => s.trim());
-  if (parts.length !== 2) {
-    // Single-value formats like "$1M+" — best effort: parse the number
-    return parseAmountSingle(parts[0]);
-  }
-  const lo = parseAmountSingle(parts[0]);
-  const hi = parseAmountSingle(parts[1]);
-  return (lo + hi) / 2;
-}
-
-function parseAmountSingle(s) {
-  if (!s) return 0;
-  const trimmed = s.trim().toUpperCase();
-  // Handle "+" suffix → treat as the number
-  const num = parseFloat(trimmed);
-  if (isNaN(num)) return 0;
-  if (trimmed.includes('M')) return num * 1_000_000;
-  if (trimmed.includes('K')) return num * 1_000;
-  return num;
-}
+import { parseAmountMidpoint } from '../lib/amountParse';
 
 // Format a numeric estimate back to a friendly label
 function formatMidpointLabel(midpoint) {
