@@ -445,7 +445,8 @@
       "govtrack": 412541,
       "opensecrets": "N00031233",
       "fec": [
-        "H0KY06104"
+        "H0KY06104",
+        "S6KY00286"
       ],
       "votesmart": 117290
     }
@@ -628,7 +629,8 @@
       "govtrack": 456997,
       "opensecrets": "N00053042",
       "fec": [
-        "H4MO01134"
+        "H4MO01134",
+        "S4MO00250"
       ],
       "votesmart": 217416
     }
@@ -1494,7 +1496,8 @@
       "govtrack": 412622,
       "opensecrets": "N00035346",
       "fec": [
-        "H4GA01039"
+        "H4GA01039",
+        "S6GA00374"
       ],
       "votesmart": 32085
     }
@@ -1971,7 +1974,8 @@
       "govtrack": 456895,
       "opensecrets": "N00035370",
       "fec": [
-        "H4GA10071"
+        "H4GA10071",
+        "S6GA00390"
       ],
       "votesmart": 151225
     }
@@ -2218,7 +2222,8 @@
       "govtrack": 412789,
       "opensecrets": "N00037039",
       "fec": [
-        "H6MN02131"
+        "H6MN02131",
+        "S6MN00499"
       ],
       "votesmart": 166261
     }
@@ -2381,7 +2386,8 @@
       "govtrack": 456944,
       "opensecrets": "N00049840",
       "fec": [
-        "H2TX30178"
+        "H2TX30178",
+        "S6TX00552"
       ],
       "votesmart": 188486
     }
@@ -3759,7 +3765,8 @@
       "govtrack": 456938,
       "opensecrets": "N00049165",
       "fec": [
-        "H2SC07280"
+        "H2SC07280",
+        "S6SC04403"
       ],
       "votesmart": 157265
     }
@@ -3805,6 +3812,26 @@
         "H0GA14030"
       ],
       "votesmart": 189784
+    }
+  },
+  {
+    "bioguideId": "G000607",
+    "name": "James Gallagher",
+    "initials": "JG",
+    "firstName": "James",
+    "lastName": "Gallagher",
+    "officialFull": "James Gallagher",
+    "chamber": "House",
+    "party": "R",
+    "state": "CA",
+    "termStart": "2026-06-10",
+    "termEnd": "2027-01-03",
+    "district": 1,
+    "crosswalk": {
+      "govtrack": 457043,
+      "fec": [
+        "H6CA01285"
+      ]
     }
   },
   {
@@ -3985,7 +4012,8 @@
       "govtrack": 457010,
       "opensecrets": "N00050425",
       "fec": [
-        "H4NY04158"
+        "H4NY04158",
+        "H2NY04244"
       ],
       "votesmart": 208621
     }
@@ -4262,27 +4290,20 @@
     }
   },
   {
-    "bioguideId": "G000359",
-    "name": "Lindsey Graham",
-    "initials": "LG",
-    "firstName": "Lindsey",
-    "lastName": "Graham",
-    "officialFull": "Lindsey Graham",
+    "bioguideId": "G000608",
+    "name": "Darline Graham Nordone",
+    "initials": "DG",
+    "firstName": "Darline",
+    "lastName": "Graham Nordone",
+    "officialFull": "Darline Graham",
     "chamber": "Senate",
     "party": "R",
     "state": "SC",
-    "termStart": "2021-01-03",
+    "termStart": "2026-07-14",
     "termEnd": "2027-01-03",
-    "middleName": "O.",
     "senateClass": 2,
     "crosswalk": {
-      "govtrack": 300047,
-      "opensecrets": "N00009975",
-      "fec": [
-        "S0SC00149",
-        "H4SC03087"
-      ],
-      "votesmart": 21992
+      "govtrack": 457044
     }
   },
   {
@@ -4506,7 +4527,8 @@
       "govtrack": 456951,
       "opensecrets": "N00049197",
       "fec": [
-        "H2WY00166"
+        "H2WY00166",
+        "S6WY00209"
       ],
       "votesmart": 182961
     }
@@ -4802,7 +4824,8 @@
       "govtrack": 412748,
       "opensecrets": "N00040829",
       "fec": [
-        "H8OK01157"
+        "H8OK01157",
+        "S6OK04247"
       ],
       "votesmart": 180004
     }
@@ -5185,7 +5208,8 @@
       "govtrack": 456946,
       "opensecrets": "N00044362",
       "fec": [
-        "H0TX07170"
+        "H0TX07170",
+        "S6TX00511"
       ],
       "votesmart": 188147
     }
@@ -5299,7 +5323,8 @@
       "govtrack": 456905,
       "opensecrets": "N00033749",
       "fec": [
-        "H2MD04315"
+        "H2MD04315",
+        "H2MD04232"
       ],
       "votesmart": 166279
     }
@@ -5413,7 +5438,8 @@
       "govtrack": 456907,
       "opensecrets": "N00041550",
       "fec": [
-        "H2MI10150"
+        "H2MI10150",
+        "S8MI00372"
       ],
       "votesmart": 181062
     }
@@ -5841,7 +5867,8 @@
       "govtrack": 412595,
       "opensecrets": "N00035215",
       "fec": [
-        "H2IL02172"
+        "H2IL02172",
+        "S6IL00474"
       ],
       "votesmart": 33384
     }
@@ -6156,7 +6183,8 @@
       "govtrack": 412701,
       "opensecrets": "N00033240",
       "fec": [
-        "H6IL08147"
+        "H6IL08147",
+        "S6IL00482"
       ],
       "votesmart": 117519
     }
@@ -6540,7 +6568,8 @@
       "govtrack": 456859,
       "opensecrets": "N00047972",
       "fec": [
-        "H2LA05126"
+        "H2LA05126",
+        "S6LA00664"
       ],
       "votesmart": 195745
     }
@@ -7857,7 +7886,8 @@
       "govtrack": 456800,
       "opensecrets": "N00041295",
       "fec": [
-        "H8AL02171"
+        "H8AL02171",
+        "S6AL00476"
       ],
       "votesmart": 121792
     }
@@ -8105,7 +8135,8 @@
       "govtrack": 412632,
       "opensecrets": "N00035431",
       "fec": [
-        "H4MA06090"
+        "H4MA06090",
+        "S6MA00296"
       ],
       "votesmart": 146299
     }
@@ -8422,7 +8453,8 @@
       "govtrack": 412738,
       "opensecrets": "N00027783",
       "fec": [
-        "H8SC05158"
+        "H8SC05158",
+        "S6SC04445"
       ],
       "votesmart": 47930
     }
@@ -8764,7 +8796,8 @@
       "govtrack": 412795,
       "opensecrets": "N00042161",
       "fec": [
-        "H8NH01210"
+        "H8NH01210",
+        "S6NH00141"
       ],
       "votesmart": 42635
     }
@@ -10067,7 +10100,8 @@
       "govtrack": 456941,
       "opensecrets": "N00049337",
       "fec": [
-        "H2TX03290"
+        "H2TX03290",
+        "H2TX00064"
       ],
       "votesmart": 97491
     }
@@ -10634,7 +10668,8 @@
       "govtrack": 412786,
       "opensecrets": "N00040915",
       "fec": [
-        "H8MI11254"
+        "H8MI11254",
+        "S6MI00426"
       ],
       "votesmart": 181092
     }
